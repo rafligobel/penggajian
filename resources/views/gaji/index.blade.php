@@ -3,11 +3,14 @@
 @section('content')
     <div class="container">
         <h1>Data Gaji</h1>
-        <a href="{{ route('gaji.create') }}" class="btn btn-primary mb-3">Tambah Gaji</a>
-        <a href="{{ route('gaji.cetak.semua') }}" class="btn btn-primary" target="_blank">
-            Cetak Daftar Gaji PDF
-        </a>
-
+        <td>
+            <a href="{{ route('gaji.create') }}" class="btn btn-primary mb-2">Tambah Gaji</a>
+        </td>
+        <td>
+            <a href="{{ route('gaji.cetak.semua') }}" class="btn btn-primary mb-2" target="_blank">
+                Cetak Daftar Gaji PDF
+            </a>
+        </td>
         @if (session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif

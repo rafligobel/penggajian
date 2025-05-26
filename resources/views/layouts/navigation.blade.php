@@ -51,6 +51,10 @@
                             <a class="nav-link" href="{{ route('karyawan.index') }}">Daftar Karyawan</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="{{ route('laporan.absensi.index') }}">Rekap Absensi</a>
+                            {{-- Link ini --}}
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="#">Laporan</a> {{-- nanti arahkan ke laporan --}}
                         </li>
                     @endif
