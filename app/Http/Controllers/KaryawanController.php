@@ -10,7 +10,7 @@ class KaryawanController extends Controller
     public function index()
     {
         $karyawans = Karyawan::all();
-        return view('karyawan.index', compact('karyawans'));
+        return view('karyawan.index', compact('karyawans')); // This now sends a list
     }
 
     public function create()
@@ -35,7 +35,7 @@ class KaryawanController extends Controller
     public function show($id)
     {
         $karyawan = Karyawan::findOrFail($id);
-        return view('karyawan.show', compact('karyawan'));
+        return view('karyawan.show', compact('karyawan')); // Changed to 'karyawan.show'
     }
 
     public function edit($id)

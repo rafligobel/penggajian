@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Karyawan;
 use App\Models\Absensi;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB; // Pastikan ini ada
+use Illuminate\Support\Facades\DB;
 
 class AbsensiController extends Controller
 {
@@ -85,14 +85,17 @@ class AbsensiController extends Controller
             for ($hari = 1; $hari <= $jumlahHari; $hari++) {
                 $tanggalSebagaiKunci = str_pad($hari, 2, '0', STR_PAD_LEFT);
                 if (isset($absensiKaryawan[$tanggalSebagaiKunci])) {
-                    // Default ke 'H' jika status null atau kosong, atau gunakan status yang ada
                     $statusAbsen = $absensiKaryawan[$tanggalSebagaiKunci]->status;
-                    $dataHarian[$hari] = !empty($statusAbsen) ? $statusAbsen : 'H';
-                    if (strtoupper($dataHarian[$hari]) == 'HADIR' || strtoupper($dataHarian[$hari]) == 'H') {
+                    $jamAbsen = $absensiKaryawan[$tanggalSebagaiKunci]->jam ? Carbon::parse($absensiKaryawan[$tanggalSebagaiKunci]->jam)->format('H:i') : ''; // Format jam
+                    $dataHarian[$hari] = [
+                        'status' => !empty($statusAbsen) ? $statusAbsen : 'H',
+                        'jam' => $jamAbsen,
+                    ];
+                    if (strtoupper($dataHarian[$hari]['status']) == 'HADIR' || strtoupper($dataHarian[$hari]['status']) == 'H') {
                         $totalHadir++;
                     }
                 } else {
-                    $dataHarian[$hari] = '-'; // Tidak ada record absensi
+                    $dataHarian[$hari] = ['status' => '-', 'jam' => '']; // Tidak ada record absensi
                 }
             }
 
