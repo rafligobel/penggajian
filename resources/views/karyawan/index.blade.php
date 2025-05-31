@@ -3,7 +3,9 @@
 @section('content')
     <div class="container">
         <h1>Data Karyawan</h1>
-        <a href="{{ route('karyawan.create') }}" class="btn btn-primary mb-3">Tambah Karyawan</a>
+        @if (Auth::check() && Auth::user()->role === 'admin')
+            <a href="{{ route('karyawan.create') }}" class="btn btn-primary mb-3">Tambah Karyawan</a>
+        @endif
 
         @if (session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
