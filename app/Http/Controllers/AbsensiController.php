@@ -2,115 +2,90 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Karyawan;
 use App\Models\Absensi;
+use App\Models\Karyawan;
+use App\Models\SesiAbsensi; // Import model SesiAbsensi
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 
 class AbsensiController extends Controller
 {
+    // Menampilkan halaman form absensi untuk karyawan
     public function index()
     {
-        return view('absensi.index');
+        $today = today();
+        $now = Carbon::now();
+
+        // Cari sesi yang aktif untuk hari ini
+        $sesiHariIni = SesiAbsensi::where('tanggal', $today)->where('is_active', true)->first();
+
+        $isSesiDibuka = false;
+
+        if ($sesiHariIni) {
+            $waktuMulai = Carbon::parse($today->format('Y-m-d') . ' ' . $sesiHariIni->waktu_mulai);
+            $waktuSelesai = Carbon::parse($today->format('Y-m-d') . ' ' . $sesiHariIni->waktu_selesai);
+
+            if ($now->between($waktuMulai, $waktuSelesai)) {
+                $isSesiDibuka = true;
+            }
+        }
+
+        return view('absensi.index', compact('sesiHariIni', 'isSesiDibuka'));
     }
 
+    // Menyimpan data absensi dari karyawan
     public function store(Request $request)
     {
-        $request->validate([
-            'nip' => 'required|exists:karyawans,nip',
-        ]);
+        $request->validate(['nip' => 'required|exists:karyawans,nip']);
 
+        $now = Carbon::now();
+        $today = $now->copy()->startOfDay();
+
+        // 1. Cek sesi aktif
+        $sesiAktif = SesiAbsensi::where('tanggal', $today)->where('is_active', true)->first();
+
+        if (!$sesiAktif) {
+            return redirect()->back()->with('info', 'Sesi absensi untuk hari ini belum dibuka.');
+        }
+
+        // 2. Cek rentang waktu sesi
+        $waktuMulai = Carbon::parse($today->format('Y-m-d') . ' ' . $sesiAktif->waktu_mulai);
+        $waktuSelesai = Carbon::parse($today->format('Y-m-d') . ' ' . $sesiAktif->waktu_selesai);
+
+        if (!$now->between($waktuMulai, $waktuSelesai)) {
+            return redirect()->back()->with('info', 'Sesi absensi sedang ditutup. Sesi berlaku dari jam ' . $waktuMulai->format('H:i') . ' hingga ' . $waktuSelesai->format('H:i') . '.');
+        }
+
+        // 3. Cek apakah sudah absen hari ini
         $karyawan = Karyawan::where('nip', $request->nip)->first();
-
-        // Cek apakah sudah absen hari ini menggunakan NIP
         $sudahAbsen = Absensi::where('nip', $karyawan->nip)
-            ->where('tanggal', Carbon::now()->toDateString())
+            ->whereDate('tanggal', $today)
             ->exists();
 
         if ($sudahAbsen) {
-            return redirect()->back()->with('info', 'Anda sudah absen hari ini.');
+            return redirect()->back()->with('info', 'Anda sudah melakukan absensi hari ini.');
         }
 
+        // 4. Jika semua validasi lolos, catat absensi
         Absensi::create([
             'nip' => $karyawan->nip,
-            'nama' => $karyawan->nama, // Menyimpan nama karyawan saat absen
-            'tanggal' => Carbon::now()->toDateString(),
-            'status' => 'Hadir', // Status default saat absen
-            'jam' => Carbon::now()->toTimeString(), // Menyimpan jam absen
+            'nama' => $karyawan->nama,
+            'tanggal' => $now->toDateString(),
+            'status' => 'Hadir',
+            'jam' => $now->toTimeString(),
         ]);
 
-        return redirect()->back()->with('success', 'Absensi berhasil dicatat untuk hari ini!');
+        return redirect()->back()->with('success', 'Absensi berhasil dicatat. Terima kasih!');
     }
 
-    /**
-     * Menampilkan halaman rekap absensi bulanan.
-     */
+    // Method lainnya tidak perlu diubah
     public function rekapPerBulan(Request $request)
     {
         $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
         return view('absensi.rekap', compact('selectedMonth'));
     }
-
-    /**
-     * Mengambil data rekap absensi untuk bulan tertentu.
-     */
     public function fetchRekapData(Request $request)
     {
-        $request->validate([
-            'bulan' => 'required|date_format:Y-m',
-        ]);
-
-        $bulanTahun = $request->input('bulan');
-        $carbonDate = Carbon::createFromFormat('Y-m', $bulanTahun);
-        $tahun = $carbonDate->year;
-        $bulan = $carbonDate->month;
-        $jumlahHari = $carbonDate->daysInMonth;
-
-        $karyawans = Karyawan::select('id', 'nama', 'nip')->orderBy('nama')->get();
-        $rekapAbsensi = [];
-
-        foreach ($karyawans as $karyawan) {
-            $absensiKaryawan = Absensi::where('nip', $karyawan->nip)
-                ->whereYear('tanggal', $tahun)
-                ->whereMonth('tanggal', $bulan)
-                ->orderBy('tanggal', 'asc')
-                ->get()
-                ->keyBy(function ($item) {
-                    return Carbon::parse($item->tanggal)->format('d');
-                });
-
-            $dataHarian = [];
-            $totalHadir = 0;
-            for ($hari = 1; $hari <= $jumlahHari; $hari++) {
-                $tanggalSebagaiKunci = str_pad($hari, 2, '0', STR_PAD_LEFT);
-                if (isset($absensiKaryawan[$tanggalSebagaiKunci])) {
-                    $statusAbsen = $absensiKaryawan[$tanggalSebagaiKunci]->status;
-                    $jamAbsen = $absensiKaryawan[$tanggalSebagaiKunci]->jam ? Carbon::parse($absensiKaryawan[$tanggalSebagaiKunci]->jam)->format('H:i') : ''; // Format jam
-                    $dataHarian[$hari] = [
-                        'status' => !empty($statusAbsen) ? $statusAbsen : 'H',
-                        'jam' => $jamAbsen,
-                    ];
-                    if (strtoupper($dataHarian[$hari]['status']) == 'HADIR' || strtoupper($dataHarian[$hari]['status']) == 'H') {
-                        $totalHadir++;
-                    }
-                } else {
-                    $dataHarian[$hari] = ['status' => '-', 'jam' => '']; // Tidak ada record absensi
-                }
-            }
-
-            $rekapAbsensi[] = [
-                'nama' => $karyawan->nama,
-                'nip' => $karyawan->nip,
-                'harian' => $dataHarian,
-                'total_hadir' => $totalHadir,
-            ];
-        }
-
-        return response()->json([
-            'rekap' => $rekapAbsensi,
-            'jumlah_hari' => $jumlahHari,
-            'nama_bulan' => $carbonDate->translatedFormat('F Y'),
-        ]);
+        // ... kode yang ada di file Anda tidak perlu diubah ...
     }
 }

@@ -23,9 +23,7 @@
                 </tr>
             </thead>
             <tbody>
-                {{-- Loop through the $karyawans collection --}}
                 @forelse ($karyawans as $karyawan)
-                    {{-- Changed from $karyawan to $karyawans and loop added --}}
                     <tr>
                         <td>{{ $loop->iteration }}</td>
                         <td>{{ $karyawan->nama }}</td>
@@ -42,13 +40,13 @@
                             <a href="{{ route('karyawan.show', $karyawan->id) }}" class="btn btn-sm btn-info">Detail</a>
                             @if (Auth::check() && Auth::user()->role === 'admin')
                                 <a href="{{ route('karyawan.edit', $karyawan->id) }}" class="btn btn-sm btn-warning">Edit</a>
-                                <form action="{{ route('karyawan.destroy', $karyawan->id) }}" method="POST"
-                                    style="display:inline-block;">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-danger"
-                                        onclick="return confirm('Yakin ingin menghapus karyawan ini?')">Hapus</button>
-                                </form>
+
+                                {{-- UBAH BAGIAN INI: Gunakan tombol yang memicu modal --}}
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                                    data-bs-target="#deleteConfirmationModal"
+                                    data-url="{{ route('karyawan.destroy', $karyawan->id) }}">
+                                    Hapus
+                                </button>
                             @endif
                         </td>
                     </tr>
@@ -60,4 +58,8 @@
             </tbody>
         </table>
     </div>
+
+    {{-- Panggil komponen modal konfirmasi di sini --}}
+    <x-delete-confirmation-modal title="Konfirmasi Hapus Karyawan"
+        body="Apakah Anda yakin ingin menghapus data karyawan ini?" />
 @endsection

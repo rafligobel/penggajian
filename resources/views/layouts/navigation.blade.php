@@ -61,6 +61,11 @@
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
+                <li class="{{ Request::routeIs('sesi-absensi.*') ? 'active' : '' }}">
+                    <a href="{{ route('sesi-absensi.index') }}">
+                        <i class="fas fa-user-clock"></i> Kelola Sesi Absensi
+                    </a>
+                </li>
                 <li class="{{ Request::routeIs('gaji.*') ? 'active' : '' }}">
                     <a href="#gajiSubmenu" data-bs-toggle="collapse"
                         aria-expanded="{{ Request::routeIs('gaji.*') ? 'true' : 'false' }}" class="dropdown-toggle">

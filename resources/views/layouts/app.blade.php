@@ -138,10 +138,23 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Script untuk sidebar toggle
             var sidebarCollapse = document.getElementById('sidebarCollapse');
             if (sidebarCollapse) {
                 sidebarCollapse.addEventListener('click', function() {
                     document.getElementById('sidebar').classList.toggle('active');
+                });
+            }
+
+            // <<< SCRIPT MODAL KONFIRMASI HAPUS >>>
+            // Ditempatkan di sini agar bisa digunakan di semua halaman
+            const deleteModal = document.getElementById('deleteConfirmationModal');
+            if (deleteModal) {
+                deleteModal.addEventListener('show.bs.modal', function(event) {
+                    const button = event.relatedTarget;
+                    const deleteUrl = button.getAttribute('data-url');
+                    const deleteForm = document.getElementById('delete-form');
+                    deleteForm.setAttribute('action', deleteUrl);
                 });
             }
         });
