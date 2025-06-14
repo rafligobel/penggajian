@@ -86,6 +86,61 @@ class AbsensiController extends Controller
     }
     public function fetchRekapData(Request $request)
     {
-        // ... kode yang ada di file Anda tidak perlu diubah ...
+        // 1. Validasi dan persiapan data
+        $request->validate(['bulan' => 'required|date_format:Y-m']);
+
+        $selectedMonth = \Carbon\Carbon::createFromFormat('Y-m', $request->bulan);
+        $namaBulan = $selectedMonth->translatedFormat('F Y');
+        $daysInMonth = $selectedMonth->daysInMonth;
+
+        // 2. Ambil data yang relevan
+        $karyawans = Karyawan::where('status_aktif', true)->orderBy('nama')->get();
+        $absensiBulanIniGrouped = Absensi::whereYear('tanggal', $selectedMonth->year)
+            ->whereMonth('tanggal', $selectedMonth->month)
+            ->get()
+            ->groupBy('nip');
+
+        $rekapData = [];
+
+        // 3. Proses dan gabungkan data untuk setiap karyawan
+        foreach ($karyawans as $karyawan) {
+            $karyawanAbsensi = $absensiBulanIniGrouped->get($karyawan->nip, collect());
+
+            // A. Siapkan data ringkasan
+            $totalHadir = $karyawanAbsensi->count();
+            $totalAlpha = $daysInMonth - $totalHadir;
+
+            // B. Siapkan data detail harian
+            $harian = [];
+            for ($day = 1; $day <= $daysInMonth; $day++) {
+                $absenPadaHariIni = $karyawanAbsensi->firstWhere(function ($item) use ($day) {
+                    return \Carbon\Carbon::parse($item->tanggal)->day == $day;
+                });
+
+                $harian[$day] = [
+                    'status' => $absenPadaHariIni ? 'H' : 'A',
+                    'jam' => $absenPadaHariIni ? \Carbon\Carbon::parse($absenPadaHariIni->jam)->format('H:i') : '-',
+                ];
+            }
+
+            // C. Gabungkan keduanya dalam satu objek
+            $rekapData[] = [
+                'nip' => $karyawan->nip,
+                'nama' => $karyawan->nama,
+                'ringkasan' => [
+                    'hadir' => $totalHadir,
+                    'sakit' => 0,
+                    'izin' => 0,
+                    'alpha' => $totalAlpha,
+                ],
+                'detail' => $harian,
+            ];
+        }
+
+        // 4. Kembalikan data gabungan
+        return response()->json([
+            'rekap' => $rekapData,
+            'nama_bulan' => $namaBulan,
+        ]);
     }
 }

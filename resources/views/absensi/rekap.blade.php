@@ -1,304 +1,258 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="container py-4">
-        <h3 class="mb-4 text-center text-primary fw-bold">Rekap Absensi Bulanan</h3>
-
-        <div class="card shadow-lg mb-5 border-0 rounded-4">
-            <div class="card-body p-4">
-                <form method="GET" action="{{ route('laporan.absensi.index') }}"
-                    class="row g-3 align-items-end justify-content-center">
-                    <div class="col-12 col-md-4 col-lg-3">
-                        <label for="bulan" class="form-label text-muted fw-semibold">Pilih Bulan:</label>
-                        <input type="month" class="form-control form-control-lg rounded-pill shadow-sm" id="bulan"
-                            name="bulan" value="{{ $selectedMonth }}">
-                    </div>
-                    <div class="col-12 col-md-3 col-lg-2">
-                        <button type="submit"
-                            class="btn btn-primary btn-lg w-100 rounded-pill shadow-sm">Tampilkan</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <div id="rekap-absensi-container" class="mt-4">
-            <p id="loading-message" class="text-center text-info fs-5" style="display: none;"><i
-                    class="fas fa-spinner fa-spin me-2"></i>Memuat data...</p>
-            <div id="rekap-cards-container" class="row row-cols-1 g-4" style="display:none;">
-                <h4 id="judul-bulan" class="text-center py-3 bg-primary text-white mb-4 rounded-4 shadow-sm"></h4>
-            </div>
-            <p id="no-data-message" style="display:none;" class="text-center text-muted fs-5 mt-4">Tidak ada data absensi
-                untuk bulan yang dipilih.</p>
-        </div>
-
-    </div>
-
+    {{-- CSS untuk styling --}}
     <style>
-        .attendance-day {
+        .table-minimalis {
+            border-collapse: separate;
+            border-spacing: 0 5px;
+        }
+
+        .table-minimalis th {
+            border: none;
+            font-weight: 600;
+            color: #6c757d;
+            padding-top: 0;
+            padding-bottom: 10px;
+        }
+
+        .summary-row {
+            background-color: #fff;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
             border-radius: 8px;
-            padding: 8px 5px;
-            margin: 3px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .summary-row:hover {
+            background-color: #f8f9fa;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
+        }
+
+        .summary-row.expanded {
+            background-color: #e9f5ff;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .summary-row td {
+            vertical-align: middle;
+            border: none;
+        }
+
+        /* --- PERUBAHAN DI SINI --- */
+        /* Kelas baru untuk mengatur jarak pada sel nama karyawan */
+        .cell-nama-karyawan {
+            padding: 12px 20px !important;
+            /* Atur jarak vertikal dan horizontal */
+            text-align: left;
+        }
+
+        .detail-row {
+            display: none;
+        }
+
+        .detail-cell {
+            background-color: #fdfdff;
+            padding: 1.5rem !important;
+            border-left: 1px solid #dee2e6;
+            border-right: 1px solid #dee2e6;
+            border-bottom: 1px solid #dee2e6;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+
+        .detail-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .attendance-day {
+            border-radius: 6px;
+            padding: 5px;
+            width: 48px;
+            height: 48px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             text-align: center;
-            min-width: 50px;
-            flex-grow: 1;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .attendance-day:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(0, 0, 0, 0.08);
         }
 
         .attendance-day .day-number {
             font-weight: bold;
             font-size: 0.9rem;
-            margin-bottom: 2px;
         }
 
-        /* Status colors */
         .status-hadir {
-            background-color: #d4edda;
-            color: #155724;
+            background-color: #d1e7dd;
+            color: #0a3622;
         }
 
         .status-absen {
             background-color: #f8d7da;
-            color: #721c24;
-        }
-
-        .status-izin {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-
-        .status-sakit {
-            background-color: #cfe2ff;
-            color: #084298;
-        }
-
-        .status-libur {
-            background-color: #e2e3e5;
-            color: #495057;
-        }
-
-        .status-na {
-            background-color: #f0f0f0;
-            color: #6c757d;
-        }
-
-        .employee-card {
-            border: none;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            background-color: #ffffff;
-        }
-
-        .employee-card-header {
-            background-color: #e9f5ff;
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid #d0e7ff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .employee-card-header h5 {
-            margin-bottom: 0;
-            font-weight: 600;
-            color: #34495e;
-        }
-
-        .employee-card-body {
-            padding: 1rem;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: flex-start;
-            gap: 5px;
-        }
-
-        .employee-card-footer {
-            background-color: #f8f9fa;
-            padding: 0.75rem 1.5rem;
-            border-top: 1px solid #e9ecef;
-            text-align: right;
-            font-weight: 500;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 575.98px) {
-            .attendance-day {
-                min-width: 45px;
-                font-size: 0.7rem;
-                padding: 6px 3px;
-                margin: 2px;
-            }
-
-            .attendance-day .day-number {
-                font-size: 0.8rem;
-            }
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin-right: 15px;
-            margin-bottom: 5px;
-        }
-
-        .legend-color-box {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-            margin-right: 8px;
-            border: 1px solid rgba(0, 0, 0, 0.1);
+            color: #58151c;
         }
     </style>
 
+    <div class="container py-4">
+        <h3 class="mb-4 text-center text-primary fw-bold">Rekap Absensi Bulanan</h3>
+
+        {{-- Form Filter --}}
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-body">
+                <form id="filter-form" class="row g-3 align-items-end justify-content-center">
+                    <div class="col-md-4">
+                        <label for="bulan" class="form-label"></label>
+                        <input type="month" class="form-control" id="bulan" name="bulan"
+                            value="{{ $selectedMonth }}">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100">Tampilkan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <h5 id="judul-bulan" class="text-center mb-3" style="display:none;"></h5>
+
+        <div id="rekap-content" class="table-responsive">
+            <p id="loading-message" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Memuat data...
+            </p>
+            <p id="no-data-message" class="text-center text-muted mt-4" style="display:none;">Tidak ada data untuk bulan
+                yang dipilih.</p>
+
+            <table class="table table-borderless table-minimalis">
+                <thead>
+                    <tr class="text-center">
+                        <th style="width: 5%;">No.</th>
+                        <th class="text-left">Nama Karyawan</th>
+                        <th style="width: 15%;">NIP</th>
+                        <th style="width: 8%;">Hadir</th>
+                        {{-- <th style="width: 8%;">Sakit</th>
+                        <th style="width: 8%;">Izin</th> --}}
+                        <th style="width: 8%;">Alpha</th>
+                    </tr>
+                </thead>
+                <tbody id="rekap-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    {{-- <td class="text-center align-middle">${k.ringkasan.sakit}</td>
+    <td class="text-center align-middle">${k.ringkasan.izin}</td> --}}
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const selectedMonthInput = document.getElementById('bulan');
-            const currentSelectedMonth = selectedMonthInput.value;
-            const rekapCardsContainer = document.getElementById('rekap-cards-container');
+            // ... (elemen UI tetap sama) ...
+            const filterForm = document.getElementById('filter-form');
+            const bulanInput = document.getElementById('bulan');
+            const rekapTbody = document.getElementById('rekap-tbody');
+            const judulBulan = document.getElementById('judul-bulan');
             const loadingMessage = document.getElementById('loading-message');
             const noDataMessage = document.getElementById('no-data-message');
-            const judulBulan = document.getElementById('judul-bulan');
 
+            function renderTable(data) {
+                rekapTbody.innerHTML = '';
 
-            function fetchRekapData(bulan) {
+                if (!data.rekap || data.rekap.length === 0) {
+                    noDataMessage.style.display = 'block';
+                    return;
+                }
+
+                data.rekap.forEach((k, index) => {
+                    const summaryRow = document.createElement('tr');
+                    summaryRow.className = 'summary-row';
+                    summaryRow.dataset.target = `detail-row-${k.nip}`;
+
+                    /* --- PERUBAHAN DI SINI --- */
+                    // Menerapkan kelas "cell-nama-karyawan" untuk mengatur jarak
+                    summaryRow.innerHTML = `
+                    <td class="text-center align-middle">${index + 1}</td>
+                    <td class="cell-nama-karyawan">
+                        <b>${k.nama}</b>
+                        <small class="d-block text-muted">  </small>
+                    </td>
+                    <td class="text-center align-middle">${k.nip}</td>
+                    <td class="text-center align-middle">${k.ringkasan.hadir}</td>
+                    
+                    <td class="text-center align-middle">${k.ringkasan.alpha}</td>
+                `;
+
+                    const detailRow = document.createElement('tr');
+                    detailRow.id = `detail-row-${k.nip}`;
+                    detailRow.className = 'detail-row';
+
+                    let detailGridHtml = '<div class="detail-grid">';
+                    for (const day in k.detail) {
+                        const statusClass = k.detail[day].status === 'H' ? 'status-hadir' : 'status-absen';
+                        const jam = k.detail[day].jam;
+                        detailGridHtml += `
+                        <div class="attendance-day ${statusClass}" title="Jam: ${jam}">
+                            <span class="day-number">${day}</span>
+                            <span>${k.detail[day].status}</span>
+                        </div>
+                    `;
+                    }
+                    detailGridHtml += '</div>';
+
+                    detailRow.innerHTML = `<td colspan="7" class="detail-cell">${detailGridHtml}</td>`;
+
+                    rekapTbody.appendChild(summaryRow);
+                    rekapTbody.appendChild(detailRow);
+                });
+            }
+
+            function fetchData() {
+                // ... (Fungsi fetchData tetap sama, tidak perlu diubah) ...
+                const bulan = bulanInput.value;
+                if (!bulan) return;
+
                 loadingMessage.style.display = 'block';
-                rekapCardsContainer.style.display = 'none';
+                rekapTbody.innerHTML = '';
                 noDataMessage.style.display = 'none';
-                rekapCardsContainer.innerHTML = ''; // Clear previous cards
-                judulBulan.style.display = 'none'; // Hide title while loading
+                judulBulan.style.display = 'none';
 
                 fetch(`{{ route('laporan.absensi.data') }}?bulan=${bulan}`)
                     .then(response => response.json())
                     .then(data => {
                         loadingMessage.style.display = 'none';
-                        if (data.rekap && data.rekap.length > 0) {
-                            rekapCardsContainer.style.display = 'flex';
-                            judulBulan.textContent = `Rekap Absensi Bulan: ${data.nama_bulan}`;
-                            judulBulan.style.display = 'block'; // Show title after data loads
-                            rekapCardsContainer.prepend(judulBulan);
-
-                            data.rekap.forEach((employee) => {
-                                const employeeCardCol = document.createElement('div');
-                                employeeCardCol.classList.add(
-                                'col'); // Bootstrap grid column for each card
-
-                                let dailyDataHtml = '';
-                                for (const dayNum in employee.harian) {
-                                    const record = employee.harian[dayNum];
-                                    let statusText = record.status;
-                                    let statusClass = '';
-
-                                    switch (record.status.toUpperCase()) {
-                                        case 'HADIR':
-                                        case 'H':
-                                            statusClass = 'status-hadir';
-                                            statusText = 'Hadir';
-                                            break;
-                                        case 'ABSEN':
-                                        case 'A':
-                                            statusClass = 'status-absen';
-                                            statusText = 'Absen';
-                                            break;
-                                        case 'IZIN':
-                                        case 'I':
-                                            statusClass = 'status-izin';
-                                            statusText = 'Izin';
-                                            break;
-                                        case 'SAKIT':
-                                        case 'S':
-                                            statusClass = 'status-sakit';
-                                            statusText = 'Sakit';
-                                            break;
-                                        case 'LIBUR':
-                                        case 'L':
-                                            statusClass = 'status-libur';
-                                            statusText = 'Libur';
-                                            break;
-                                        default:
-                                            statusClass = 'status-na';
-                                            statusText = 'Tidak Ada Data';
-                                            break;
-                                    }
-
-                                    // Corrected template literal for attendance-day
-                                    dailyDataHtml += `
-                                        <div class="attendance-day ${statusClass}"
-                                             title="${statusText}${record.jam ? ' (' + record.jam + ')' : ''}">
-                                            <span class="day-number">${parseInt(dayNum)}</span>
-                                            <span class="status-label">${record.status}</span>
-                                            <span class="time-label text-muted small">${record.jam}</span>
-                                        </div>
-                                    `;
-                                }
-
-                                employeeCardCol.innerHTML = `
-                                    <div class="card employee-card h-100">
-                                        <div class="employee-card-header">
-                                            <div>
-                                                <h5 class="mb-1">${employee.nama}</h5>
-                                                <p class="text-muted mb-0 small">${employee.nip}</p>
-                                            </div>
-                                            <span class="badge bg-primary text-white p-2">Hadir: ${employee.total_hadir} Hari</span>
-                                        </div>
-                                        <div class="employee-card-body">
-                                            ${dailyDataHtml}
-                                        </div>
-                                    </div>
-                                `;
-                                rekapCardsContainer.appendChild(employeeCardCol);
-                            });
-
-                            // Add a legend/key at the bottom
-                            const legendHtml = `
-                                <div class="col-12 mt-4">
-                                    <div class="card shadow-sm rounded-4 p-3">
-                                        <h5 class="text-primary mb-3">Keterangan Status Absensi:</h5>
-                                        <div class="d-flex flex-wrap">
-                                            <div class="legend-item"><div class="legend-color-box status-hadir"></div> Hadir</div>
-                                            <div class="legend-item"><div class="legend-color-box status-absen"></div> Absen</div>
-                                            <div class="legend-item"><div class="legend-color-box status-izin"></div> Izin</div>
-                                            <div class="legend-item"><div class="legend-color-box status-sakit"></div> Sakit</div>
-                                            <div class="legend-item"><div class="legend-color-box status-libur"></div> Libur</div>
-                                            <div class="legend-item"><div class="legend-color-box status-na"></div> Tidak Ada Data</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                            rekapCardsContainer.insertAdjacentHTML('beforeend', legendHtml);
-
-
-                        } else {
-                            noDataMessage.style.display = 'block';
-                            judulBulan.style.display = 'none'; // Ensure title is hidden if no data
-                        }
+                        judulBulan.textContent = `Rekapitulasi Bulan: ${data.nama_bulan}`;
+                        judulBulan.style.display = 'block';
+                        renderTable(data);
                     })
                     .catch(error => {
+                        console.error('Error fetching data:', error);
                         loadingMessage.style.display = 'none';
-                        noDataMessage.textContent = 'Gagal memuat data. Silakan coba lagi.';
+                        noDataMessage.textContent = 'Terjadi kesalahan saat memuat data.';
                         noDataMessage.style.display = 'block';
-                        judulBulan.style.display = 'none'; // Ensure title is hidden on error
-                        console.error('Error fetching rekap data:', error);
                     });
             }
 
-            if (currentSelectedMonth) {
-                fetchRekapData(currentSelectedMonth);
-            }
+            rekapTbody.addEventListener('click', function(e) {
+                // ... (Event listener untuk klik tetap sama, tidak perlu diubah) ...
+                const summaryRow = e.target.closest('.summary-row');
+                if (!summaryRow) return;
 
-            selectedMonthInput.addEventListener('change', (event) => {
-                fetchRekapData(event.target.value);
+                const targetId = summaryRow.dataset.target;
+                const detailRow = document.getElementById(targetId);
+
+                if (detailRow) {
+                    const isExpanded = detailRow.style.display === 'table-row';
+                    detailRow.style.display = isExpanded ? 'none' : 'table-row';
+                    summaryRow.classList.toggle('expanded', !isExpanded);
+                }
             });
+
+            filterForm.addEventListener('submit', e => {
+                e.preventDefault();
+                fetchData();
+            });
+
+            fetchData();
         });
     </script>
 @endsection
