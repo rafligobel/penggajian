@@ -98,17 +98,22 @@
 
 <body>
     <div class="wrapper">
-        @include('layouts.navigation')
+
 
         <div id="content">
             <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
                 <div class="container-fluid">
-                    {{-- Tombol untuk toggle sidebar --}}
-                    <button type="button" data-toggle="sidebar" class="btn btn-primary">
-                        <i class="fa-solid fa-bars"></i>
-                    </button>
-                    <div class="d-flex w-100 justify-content-end">
-                        @auth
+                    @guest
+                        <a href="{{ url('/') }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left"></i> Kembali
+                        </a>
+                    @endguest
+                    @auth
+                        <button type="button" data-toggle="sidebar" class="btn btn-primary">
+                            <i class="fa-solid fa-bars"></i>
+                        </button>
+                        <div class="d-flex w-100 justify-content-end">
+
                             <ul class="navbar-nav">
                                 <li class="nav-item dropdown">
                                     <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
@@ -129,8 +134,8 @@
                                     </ul>
                                 </li>
                             </ul>
-                        @endauth
-                    </div>
+                        </div>
+                    @endauth
                 </div>
             </nav>
 
@@ -163,7 +168,7 @@
                     // 3. Simpan status baru ke localStorage
                     if (sidebar.classList.contains('active')) {
                         localStorage.setItem('sidebarState',
-                        'closed'); // Jika sidebar punya kelas active, berarti tertutup
+                            'closed'); // Jika sidebar punya kelas active, berarti tertutup
                     } else {
                         localStorage.setItem('sidebarState', 'open'); // Jika tidak, berarti terbuka
                     }
@@ -182,7 +187,7 @@
             }
         });
     </script>
-     @stack('scripts')
+    @stack('scripts')
 </body>
 
 </html>

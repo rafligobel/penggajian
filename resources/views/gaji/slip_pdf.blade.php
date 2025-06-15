@@ -53,12 +53,16 @@
 <body>
 
     <div class="kop">
-        <img src="{{ public_path('logo/kiri.png') }}" alt="Logo Kiri">
+        {{-- Menggunakan logo PNG Anda --}}
+        <img src="{{ public_path('logo/logoalazhar.png') }}" alt="Logo Utama" style="height: 60px;">
+
         <div class="judul">
             <h3>YAYASAN ISLAM AL-AZHAR 43 GORONTALO</h3>
             <p>SLIP GAJI PEGAWAI</p>
         </div>
-        <img src="{{ public_path('logo/kanan.png') }}" alt="Logo Kanan">
+
+        {{-- Logo di sisi kanan, bisa sama atau berbeda --}}
+        <img src="{{ public_path('logo/logoyayasan.png') }}" alt="Logo Utama" style="height: 60px;">
     </div>
 
     <p><strong>Nama:</strong> {{ $gaji->karyawan->nama }}</p>

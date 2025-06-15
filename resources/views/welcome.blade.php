@@ -52,6 +52,9 @@
 
     <div class="container text-center">
         <!-- Header -->
+        <div class="mb-1">
+            <img src="{{ asset('logo/logoalazhar.png') }}" alt="Logo Perusahaan" style="max-height: 100px;">
+        </div>
         <div class="mb-4">
             <h1 class="brand-title">Sistem Informasi Penggajian</h1>
             <p class="brand-subtitle">Al-Azhar 43 Gorontalo</p>

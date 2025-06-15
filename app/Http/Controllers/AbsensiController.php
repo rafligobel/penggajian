@@ -4,34 +4,29 @@ namespace App\Http\Controllers;
 
 use App\Models\Absensi;
 use App\Models\Karyawan;
-use App\Models\SesiAbsensi; // Import model SesiAbsensi
+use App\Models\SesiAbsensi;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class AbsensiController extends Controller
 {
-    // Menampilkan halaman form absensi untuk karyawan
+    // ... method index() tidak berubah ...
     public function index()
     {
         $today = today();
         $now = Carbon::now();
-
-        // Cari sesi yang aktif untuk hari ini
         $sesiHariIni = SesiAbsensi::where('tanggal', $today)->where('is_active', true)->first();
-
         $isSesiDibuka = false;
-
         if ($sesiHariIni) {
             $waktuMulai = Carbon::parse($today->format('Y-m-d') . ' ' . $sesiHariIni->waktu_mulai);
             $waktuSelesai = Carbon::parse($today->format('Y-m-d') . ' ' . $sesiHariIni->waktu_selesai);
-
             if ($now->between($waktuMulai, $waktuSelesai)) {
                 $isSesiDibuka = true;
             }
         }
-
         return view('absensi.index', compact('sesiHariIni', 'isSesiDibuka'));
     }
+
 
     // Menyimpan data absensi dari karyawan
     public function store(Request $request)
@@ -43,7 +38,6 @@ class AbsensiController extends Controller
 
         // 1. Cek sesi aktif
         $sesiAktif = SesiAbsensi::where('tanggal', $today)->where('is_active', true)->first();
-
         if (!$sesiAktif) {
             return redirect()->back()->with('info', 'Sesi absensi untuk hari ini belum dibuka.');
         }
@@ -51,7 +45,6 @@ class AbsensiController extends Controller
         // 2. Cek rentang waktu sesi
         $waktuMulai = Carbon::parse($today->format('Y-m-d') . ' ' . $sesiAktif->waktu_mulai);
         $waktuSelesai = Carbon::parse($today->format('Y-m-d') . ' ' . $sesiAktif->waktu_selesai);
-
         if (!$now->between($waktuMulai, $waktuSelesai)) {
             return redirect()->back()->with('info', 'Sesi absensi sedang ditutup. Sesi berlaku dari jam ' . $waktuMulai->format('H:i') . ' hingga ' . $waktuSelesai->format('H:i') . '.');
         }
@@ -61,7 +54,6 @@ class AbsensiController extends Controller
         $sudahAbsen = Absensi::where('nip', $karyawan->nip)
             ->whereDate('tanggal', $today)
             ->exists();
-
         if ($sudahAbsen) {
             return redirect()->back()->with('info', 'Anda sudah melakukan absensi hari ini.');
         }
@@ -71,14 +63,14 @@ class AbsensiController extends Controller
             'nip' => $karyawan->nip,
             'nama' => $karyawan->nama,
             'tanggal' => $now->toDateString(),
-            'status' => 'Hadir',
+            // 'status' => 'Hadir', // <-- INI DIHAPUS
             'jam' => $now->toTimeString(),
         ]);
 
         return redirect()->back()->with('success', 'Absensi berhasil dicatat. Terima kasih!');
     }
 
-    // Method lainnya tidak perlu diubah
+    // ... method rekapPerBulan() dan fetchRekapData() tidak berubah ...
     public function rekapPerBulan(Request $request)
     {
         $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
@@ -86,44 +78,30 @@ class AbsensiController extends Controller
     }
     public function fetchRekapData(Request $request)
     {
-        // 1. Validasi dan persiapan data
         $request->validate(['bulan' => 'required|date_format:Y-m']);
-
         $selectedMonth = \Carbon\Carbon::createFromFormat('Y-m', $request->bulan);
         $namaBulan = $selectedMonth->translatedFormat('F Y');
         $daysInMonth = $selectedMonth->daysInMonth;
-
-        // 2. Ambil data yang relevan
         $karyawans = Karyawan::where('status_aktif', true)->orderBy('nama')->get();
         $absensiBulanIniGrouped = Absensi::whereYear('tanggal', $selectedMonth->year)
             ->whereMonth('tanggal', $selectedMonth->month)
             ->get()
             ->groupBy('nip');
-
         $rekapData = [];
-
-        // 3. Proses dan gabungkan data untuk setiap karyawan
         foreach ($karyawans as $karyawan) {
             $karyawanAbsensi = $absensiBulanIniGrouped->get($karyawan->nip, collect());
-
-            // A. Siapkan data ringkasan
             $totalHadir = $karyawanAbsensi->count();
             $totalAlpha = $daysInMonth - $totalHadir;
-
-            // B. Siapkan data detail harian
             $harian = [];
             for ($day = 1; $day <= $daysInMonth; $day++) {
                 $absenPadaHariIni = $karyawanAbsensi->firstWhere(function ($item) use ($day) {
                     return \Carbon\Carbon::parse($item->tanggal)->day == $day;
                 });
-
                 $harian[$day] = [
                     'status' => $absenPadaHariIni ? 'H' : 'A',
                     'jam' => $absenPadaHariIni ? \Carbon\Carbon::parse($absenPadaHariIni->jam)->format('H:i') : '-',
                 ];
             }
-
-            // C. Gabungkan keduanya dalam satu objek
             $rekapData[] = [
                 'nip' => $karyawan->nip,
                 'nama' => $karyawan->nama,
@@ -136,8 +114,6 @@ class AbsensiController extends Controller
                 'detail' => $harian,
             ];
         }
-
-        // 4. Kembalikan data gabungan
         return response()->json([
             'rekap' => $rekapData,
             'nama_bulan' => $namaBulan,

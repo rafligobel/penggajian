@@ -1,7 +1,10 @@
 <nav id="sidebar">
-    <div class="sidebar-header">
-        <h3>Penggajian</h3>
-        <small class="text-white-50">Al-Azhar 43</small>
+    <div class="sidebar-header d-flex align-items-center p-3">
+        <img src="{{ asset('logo/logoalazhar.png') }}" alt="Logo" style="height: 40px; margin-right: 15px;">
+        <div>
+            <h3 class="fs-5 mb-0">Penggajian</h3>
+            <small class="text-white-50">Al-Azhar 43</small>
+        </div>
     </div>
 
     <ul class="list-unstyled components">
@@ -93,10 +96,23 @@
                     </a>
                 </li>
 
-                <li>
-                    <a href="#">
+                <li class="{{ Request::routeIs('laporan.*') ? '' : '' }}">
+                    <a href="#laporanSubmenu" data-bs-toggle="collapse"
+                        aria-expanded="{{ Request::routeIs('laporan.*') ? 'true' : 'false' }}" class="dropdown-toggle">
                         <i class="fas fa-chart-line"></i> Laporan
                     </a>
+                    <ul class="collapse list-unstyled {{ Request::routeIs('laporan.*') ? 'show' : '' }}"
+                        id="laporanSubmenu">
+                        <li class="{{ Request::routeIs('laporan.gaji.bulanan') ? '' : '' }}">
+                            <a href="{{ route('laporan.gaji.bulanan') }}">Laporan Gaji Bulanan</a>
+                        </li>
+                        <li class="{{ Request::routeIs('laporan.per.karyawan') ? '' : '' }}">
+                            <a href="{{ route('laporan.per.karyawan') }}">Laporan per Karyawan</a>
+                        </li>
+                        <li class="{{ Request::routeIs('laporan.absensi.index') ? '' : '' }}">
+                            <a href="{{ route('laporan.absensi.index') }}">Laporan Absensi</a>
+                        </li>
+                    </ul>
                 </li>
             @endif
 

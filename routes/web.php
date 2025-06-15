@@ -43,6 +43,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/laporan/absensi', [AbsensiController::class, 'rekapPerBulan'])->name('laporan.absensi.index');
         Route::get('/laporan/absensi/data', [AbsensiController::class, 'fetchRekapData'])->name('laporan.absensi.data');
 
+        Route::get('/laporan', [App\Http\Controllers\LaporanController::class, 'index'])->name('laporan.index');
+        Route::get('/laporan/gaji-bulanan', [App\Http\Controllers\LaporanController::class, 'gajiBulanan'])->name('laporan.gaji.bulanan');
+        Route::get('/laporan/gaji-bulanan/cetak', [App\Http\Controllers\LaporanController::class, 'cetakGajiBulanan'])->name('laporan.gaji.cetak');
+        Route::get('/laporan/per-karyawan', [App\Http\Controllers\LaporanController::class, 'perKaryawan'])->name('laporan.per.karyawan');
+
         // ---- TAMBAHKAN RUTE INI ----
         Route::resource('sesi-absensi', App\Http\Controllers\SesiAbsensiController::class)->except(['show']);
     });
