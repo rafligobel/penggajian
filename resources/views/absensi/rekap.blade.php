@@ -106,23 +106,44 @@
             <div class="card-body">
                 <form id="filter-form" class="row g-3 align-items-end justify-content-center">
                     <div class="col-md-4">
-                        <label for="bulan" class="form-label"></label>
+                        <label for="bulan" class="form-label fw-bold">Pilih Bulan</label>
                         <input type="month" class="form-control" id="bulan" name="bulan"
                             value="{{ $selectedMonth }}">
                     </div>
-                    <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary w-100">Tampilkan</button>
+                    <div class="col-md-5">
+                        <label for="search-input" class="form-label fw-bold">Cari Karyawan (Nama / NIP)</label>
+                        <input type="text" class="form-control" id="search-input" placeholder="Ketik untuk mencari...">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">Ganti Bulan</button>
                     </div>
                 </form>
+                {{-- KETERANGAN WARNA BARU --}}
+                <div class="d-flex justify-content-center align-items-center mt-3 pt-2 border-top small text-muted">
+                    <div class="d-flex align-items-center me-4">
+                        <div class="me-2"
+                            style="width: 15px; height: 15px; background-color: #d1e7dd; border-radius: 3px; border: 1px solid #bce0ce;">
+                        </div>
+                        <span>Hadir</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="me-2"
+                            style="width: 15px; height: 15px; background-color: #f8d7da; border-radius: 3px; border: 1px solid #f1c2c5;">
+                        </div>
+                        <span>Alpha</span>
+                    </div>
+                </div>
             </div>
         </div>
 
         <h5 id="judul-bulan" class="text-center mb-3" style="display:none;"></h5>
 
         <div id="rekap-content" class="table-responsive">
-            <p id="loading-message" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Memuat data...
+            <p id="loading-message" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Memuat
+                data...
             </p>
-            <p id="no-data-message" class="text-center text-muted mt-4" style="display:none;">Tidak ada data untuk bulan
+            <p id="no-data-message" class="text-center text-muted mt-4" style="display:none;">Tidak ada data untuk
+                bulan
                 yang dipilih.</p>
 
             <table class="table table-borderless table-minimalis">
@@ -147,40 +168,47 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // ... (elemen UI tetap sama) ...
             const filterForm = document.getElementById('filter-form');
             const bulanInput = document.getElementById('bulan');
+            const searchInput = document.getElementById('search-input'); // New search input
             const rekapTbody = document.getElementById('rekap-tbody');
             const judulBulan = document.getElementById('judul-bulan');
             const loadingMessage = document.getElementById('loading-message');
             const noDataMessage = document.getElementById('no-data-message');
 
-            function renderTable(data) {
+            let allRekapData = []; // To store the master list of data for the selected month
+
+            // Renders the table with the provided data
+            function renderTable(dataToRender) {
                 rekapTbody.innerHTML = '';
 
-                if (!data.rekap || data.rekap.length === 0) {
+                if (!dataToRender || dataToRender.length === 0) {
                     noDataMessage.style.display = 'block';
+                    // Jika tidak ada hasil pencarian, tampilkan pesan yang sesuai
+                    if (searchInput.value) {
+                        noDataMessage.textContent = 'Karyawan tidak ditemukan.';
+                    } else {
+                        noDataMessage.textContent = 'Tidak ada data untuk bulan yang dipilih.';
+                    }
                     return;
                 }
+                noDataMessage.style.display = 'none';
 
-                data.rekap.forEach((k, index) => {
+                dataToRender.forEach((k, index) => {
                     const summaryRow = document.createElement('tr');
                     summaryRow.className = 'summary-row';
                     summaryRow.dataset.target = `detail-row-${k.nip}`;
 
-                    /* --- PERUBAHAN DI SINI --- */
-                    // Menerapkan kelas "cell-nama-karyawan" untuk mengatur jarak
                     summaryRow.innerHTML = `
-                    <td class="text-center align-middle">${index + 1}</td>
-                    <td class="cell-nama-karyawan">
-                        <b>${k.nama}</b>
-                        <small class="d-block text-muted">  </small>
-                    </td>
-                    <td class="text-center align-middle">${k.nip}</td>
-                    <td class="text-center align-middle">${k.ringkasan.hadir}</td>
-                    
-                    <td class="text-center align-middle">${k.ringkasan.alpha}</td>
-                `;
+                <td class="text-center align-middle">${index + 1}</td>
+                <td class="cell-nama-karyawan">
+                    <b>${k.nama}</b>
+                    <small class="d-block text-muted">  </small>
+                </td>
+                <td class="text-center align-middle">${k.nip}</td>
+                <td class="text-center align-middle">${k.ringkasan.hadir}</td>
+                <td class="text-center align-middle">${k.ringkasan.alpha}</td>
+            `;
 
                     const detailRow = document.createElement('tr');
                     detailRow.id = `detail-row-${k.nip}`;
@@ -188,14 +216,15 @@
 
                     let detailGridHtml = '<div class="detail-grid">';
                     for (const day in k.detail) {
-                        const statusClass = k.detail[day].status === 'H' ? 'status-hadir' : 'status-absen';
+                        const statusClass = k.detail[day].status === 'H' ? 'status-hadir' :
+                            'status-absen';
                         const jam = k.detail[day].jam;
                         detailGridHtml += `
-                        <div class="attendance-day ${statusClass}" title="Jam: ${jam}">
-                            <span class="day-number">${day}</span>
-                            <span>${k.detail[day].status}</span>
-                        </div>
-                    `;
+                    <div class="attendance-day ${statusClass}" title="Jam: ${jam}">
+                        <span class="day-number">${day}</span>
+                        <span>${k.detail[day].status}</span>
+                    </div>
+                `;
                     }
                     detailGridHtml += '</div>';
 
@@ -206,8 +235,18 @@
                 });
             }
 
+            // Filters and then renders the table
+            function filterAndRender() {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                const filteredData = allRekapData.filter(k => {
+                    return k.nama.toLowerCase().includes(searchTerm) || k.nip.toLowerCase().includes(
+                        searchTerm);
+                });
+                renderTable(filteredData);
+            }
+
+            // Fetches data from the server
             function fetchData() {
-                // ... (Fungsi fetchData tetap sama, tidak perlu diubah) ...
                 const bulan = bulanInput.value;
                 if (!bulan) return;
 
@@ -215,6 +254,7 @@
                 rekapTbody.innerHTML = '';
                 noDataMessage.style.display = 'none';
                 judulBulan.style.display = 'none';
+                searchInput.value = ''; // Clear search on new month fetch
 
                 fetch(`{{ route('laporan.absensi.data') }}?bulan=${bulan}`)
                     .then(response => response.json())
@@ -222,7 +262,8 @@
                         loadingMessage.style.display = 'none';
                         judulBulan.textContent = `Rekapitulasi Bulan: ${data.nama_bulan}`;
                         judulBulan.style.display = 'block';
-                        renderTable(data);
+                        allRekapData = data.rekap || []; // Store the master list
+                        renderTable(allRekapData); // Initial render with all data
                     })
                     .catch(error => {
                         console.error('Error fetching data:', error);
@@ -233,7 +274,6 @@
             }
 
             rekapTbody.addEventListener('click', function(e) {
-                // ... (Event listener untuk klik tetap sama, tidak perlu diubah) ...
                 const summaryRow = e.target.closest('.summary-row');
                 if (!summaryRow) return;
 
@@ -247,11 +287,16 @@
                 }
             });
 
+            // Event listener for month change
             filterForm.addEventListener('submit', e => {
                 e.preventDefault();
                 fetchData();
             });
 
+            // Event listener for real-time search
+            searchInput.addEventListener('input', filterAndRender);
+
+            // Initial data fetch on page load
             fetchData();
         });
     </script>

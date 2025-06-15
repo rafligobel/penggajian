@@ -35,8 +35,10 @@ Route::middleware('auth')->group(function () {
     // Bendahara specific routes
     Route::middleware(['role:bendahara'])->group(function () {
         Route::resource('gaji', GajiController::class);
+        Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
+        Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save'); // RUTE BARU
         Route::get('/gaji/{id}/cetak', [GajiController::class, 'cetakPDF'])->name('gaji.cetak');
-        Route::get('/gaji/cetak-semua', [GajiController::class, 'cetakSemua'])->name('gaji.cetak.semua');
+
         Route::get('/aturan-gaji', [GajiController::class, 'aturan'])->name('aturan.index');
         Route::get('/laporan/absensi', [AbsensiController::class, 'rekapPerBulan'])->name('laporan.absensi.index');
         Route::get('/laporan/absensi/data', [AbsensiController::class, 'fetchRekapData'])->name('laporan.absensi.data');

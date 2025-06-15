@@ -25,6 +25,7 @@
             transition: all 0.3s;
         }
 
+        /* Kelas .active akan menyembunyikan sidebar dengan mendorongnya ke kiri */
         #sidebar.active {
             margin-left: -250px;
         }
@@ -77,11 +78,13 @@
             background: #424950;
         }
 
+        /* Styling untuk mode mobile */
         @media (max-width: 768px) {
             #sidebar {
                 margin-left: -250px;
             }
 
+            /* Di mobile, kelas .active justru memunculkan sidebar */
             #sidebar.active {
                 margin-left: 0;
             }
@@ -100,9 +103,9 @@
         <div id="content">
             <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
                 <div class="container-fluid">
-                    <button type="button" id="sidebarCollapse" class="btn btn-primary">
+                    {{-- Tombol untuk toggle sidebar --}}
+                    <button type="button" data-toggle="sidebar" class="btn btn-primary">
                         <i class="fa-solid fa-bars"></i>
-
                     </button>
                     <div class="d-flex w-100 justify-content-end">
                         @auth
@@ -138,16 +141,36 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Script untuk sidebar toggle
-            var sidebarCollapse = document.getElementById('sidebarCollapse');
-            if (sidebarCollapse) {
-                sidebarCollapse.addEventListener('click', function() {
-                    document.getElementById('sidebar').classList.toggle('active');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggler = document.querySelector('[data-toggle="sidebar"]');
+
+            // --- LOGIKA BARU UNTUK MENYIMPAN STATUS SIDEBAR ---
+
+            // 1. Saat halaman dimuat, periksa status dari localStorage
+            // Kelas 'active' berarti sidebar tertutup/tersembunyi.
+            if (localStorage.getItem('sidebarState') === 'closed') {
+                sidebar.classList.add('active');
+            } else {
+                sidebar.classList.remove('active');
+            }
+
+            // 2. Tambahkan event listener pada tombol toggle
+            if (sidebarToggler) {
+                sidebarToggler.addEventListener('click', function() {
+                    // Toggle sidebar seperti biasa
+                    sidebar.classList.toggle('active');
+
+                    // 3. Simpan status baru ke localStorage
+                    if (sidebar.classList.contains('active')) {
+                        localStorage.setItem('sidebarState',
+                        'closed'); // Jika sidebar punya kelas active, berarti tertutup
+                    } else {
+                        localStorage.setItem('sidebarState', 'open'); // Jika tidak, berarti terbuka
+                    }
                 });
             }
 
-            // <<< SCRIPT MODAL KONFIRMASI HAPUS >>>
-            // Ditempatkan di sini agar bisa digunakan di semua halaman
+            // --- SCRIPT MODAL KONFIRMASI HAPUS (TIDAK BERUBAH) ---
             const deleteModal = document.getElementById('deleteConfirmationModal');
             if (deleteModal) {
                 deleteModal.addEventListener('show.bs.modal', function(event) {
@@ -159,6 +182,7 @@
             }
         });
     </script>
+     @stack('scripts')
 </body>
 
 </html>

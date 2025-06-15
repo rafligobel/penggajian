@@ -27,69 +27,72 @@
         {{-- Role: Admin --}}
         @auth
             @if (auth()->user()->role === 'admin')
-                <li class="{{ Request::routeIs('dashboard') ? 'active' : '' }}">
+                <li class="{{ Request::routeIs('dashboard') ? '' : '' }}">
                     <a href="{{ route('dashboard') }}">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
-                <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">
+                <li class="{{ Request::routeIs('karyawan.*') ? '' : '' }}">
                     <a href="#karyawanSubmenu" data-bs-toggle="collapse"
                         aria-expanded="{{ Request::routeIs('karyawan.*') ? 'true' : 'false' }}" class="dropdown-toggle">
                         <i class="fas fa-users"></i> Kelola Karyawan
                     </a>
                     <ul class="collapse list-unstyled {{ Request::routeIs('karyawan.*') ? 'show' : '' }}"
                         id="karyawanSubmenu">
-                        <li class="{{ Request::routeIs('karyawan.index') ? 'active' : '' }}">
+                        <li class="{{ Request::routeIs('karyawan.index') ? '' : '' }}">
                             <a href="{{ route('karyawan.index') }}">Daftar Karyawan</a>
                         </li>
-                        <li class="{{ Request::routeIs('karyawan.create') ? 'active' : '' }}">
+                        <li class="{{ Request::routeIs('karyawan.create') ? '' : '' }}">
                             <a href="{{ route('karyawan.create') }}">Tambah Karyawan</a>
                         </li>
                     </ul>
                 </li>
-                <li class="{{ Request::routeIs('aturan.index') ? 'active' : '' }}">
+                <li class="{{ Request::routeIs('aturan.index') ? '' : '' }}">
                     <a href="{{ route('aturan.index') }}">
                         <i class="fas fa-file-invoice-dollar"></i> Aturan Gaji
                     </a>
                 </li>
             @endif
 
-            {{-- Role: Bendahara --}}
+            {{-- PERUBAHAN DI SINI: Role Bendahara --}}
             @if (auth()->user()->role === 'bendahara')
-                <li class="{{ Request::routeIs('dashboard') ? 'active' : '' }}">
+                <li class="{{ Request::routeIs('dashboard') ? '' : '' }}">
                     <a href="{{ route('dashboard') }}">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
-                <li class="{{ Request::routeIs('sesi-absensi.*') ? 'active' : '' }}">
-                    <a href="{{ route('sesi-absensi.index') }}">
-                        <i class="fas fa-user-clock"></i> Kelola Sesi Absensi
-                    </a>
-                </li>
-                <li class="{{ Request::routeIs('gaji.*') ? 'active' : '' }}">
-                    <a href="#gajiSubmenu" data-bs-toggle="collapse"
-                        aria-expanded="{{ Request::routeIs('gaji.*') ? 'true' : 'false' }}" class="dropdown-toggle">
+
+                {{-- Menu Dropdown Kelola Gaji --}}
+                <li class="{{ Request::routeIs('gaji.*') ? '' : '' }}">
+                    <a href="{{ route('gaji.index') }}">
                         <i class="fas fa-money-check-alt"></i> Kelola Gaji
                     </a>
-                    <ul class="collapse list-unstyled {{ Request::routeIs('gaji.*') ? 'show' : '' }}" id="gajiSubmenu">
-                        <li class="{{ Request::routeIs('gaji.index') ? 'active' : '' }}">
-                            <a href="{{ route('gaji.index') }}">Daftar Gaji</a>
+                </li>
+
+                {{-- Menu Dropdown Baru Kelola Absensi --}}
+                <li class="{{ Request::routeIs(['sesi-absensi.*', 'laporan.absensi.index']) ? '' : '' }}">
+                    <a href="#absensiSubmenu" data-bs-toggle="collapse"
+                        aria-expanded="{{ Request::routeIs(['sesi-absensi.*', 'laporan.absensi.index']) ? 'true' : 'false' }}"
+                        class="dropdown-toggle">
+                        <i class="fas fa-calendar-check"></i> Kelola Absensi
+                    </a>
+                    <ul class="collapse list-unstyled {{ Request::routeIs(['sesi-absensi.*', 'laporan.absensi.index']) ? 'show' : '' }}"
+                        id="absensiSubmenu">
+                        <li class="{{ Request::routeIs('sesi-absensi.*') ? '' : '' }}">
+                            <a href="{{ route('sesi-absensi.index') }}">Sesi Absensi</a>
                         </li>
-                        <li class="{{ Request::routeIs('gaji.create') ? 'active' : '' }}">
-                            <a href="{{ route('gaji.create') }}">Tambah Gaji</a>
+                        <li class="{{ Request::routeIs('laporan.absensi.index') ? '' : '' }}">
+                            <a href="{{ route('laporan.absensi.index') }}">Rekap Absensi</a>
                         </li>
                     </ul>
                 </li>
-                <li class="{{ Request::routeIs('karyawan.index', 'karyawan.show') ? 'active' : '' }}">
+
+                <li class="{{ Request::routeIs('karyawan.index', 'karyawan.show') ? '' : '' }}">
                     <a href="{{ route('karyawan.index') }}">
                         <i class="fas fa-user-tie"></i> Daftar Karyawan
                     </a>
                 </li>
-                <li class="{{ Request::routeIs('laporan.absensi.index') ? 'active' : '' }}">
-                    <a href="{{ route('laporan.absensi.index') }}">
-                        <i class="fas fa-calendar-check"></i> Rekap Absensi
-                    </a>
-                </li>
+
                 <li>
                     <a href="#">
                         <i class="fas fa-chart-line"></i> Laporan
@@ -97,7 +100,7 @@
                 </li>
             @endif
 
-            {{-- Logout for authenticated users (regardless of role) --}}
+            {{-- Tombol Logout untuk semua user yang sudah login --}}
             <li>
                 <form action="{{ route('logout') }}" method="POST" class="d-inline">
                     @csrf
