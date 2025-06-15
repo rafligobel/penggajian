@@ -99,7 +99,9 @@
 <body>
     <div class="wrapper">
 
-
+        @auth
+            @include('layouts.navigation')
+        @endauth
         <div id="content">
             <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
                 <div class="container-fluid">
