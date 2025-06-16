@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash; // <-- Import Hash
 
 class DatabaseSeeder extends Seeder
 {
@@ -16,21 +16,21 @@ class DatabaseSeeder extends Seeder
         User::create([
             'name' => 'Admin',
             'email' => 'admin@example.com',
-            'password' => bcrypt('password'),
+            'password' => Hash::make('password'), // <-- Gunakan Hash::make()
             'role' => 'admin'
         ]);
 
         User::create([
             'name' => 'Bendahara',
             'email' => 'bendahara@example.com',
-            'password' => bcrypt('password'),
+            'password' => Hash::make('password'), // <-- Gunakan Hash::make()
             'role' => 'bendahara'
         ]);
 
         User::create([
             'name' => 'Karyawan',
             'email' => 'karyawan@example.com',
-            'password' => bcrypt('password'),
+            'password' => Hash::make('password'), // <-- Gunakan Hash::make()
             'role' => 'karyawan'
         ]);
     }

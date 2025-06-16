@@ -5,68 +5,58 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Karyawan;
 use App\Models\Gaji;
+use App\Models\SesiAbsensi;
 use Carbon\Carbon;
+use App\Services\SalaryService; // Menggunakan SalaryService untuk konsistensi
 
 class DashboardController extends Controller
 {
-    // public function index()
-    // {
-    //     $totalKaryawan = Karyawan::count();
+    protected $salaryService;
 
-    //     $totalGaji = Gaji::sum('total_gaji');
-
-    //     $totalGajiBulanIni = Gaji::whereMonth('created_at', Carbon::now()->month)
-    //         ->whereYear('created_at', Carbon::now()->year)
-    //         ->sum('total_gaji');
-
-    //     return view('dashboard.index', [
-    //         'totalKaryawan' => $totalKaryawan,
-    //         'totalGaji' => $totalGaji,
-    //         'totalGajiBulanIni' => $totalGajiBulanIni,
-    //     ]);
-    // }
+    public function __construct(SalaryService $salaryService)
+    {
+        $this->salaryService = $salaryService;
+    }
 
     public function index()
     {
-        $totalKaryawan = Karyawan::count();
+        $now = Carbon::now();
+        $bulanIni = $now->format('Y-m');
+        $bulanLalu = $now->subMonth()->format('Y-m');
 
-        // Hitung total gaji secara manual dari semua data
-        $totalGaji = Gaji::all()->sum(function ($gaji) {
-            return
-                $gaji->gaji_pokok +
-                $gaji->tunj_kehadiran +
-                $gaji->tunj_anak +
-                $gaji->tunj_komunikasi +
-                $gaji->tunj_pengabdian +
-                $gaji->tunj_jabatan +
-                $gaji->tunj_kinerja +
-                $gaji->lembur +
-                $gaji->kelebihan_jam -
-                $gaji->potongan;
-        });
+        // Statistik Karyawan
+        $totalKaryawanAktif = Karyawan::where('status_aktif', true)->count();
+        $karyawanBaruBulanIni = Karyawan::where('status_aktif', true)
+            ->whereMonth('created_at', $now->month)
+            ->whereYear('created_at', $now->year)
+            ->count();
+            
+        // Statistik Gaji
+        $gajiBulanIni = Gaji::where('bulan', $bulanIni)->get();
+        $gajiBulanLalu = Gaji::where('bulan', $bulanLalu)->get();
 
-        // Hitung total gaji bulan ini
-        $totalGajiBulanIni = Gaji::whereMonth('created_at', Carbon::now()->month)
-            ->whereYear('created_at', Carbon::now()->year)
-            ->get()
-            ->sum(function ($gaji) {
-                return
-                    $gaji->gaji_pokok +
-                    $gaji->tunj_kehadiran +
-                    $gaji->tunj_anak +
-                    $gaji->tunj_komunikasi +
-                    $gaji->tunj_pengabdian +
-                    $gaji->tunj_jabatan +
-                    $gaji->tunj_kinerja +
-                    $gaji->lembur +
-                    $gaji->kelebihan_jam -
-                    $gaji->potongan;
-            });
+        $totalGajiBulanIni = $gajiBulanIni->sum('gaji_bersih');
+        $totalGajiBulanLalu = $gajiBulanLalu->sum('gaji_bersih');
+        
+        // Menghindari pembagian dengan nol
+        $perbandinganGaji = $totalGajiBulanLalu > 0
+            ? (($totalGajiBulanIni - $totalGajiBulanLalu) / $totalGajiBulanLalu) * 100
+            : 0;
+
+        // Statistik Absensi
+        $sesiHariIni = SesiAbsensi::where('tanggal', today())->first();
+        $statusSesi = 'Belum Dibuat';
+        if ($sesiHariIni) {
+            $statusSesi = $sesiHariIni->is_active ? 'Dibuka' : 'Ditutup';
+        }
 
         return view('dashboard.index', [
-            'totalKaryawan' => $totalKaryawan,
-            'totalGaji' => $totalGaji,
+            'totalKaryawanAktif' => $totalKaryawanAktif,
+            'karyawanBaruBulanIni' => $karyawanBaruBulanIni,
             'totalGajiBulanIni' => $totalGajiBulanIni,
+            'gajiDiproses' => $gajiBulanIni->count(),
+            'perbandinganGaji' => $perbandinganGaji,
+            'statusSesi' => $statusSesi,
         ]);
     }
 }

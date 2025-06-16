@@ -189,32 +189,45 @@
                     updateInfo = `<p class="text-muted mb-0">Terakhir diperbarui: ${formattedDate} WITA</p>`;
                 }
 
-                const rincian = [{
+                // Fungsi untuk memformat angka menjadi format Rupiah
+                const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', {
+                    style: 'currency',
+                    currency: 'IDR',
+                    minimumFractionDigits: 0
+                }).format(angka || 0);
+
+                // Memisahkan komponen gaji
+                const pendapatanTetap = [{
                         label: 'Gaji Pokok',
                         value: data.gaji_pokok
-                    }, {
+                    },
+                    {
                         label: 'Tunjangan Jabatan',
                         value: data.tunj_jabatan
                     },
                     {
-                        label: 'Tunjangan Kehadiran',
-                        value: data.tunj_kehadiran,
-                        highlight: true
-                    }, {
                         label: 'Tunjangan Anak',
                         value: data.tunj_anak
                     },
                     {
                         label: 'Tunjangan Komunikasi',
                         value: data.tunj_komunikasi
-                    }, {
+                    },
+                    {
                         label: 'Tunjangan Pengabdian',
                         value: data.tunj_pengabdian
                     },
                     {
                         label: 'Tunjangan Kinerja',
                         value: data.tunj_kinerja
-                    }, {
+                    },
+                ];
+
+                const pendapatanTidakTetap = [{
+                        label: `Tunjangan Kehadiran (${data.jumlah_kehadiran} hari)`,
+                        value: data.tunj_kehadiran
+                    },
+                    {
                         label: 'Lembur',
                         value: data.lembur
                     },
@@ -224,20 +237,45 @@
                     },
                 ];
 
-                let rincianHtml = rincian.map(item =>
-                    `<dt class="col-12 col-md-5 ${item.highlight ? 'text-primary' : ''}">${item.label}</dt><dd class="col-12 col-md-7 text-start text-md-end ${item.highlight ? 'text-primary' : ''}">${formatRupiah(item.value)}</dd>`
-                    ).join('');
-                let potonganHtml =
-                    `<dt class="col-12 col-md-5">Potongan</dt><dd class="col-12 col-md-7 text-start text-md-end">(${formatRupiah(data.potongan || 0)})</dd>`;
-                let totalHtml =
-                    `<dt class="col-12 col-md-5 fs-5">GAJI BERSIH</dt><dd class="col-12 col-md-7 text-start text-md-end fs-5 fw-bold">${formatRupiah(data.gaji_bersih || 0)}</dd>`;
+                const createRincianHtml = (items) => items.map(item => `
+                    <div class="row mb-2">
+                        <div class="col-7">${item.label}</div>
+                        <div class="col-5 text-end">${formatRupiah(item.value)}</div>
+                    </div>`).join('');
 
                 detailContent.innerHTML = `
-                    <div class="row mb-3"><div class="col-md-6"><p class="mb-0"><strong>Periode:</strong> ${data.bulan}</p></div><div class="col-md-6"><p class="mb-0"><strong>Jabatan:</strong> ${data.karyawan.jabatan}</p></div></div><hr>
-                    <h5>Rincian Pendapatan</h5><dl class="row">${rincianHtml}</dl><hr>
-                    <h5>Potongan</h5><dl class="row">${potonganHtml}</dl><hr>
-                    <dl class="row bg-light p-2 rounded align-items-center">${totalHtml}</dl>
-                    <div class="mt-4 border-top pt-2 text-center small">${updateInfo}</div>`;
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Periode:</strong> ${new Date(data.bulan + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</p>
+                            <p><strong>Jabatan:</strong> ${data.karyawan.jabatan}</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-lg-6 mb-4 mb-lg-0">
+                            <h5 class="mb-3">A. Pendapatan Tetap</h5>
+                            ${createRincianHtml(pendapatanTetap)}
+                        </div>
+                        <div class="col-lg-6">
+                            <h5 class="mb-3">B. Pendapatan Tidak Tetap</h5>
+                            ${createRincianHtml(pendapatanTidakTetap)}
+                            <hr>
+                            <h5 class="mb-3">C. Potongan</h5>
+                            <div class="row mb-2">
+                                <div class="col-7">Potongan Lain-lain</div>
+                                <div class="col-5 text-end text-danger">(${formatRupiah(data.potongan)})</div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <div class="bg-light p-3 rounded">
+                        <div class="row align-items-center">
+                            <div class="col-7"><h5 class="mb-0">GAJI BERSIH (A+B-C)</h5></div>
+                            <div class="col-5 text-end"><h5 class="mb-0 fw-bold">${formatRupiah(data.gaji_bersih)}</h5></div>
+                        </div>
+                    </div>
+                     <div class="mt-4 border-top pt-2 text-center small">${updateInfo}</div>
+                `;
             }
 
             function populateEditModal(data) {
@@ -284,7 +322,7 @@
 
                 let fieldsHtml = fields.map(f =>
                     `<div class="col-md-6 mb-3"><label class="form-label">${f.label}</label><input type="number" name="${f.name}" class="form-control" value="${f.value || 0}"></div>`
-                    ).join('');
+                ).join('');
 
                 formContent.innerHTML =
                     `

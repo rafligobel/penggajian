@@ -5,40 +5,33 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Gaji;
 use App\Models\Karyawan;
-use App\Models\Absensi; // Pastikan ini mengarah ke App\Models\Absensi
+use App\Models\Absensi;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Traits\ManagesImageEncoding; // <-- Import Trait
+use App\Jobs\GenerateMonthlySalaryReport; // Import Job
+use Illuminate\Support\Facades\Auth;
 
 class LaporanController extends Controller
 {
-    /**
-     * Menampilkan halaman utama Laporan.
-     * Untuk saat ini, akan langsung diarahkan ke laporan gaji bulanan.
-     */
+    use ManagesImageEncoding; // <-- Gunakan Trait
+
     public function index()
     {
-        // Default view adalah laporan gaji bulanan
         return redirect()->route('laporan.gaji.bulanan');
     }
 
-    /**
-     * Menampilkan laporan rekapitulasi gaji bulanan.
-     */
     public function gajiBulanan(Request $request)
     {
         $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
-        $date = Carbon::createFromFormat('Y-m', $selectedMonth);
 
-        // Mengambil semua data gaji untuk bulan yang dipilih
         $gajis = Gaji::with('karyawan')
             ->where('bulan', $selectedMonth)
             ->get();
 
-        // Menghitung statistik
         $statistik = [
             'total_pengeluaran' => $gajis->sum('gaji_bersih'),
             'gaji_tertinggi' => $gajis->max('gaji_bersih'),
-            'gaji_terendah' => $gajis->min('gaji_bersih'),
             'gaji_rata_rata' => $gajis->avg('gaji_bersih'),
             'jumlah_penerima' => $gajis->count(),
         ];
@@ -52,29 +45,25 @@ class LaporanController extends Controller
 
     /**
      * Mencetak laporan rekapitulasi gaji bulanan dalam format PDF.
+     * Metode ini telah disempurnakan.
      */
     public function cetakGajiBulanan(Request $request)
     {
-        $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
-        $date = Carbon::createFromFormat('Y-m', $selectedMonth);
+        $selectedMonth = $request->input('bulan', now()->format('Y-m'));
+        $user = Auth::user();
 
-        $gajis = Gaji::with('karyawan')
-            ->where('bulan', $selectedMonth)
-            ->get();
+        // Mengirim tugas ke antrian. Ini adalah satu-satunya tugasnya!
+        GenerateMonthlySalaryReport::dispatch($selectedMonth, $user);
 
-        $karyawansData = $gajis->map(function($gaji) {
-            return (object) array_merge($gaji->toArray(), ['jabatan' => $gaji->karyawan->jabatan, 'nama' => $gaji->karyawan->nama]);
-        });
-
-        $pdf = Pdf::loadView('gaji.cetak_semua', ['karyawans' => $karyawansData])->setPaper('a4', 'landscape');
-        return $pdf->stream('laporan_gaji_bulanan_' . $selectedMonth . '.pdf');
+        // Redirect kembali dengan pesan sukses
+        return redirect()->route('laporan.gaji.bulanan', ['bulan' => $selectedMonth])
+            ->with('success', 'Permintaan laporan diterima! Laporan sedang diproses dan akan muncul di notifikasi jika sudah siap.');
     }
-    
-    /**
-     * Menampilkan laporan riwayat gaji per karyawan.
-     */
+
+    // method perKaryawan tidak berubah
     public function perKaryawan(Request $request)
     {
+        // ... (kode tetap sama)
         $karyawans = Karyawan::where('status_aktif', true)->orderBy('nama')->get();
         $selectedKaryawanId = $request->input('karyawan_id');
         $tanggalMulai = $request->input('tanggal_mulai', Carbon::now()->subMonths(5)->format('Y-m'));

@@ -2,29 +2,29 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory; // Tambahkan jika Anda menggunakan factory
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Gaji extends Model
 {
-    // use HasFactory; // Aktifkan jika Anda memiliki factory untuk Gaji
+    use HasFactory;
 
     /**
      * The table associated with the model.
      *
      * @var string
      */
-    protected $table = 'gajis'; // Sesuai dengan nama tabel di migrasi Anda
+    protected $table = 'gajis';
 
     /**
      * The attributes that are mass assignable.
-     * 'karyawan_id' telah ditambahkan.
      *
      * @var array<int, string>
      */
     protected $fillable = [
-        'karyawan_id', // Ditambahkan untuk mass assignment
+        'karyawan_id',
         'bulan',
         'gaji_pokok',
         'tunj_kehadiran',
@@ -61,16 +61,38 @@ class Gaji extends Model
     ];
 
     /**
-     * Get the karyawan that owns the gaji.
-     * Mendefinisikan relasi many-to-one (inverse) ke model Karyawan.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * Mendapatkan karyawan yang memiliki gaji ini.
      */
     public function karyawan(): BelongsTo
     {
-        // Menghubungkan model Gaji ini ke model Karyawan
-        // menggunakan kolom 'karyawan_id' pada tabel 'gajis' (foreign key)
-        // dan kolom 'id' pada tabel 'karyawans' (owner key).
         return $this->belongsTo(Karyawan::class, 'karyawan_id');
     }
+
+    /**
+     * Accessor untuk mendapatkan total semua tunjangan.
+     * Dipanggil sebagai: $gaji->total_tunjangan
+     */
+    protected function totalTunjangan(): Attribute
+    {
+        return Attribute::make(
+            get: fn($value, $attributes) => ($attributes['tunj_kehadiran'] ?? 0) +
+                ($attributes['tunj_anak'] ?? 0) +
+                ($attributes['tunj_komunikasi'] ?? 0) +
+                ($attributes['tunj_pengabdian'] ?? 0) +
+                ($attributes['tunj_jabatan'] ?? 0) +
+                ($attributes['tunj_kinerja'] ?? 0)
+        );
+    }
+
+    /**
+     * Accessor untuk mendapatkan total pendapatan lain-lain.
+     * Dipanggil sebagai: $gaji->pendapatan_lainnya
+     */
+    protected function pendapatanLainnya(): Attribute
+    {
+        return Attribute::make(
+            get: fn($value, $attributes) => ($attributes['lembur'] ?? 0) + ($attributes['kelebihan_jam'] ?? 0)
+        );
+    }
 }
+        

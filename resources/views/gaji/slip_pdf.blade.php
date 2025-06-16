@@ -3,144 +3,228 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Slip Gaji</title>
+    <title>Slip Gaji - {{ $gaji->karyawan->nama }} - {{ \Carbon\Carbon::parse($gaji->bulan)->translatedFormat('F Y') }}
+    </title>
     <style>
         body {
-            font-family: sans-serif;
-            font-size: 12px;
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 11px;
+            color: #333;
         }
 
-        .kop {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 2px solid black;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+        .container {
+            width: 100%;
+            margin: 0 auto;
+            border: 1px solid #ddd;
+            padding: 20px;
         }
 
-        .kop img {
-            height: 60px;
-        }
-
-        .kop .judul {
+        .header {
             text-align: center;
-            flex-grow: 1;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            display: table;
+            width: 100%;
         }
 
-        table {
+        .header .logo {
+            width: 65px;
+            display: table-cell;
+            vertical-align: middle;
+        }
+
+        .header .title {
+            display: table-cell;
+            vertical-align: middle;
+        }
+
+        .header h3,
+        .header h4 {
+            margin: 0;
+        }
+
+        .employee-details {
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .employee-details td {
+            padding: 3px;
+        }
+
+        .salary-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
         }
 
-        th,
-        td {
-            padding: 6px;
-            border: 1px solid #000;
+        .salary-table th,
+        .salary-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        .salary-table th {
+            background-color: #f2f2f2;
+            text-align: left;
         }
 
         .text-right {
             text-align: right;
         }
 
-        .text-center {
+        .total-row {
+            font-weight: bold;
+        }
+
+        .footer {
+            margin-top: 40px;
+            width: 100%;
+        }
+
+        .footer .signature {
+            float: right;
+            width: 200px;
             text-align: center;
+        }
+
+        .footer .signature-line {
+            border-bottom: 1px solid #333;
+            height: 60px;
         }
     </style>
 </head>
 
 <body>
-
-    <div class="kop">
-        {{-- Menggunakan logo PNG Anda --}}
-        <img src="{{ public_path('logo/logoalazhar.png') }}" alt="Logo Utama" style="height: 60px;">
-
-        <div class="judul">
-            <h3>YAYASAN ISLAM AL-AZHAR 43 GORONTALO</h3>
-            <p>SLIP GAJI PEGAWAI</p>
+    <div class="container">
+        {{-- BAGIAN KOP SURAT --}}
+        <div class="header">
+            <div class="logo">
+                <img src="{{ $logoAlAzhar }}" alt="Logo Al Azhar" style="width: 100%;">
+            </div>
+            <div class="title">
+                <h3>YAYASAN ISLAM AL-AZHAR 43 GORONTALO</h3>
+                <h4>SLIP GAJI PEGAWAI</h4>
+            </div>
+            <div class="logo">
+                <img src="{{ $logoYayasan }}" alt="Logo Yayasan" style="width: 100%;">
+            </div>
         </div>
 
-        {{-- Logo di sisi kanan, bisa sama atau berbeda --}}
-        <img src="{{ public_path('logo/logoyayasan.png') }}" alt="Logo Utama" style="height: 60px;">
+        {{-- BAGIAN DETAIL KARYAWAN --}}
+        <table class="employee-details">
+            <tr>
+                <td width="15%"><strong>NAMA</td>
+                <td width="35%">: {{ $gaji->karyawan->nama }}</td>
+                <td width="15%"><strong>PERIODE</td>
+                <td width="35%">: {{ \Carbon\Carbon::parse($gaji->bulan)->translatedFormat('F Y') }}</td>
+            </tr>
+            <tr>
+                <td><strong>NIP</td>
+                <td>: {{ $gaji->karyawan->nip }}</td>
+                <td><strong>JABATAN</td>
+                <td>: {{ $gaji->karyawan->jabatan }}</td>
+            </tr>
+        </table>
+
+        {{-- BAGIAN RINCIAN GAJI --}}
+        <table class="salary-table">
+            <thead>
+                <tr>
+                    <th width="50%">PENERIMAAN</th>
+                    <th width="50%">POTONGAN</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    {{-- Kolom Penerimaan --}}
+                    <td style="vertical-align: top;">
+                        <table>
+                            <tr>
+                                <td>Gaji Pokok</td>
+                                <td class="text-right">{{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td>Tunjangan Kehadiran</td>
+                                <td class="text-right">{{ number_format($gaji->tunj_kehadiran, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td>Tunjangan Jabatan</td>
+                                <td class="text-right">{{ number_format($gaji->tunj_jabatan, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td>Tunjangan Kinerja</td>
+                                <td class="text-right">{{ number_format($gaji->tunj_kinerja, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td>Tunjangan Anak</td>
+                                <td class="text-right">{{ number_format($gaji->tunj_anak, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td>Tunjangan Komunikasi</td>
+                                <td class="text-right">{{ number_format($gaji->tunj_komunikasi, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td>Tunjangan Pengabdian</td>
+                                <td class="text-right">{{ number_format($gaji->tunj_pengabdian, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td>Lembur</td>
+                                <td class="text-right">{{ number_format($gaji->lembur, 0, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td>Kelebihan Jam</td>
+                                <td class="text-right">{{ number_format($gaji->kelebihan_jam, 0, ',', '.') }}</td>
+                            </tr>
+                        </table>
+                    </td>
+                    {{-- Kolom Potongan --}}
+                    <td style="vertical-align: top;">
+                        <table>
+                            <tr>
+                                <td>Potongan Lain-lain</td>
+                                <td class="text-right">{{ number_format($gaji->potongan, 0, ',', '.') }}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                {{-- Baris Total --}}
+                <tr class="total-row">
+                    <td>
+                        <strong>TOTAL PENERIMAAN</strong>
+                        @php
+                            $totalPenerimaan = $gaji->gaji_bersih + $gaji->potongan;
+                        @endphp
+                        <strong style="float: right;">{{ number_format($totalPenerimaan, 0, ',', '.') }}</strong>
+                    </td>
+                    <td>
+                        <strong>TOTAL POTONGAN</strong>
+                        <strong style="float: right;">{{ number_format($gaji->potongan, 0, ',', '.') }}</strong>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        {{-- Baris Gaji Bersih --}}
+        <table class="salary-table total-row" style="margin-top: 0px;">
+            <tr>
+                <td width="50%">GAJI BERSIH (DITERIMA)</td>
+                <td width="50%" class="text-right">{{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
+            </tr>
+        </table>
+
+        {{-- BAGIAN TANDA TANGAN --}}
+        <div class="footer">
+            <div class="signature">
+                Gorontalo, {{ now()->translatedFormat('d F Y') }}
+                <br>
+                Bendahara
+                <div class="signature-line"></div>
+                ( _____________________ )
+            </div>
+            <div style="clear: both;"></div>
+        </div>
     </div>
-
-    <p><strong>Nama:</strong> {{ $gaji->karyawan->nama }}</p>
-    <p><strong>Tanggal:</strong> {{ $gaji->created_at->format('d-m-Y') }}</p>
-
-    <table>
-        <tr>
-            <th colspan="2">Rincian Gaji</th>
-        </tr>
-        <tr>
-            <td>Gaji Pokok</td>
-            <td class="text-right">Rp {{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td>Tunjangan Kehadiran</td>
-            <td class="text-right">Rp {{ number_format($gaji->tunj_kehadiran, 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td>Tunjangan Anak</td>
-            <td class="text-right">Rp {{ number_format($gaji->tunj_anak, 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td>Tunjangan Komunikasi</td>
-            <td class="text-right">Rp {{ number_format($gaji->tunj_komunikasi, 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td>Tunjangan Pengabdian</td>
-            <td class="text-right">Rp {{ number_format($gaji->tunj_pengabdian, 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td>Tunjangan Jabatan</td>
-            <td class="text-right">Rp {{ number_format($gaji->tunj_jabatan, 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td>Tunjangan Kinerja</td>
-            <td class="text-right">Rp {{ number_format($gaji->tunj_kinerja, 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td>Lembur</td>
-            <td class="text-right">Rp {{ number_format($gaji->lembur, 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td>Kelebihan Jam</td>
-            <td class="text-right">Rp {{ number_format($gaji->kelebihan_jam, 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td>Potongan</td>
-            <td class="text-right">Rp {{ number_format($gaji->potongan, 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <th>Total Gaji Bersih</th>
-            <th class="text-right">Rp
-                {{ number_format(
-                    $gaji->gaji_pokok +
-                        $gaji->tunj_kehadiran +
-                        $gaji->tunj_anak +
-                        $gaji->tunj_komunikasi +
-                        $gaji->tunj_pengabdian +
-                        $gaji->tunj_jabatan +
-                        $gaji->tunj_kinerja +
-                        $gaji->lembur +
-                        $gaji->kelebihan_jam -
-                        $gaji->potongan,
-                    0,
-                    ',',
-                    '.',
-                ) }}
-            </th>
-        </tr>
-    </table>
-
-    <br><br>
-    <div style="text-align: right">
-        <p>Gorontalo, {{ now()->format('d-m-Y') }}</p>
-        <p><strong>Bendahara</strong></p><br><br>
-        <p>( _____________________ )</p>
-    </div>
-
 </body>
 
 </html>

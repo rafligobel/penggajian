@@ -20,12 +20,10 @@
             min-width: 250px;
             max-width: 250px;
             background: #343a40;
-            /* Dark background from existing navbar */
             color: #fff;
             transition: all 0.3s;
         }
 
-        /* Kelas .active akan menyembunyikan sidebar dengan mendorongnya ke kiri */
         #sidebar.active {
             margin-left: -250px;
         }
@@ -69,7 +67,6 @@
         a[aria-expanded="true"] {
             color: #fff;
             background: #0d6efd;
-            /* Primary blue from Bootstrap */
         }
 
         ul ul a {
@@ -78,13 +75,29 @@
             background: #424950;
         }
 
-        /* Styling untuk mode mobile */
+        /* -- PERBAIKAN CSS UNTUK NOTIFIKASI -- */
+        .notification-item a {
+            display: flex !important;
+            align-items: flex-start;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
+            text-decoration: none;
+            color: #333;
+        }
+
+        .notification-item:last-child a {
+            border-bottom: none;
+        }
+
+        .notification-item a:hover {
+            background-color: #f8f9fa;
+        }
+
         @media (max-width: 768px) {
             #sidebar {
                 margin-left: -250px;
             }
 
-            /* Di mobile, kelas .active justru memunculkan sidebar */
             #sidebar.active {
                 margin-left: 0;
             }
@@ -102,27 +115,65 @@
         @auth
             @include('layouts.navigation')
         @endauth
+
         <div id="content">
-            <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+            <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 shadow-sm">
                 <div class="container-fluid">
                     @guest
                         <a href="{{ url('/') }}" class="btn btn-primary">
                             <i class="fas fa-arrow-left"></i> Kembali
                         </a>
                     @endguest
+
                     @auth
+                        {{-- Tombol untuk toggle sidebar --}}
                         <button type="button" data-toggle="sidebar" class="btn btn-primary">
                             <i class="fa-solid fa-bars"></i>
                         </button>
-                        <div class="d-flex w-100 justify-content-end">
 
-                            <ul class="navbar-nav">
+                        {{-- Wrapper untuk semua item di sebelah kanan navbar --}}
+                        <div class="d-flex align-items-center ms-auto">
+                            <ul class="navbar-nav flex-row">
+                                {{-- Dropdown Notifikasi --}}
+                                <li class="nav-item dropdown me-2">
+                                    <a class="nav-link" href="#" id="notificationDropdown" role="button"
+                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-bell"></i>
+                                        @if (auth()->user()->unreadNotifications->count())
+                                            <span class="badge rounded-pill bg-danger"
+                                                style="position: absolute; top: 5px; right: 0;">
+                                                {{ auth()->user()->unreadNotifications->count() }}
+                                            </span>
+                                        @endif
+                                    </a>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationDropdown"
+                                        style="width: 350px;">
+                                        @forelse (auth()->user()->unreadNotifications as $notification)
+                                            <li class="notification-item">
+                                                <a href="{{ \Illuminate\Support\Facades\Storage::url($notification->data['path']) }}"
+                                                    target="_blank">
+                                                    <i class="fas fa-file-pdf text-success me-2 mt-1"></i>
+                                                    <div>
+                                                        <small class="fw-bold">{{ $notification->data['message'] }}</small>
+                                                        <small
+                                                            class="d-block text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                                                    </div>
+                                                </a>
+                                            </li>
+                                        @empty
+                                            <li><a class="dropdown-item text-muted text-center" href="#">Tidak ada
+                                                    notifikasi baru</a></li>
+                                        @endforelse
+                                    </ul>
+                                </li>
+
+                                {{-- Dropdown Profil Pengguna --}}
                                 <li class="nav-item dropdown">
-                                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                                    <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button"
                                         data-bs-toggle="dropdown" aria-expanded="false">
                                         {{ Auth::user()->name }}
                                     </a>
-                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
                                         <li><a class="dropdown-item" href="{{ route('profile.edit') }}">Profile</a></li>
                                         <li>
                                             <hr class="dropdown-divider">
@@ -151,33 +202,23 @@
             const sidebar = document.getElementById('sidebar');
             const sidebarToggler = document.querySelector('[data-toggle="sidebar"]');
 
-            // --- LOGIKA BARU UNTUK MENYIMPAN STATUS SIDEBAR ---
-
-            // 1. Saat halaman dimuat, periksa status dari localStorage
-            // Kelas 'active' berarti sidebar tertutup/tersembunyi.
             if (localStorage.getItem('sidebarState') === 'closed') {
                 sidebar.classList.add('active');
             } else {
                 sidebar.classList.remove('active');
             }
 
-            // 2. Tambahkan event listener pada tombol toggle
             if (sidebarToggler) {
                 sidebarToggler.addEventListener('click', function() {
-                    // Toggle sidebar seperti biasa
                     sidebar.classList.toggle('active');
-
-                    // 3. Simpan status baru ke localStorage
                     if (sidebar.classList.contains('active')) {
-                        localStorage.setItem('sidebarState',
-                            'closed'); // Jika sidebar punya kelas active, berarti tertutup
+                        localStorage.setItem('sidebarState', 'closed');
                     } else {
-                        localStorage.setItem('sidebarState', 'open'); // Jika tidak, berarti terbuka
+                        localStorage.setItem('sidebarState', 'open');
                     }
                 });
             }
 
-            // --- SCRIPT MODAL KONFIRMASI HAPUS (TIDAK BERUBAH) ---
             const deleteModal = document.getElementById('deleteConfirmationModal');
             if (deleteModal) {
                 deleteModal.addEventListener('show.bs.modal', function(event) {
