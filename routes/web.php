@@ -2,22 +2,19 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Middleware\RoleMiddleware; // Pastikan ini di-import jika belum
+use App\Http\Middleware\RoleMiddleware;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\GajiController;
 use App\Http\Controllers\SimulasiGajiController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AbsensiController;
+use App\Http\Controllers\LaporanController;
+use App\Http\Controllers\SesiAbsensiController;
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
 */
 
 Route::get('/', function () {
@@ -34,27 +31,25 @@ Route::middleware('auth')->group(function () {
 
     // Bendahara specific routes
     Route::middleware(['role:bendahara'])->group(function () {
-        Route::resource('gaji', GajiController::class);
         Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
-        Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save'); // RUTE BARU
-        Route::get('/gaji/{id}/cetak', [GajiController::class, 'cetakPDF'])->name('gaji.cetak');
+        Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save');
 
-        Route::get('/aturan-gaji', [GajiController::class, 'aturan'])->name('aturan.index');
+        // RUTE BARU UNTUK PROSES BACKGROUND
+        Route::post('/gaji/{gaji}/download', [GajiController::class, 'downloadSlip'])->name('gaji.download');
+        Route::post('/gaji/{gaji}/send-email', [GajiController::class, 'sendEmail'])->name('gaji.send-email');
+
+        Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
+        Route::get('/laporan/gaji-bulanan', [LaporanController::class, 'gajiBulanan'])->name('laporan.gaji.bulanan');
+        Route::post('/laporan/gaji-bulanan/cetak', [LaporanController::class, 'cetakGajiBulanan'])->name('laporan.gaji.cetak');
+        Route::get('/laporan/per-karyawan', [LaporanController::class, 'perKaryawan'])->name('laporan.per.karyawan');
+
         Route::get('/laporan/absensi', [AbsensiController::class, 'rekapPerBulan'])->name('laporan.absensi.index');
         Route::get('/laporan/absensi/data', [AbsensiController::class, 'fetchRekapData'])->name('laporan.absensi.data');
-
-        Route::get('/laporan', [App\Http\Controllers\LaporanController::class, 'index'])->name('laporan.index');
-        Route::get('/laporan/gaji-bulanan', [App\Http\Controllers\LaporanController::class, 'gajiBulanan'])->name('laporan.gaji.bulanan');
-        Route::get('/laporan/gaji-bulanan/cetak', [App\Http\Controllers\LaporanController::class, 'cetakGajiBulanan'])->name('laporan.gaji.cetak');
-        Route::get('/laporan/per-karyawan', [App\Http\Controllers\LaporanController::class, 'perKaryawan'])->name('laporan.per.karyawan');
-
-        // ---- TAMBAHKAN RUTE INI ----
-        Route::resource('sesi-absensi', App\Http\Controllers\SesiAbsensiController::class)->except(['show']);
+        Route::resource('sesi-absensi', SesiAbsensiController::class)->except(['show']);
     });
 
     // Admin specific routes for Karyawan Management (CRUD except index and show)
     Route::middleware(['role:admin'])->group(function () {
-        // Memberikan akses ke create, store, edit, update, destroy untuk KaryawanController
         Route::resource('/karyawan', KaryawanController::class)->except(['index', 'show']);
     });
 
@@ -66,12 +61,10 @@ Route::middleware('auth')->group(function () {
 });
 
 
-// Simulasi Gaji (tanpa login)
+// Guest routes
 Route::get('/simulasi', [SimulasiGajiController::class, 'index'])->name('simulasi.index');
 Route::post('/simulasi/hitung', [SimulasiGajiController::class, 'hitung'])->name('simulasi.hitung');
-
-// Absensi (tanpa login)
-Route::get('/absensi', [AbsensiController::class, 'index'])->name('absensi.form'); // Menggunakan index method untuk menampilkan form
+Route::get('/absensi', [AbsensiController::class, 'index'])->name('absensi.form');
 Route::post('/absensi', [AbsensiController::class, 'store'])->name('absensi.store');
 
 

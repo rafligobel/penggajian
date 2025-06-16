@@ -8,13 +8,13 @@ use App\Models\Karyawan;
 use App\Models\Absensi;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
-use App\Traits\ManagesImageEncoding; // <-- Import Trait
-use App\Jobs\GenerateMonthlySalaryReport; // Import Job
+use App\Traits\ManagesImageEncoding;
+use App\Jobs\GenerateMonthlySalaryReport;
 use Illuminate\Support\Facades\Auth;
 
 class LaporanController extends Controller
 {
-    use ManagesImageEncoding; // <-- Gunakan Trait
+    use ManagesImageEncoding;
 
     public function index()
     {
@@ -43,27 +43,30 @@ class LaporanController extends Controller
         ]);
     }
 
-    /**
-     * Mencetak laporan rekapitulasi gaji bulanan dalam format PDF.
-     * Metode ini telah disempurnakan.
-     */
     public function cetakGajiBulanan(Request $request)
     {
-        $selectedMonth = $request->input('bulan', now()->format('Y-m'));
+        $request->validate([
+            'bulan' => 'required|date_format:Y-m',
+            'gaji_ids' => 'nullable|array',
+            'gaji_ids.*' => 'exists:gajis,id',
+        ]);
+
+        $gajiIds = $request->input('gaji_ids');
+        $selectedMonth = $request->input('bulan');
         $user = Auth::user();
 
-        // Mengirim tugas ke antrian. Ini adalah satu-satunya tugasnya!
-        GenerateMonthlySalaryReport::dispatch($selectedMonth, $user);
+        if (empty($gajiIds)) {
+            return redirect()->back()->withErrors(['gaji_ids' => 'Silakan pilih setidaknya satu karyawan untuk dicetak.']);
+        }
 
-        // Redirect kembali dengan pesan sukses
+        GenerateMonthlySalaryReport::dispatch($selectedMonth, $user, $gajiIds);
+
         return redirect()->route('laporan.gaji.bulanan', ['bulan' => $selectedMonth])
             ->with('success', 'Permintaan laporan diterima! Laporan sedang diproses dan akan muncul di notifikasi jika sudah siap.');
     }
 
-    // method perKaryawan tidak berubah
     public function perKaryawan(Request $request)
     {
-        // ... (kode tetap sama)
         $karyawans = Karyawan::where('status_aktif', true)->orderBy('nama')->get();
         $selectedKaryawanId = $request->input('karyawan_id');
         $tanggalMulai = $request->input('tanggal_mulai', Carbon::now()->subMonths(5)->format('Y-m'));

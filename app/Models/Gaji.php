@@ -11,18 +11,8 @@ class Gaji extends Model
 {
     use HasFactory;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'gajis';
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'karyawan_id',
         'bulan',
@@ -39,11 +29,6 @@ class Gaji extends Model
         'gaji_bersih',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'gaji_pokok' => 'integer',
         'tunj_kehadiran' => 'integer',
@@ -60,9 +45,6 @@ class Gaji extends Model
         'updated_at' => 'datetime',
     ];
 
-    /**
-     * Mendapatkan karyawan yang memiliki gaji ini.
-     */
     public function karyawan(): BelongsTo
     {
         return $this->belongsTo(Karyawan::class, 'karyawan_id');
@@ -70,7 +52,6 @@ class Gaji extends Model
 
     /**
      * Accessor untuk mendapatkan total semua tunjangan.
-     * Dipanggil sebagai: $gaji->total_tunjangan
      */
     protected function totalTunjangan(): Attribute
     {
@@ -86,7 +67,6 @@ class Gaji extends Model
 
     /**
      * Accessor untuk mendapatkan total pendapatan lain-lain.
-     * Dipanggil sebagai: $gaji->pendapatan_lainnya
      */
     protected function pendapatanLainnya(): Attribute
     {
@@ -95,4 +75,3 @@ class Gaji extends Model
         );
     }
 }
-        

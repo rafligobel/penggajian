@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <title>Laporan Gaji Bulanan - {{ $periode }}</title>
     <style>
-        /* Mendefinisikan gaya dasar untuk dokumen PDF */
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 10px;
@@ -23,7 +22,6 @@
             border: 1px solid #333;
             padding: 6px;
             text-align: right;
-            /* Default text align untuk angka */
         }
 
         th {
@@ -32,7 +30,6 @@
             text-align: center;
         }
 
-        /* Gaya khusus untuk Kop Surat */
         .kop-table {
             width: 100%;
             border: none;
@@ -54,7 +51,6 @@
             margin: 0;
         }
 
-        /* Utilitas untuk perataan teks */
         .text-left {
             text-align: left;
         }
@@ -63,7 +59,6 @@
             text-align: center;
         }
 
-        /* Gaya untuk baris footer agar menonjol */
         .footer {
             font-weight: bold;
             background-color: #f2f2f2;
@@ -73,25 +68,18 @@
 
 <body>
 
-    {{-- BAGIAN KOP SURAT --}}
     <table class="kop-table">
         <tr>
-            <td style="width: 20%; text-align: left;">
-                {{-- Gambar diambil dari variabel Base64 yang dikirim Controller --}}
-                <img src="{{ $logoKiri }}" class="logo">
-            </td>
+            <td style="width: 20%; text-align: left;"><img src="{{ $logoKiri }}" class="logo"></td>
             <td style="width: 60%;">
                 <h3>YAYASAN AL-AZHAR 43 GORONTALO</h3>
                 <h4>DAFTAR REKAPITULASI GAJI PEGAWAI</h4>
                 <span>Periode: {{ $periode }}</span>
             </td>
-            <td style="width: 20%; text-align: right;">
-                <img src="{{ $logoKanan }}" class="logo">
-            </td>
+            <td style="width: 20%; text-align: right;"><img src="{{ $logoKanan }}" class="logo"></td>
         </tr>
     </table>
 
-    {{-- BAGIAN TABEL DATA GAJI --}}
     <table>
         <thead>
             <tr>
@@ -106,7 +94,6 @@
             </tr>
         </thead>
         <tbody>
-            {{-- Loop data gaji. Logika kalkulasi sudah dipindahkan ke Model --}}
             @forelse($gajis as $gaji)
                 <tr>
                     <td class="text-center">{{ $loop->iteration }}</td>
@@ -125,17 +112,15 @@
             @endforelse
         </tbody>
 
-        {{-- BAGIAN FOOTER TOTAL KESELURUHAN --}}
         @if ($gajis->isNotEmpty())
             <tfoot>
-                {{-- Perhitungan total langsung menggunakan metode 'sum' dari Laravel Collection --}}
                 <tr class="footer">
                     <td colspan="3" class="text-center">TOTAL KESELURUHAN</td>
-                    <td>{{ number_format($gajis->sum('gaji_pokok'), 0, ',', '.') }}</td>
-                    <td>{{ number_format($gajis->sum('total_tunjangan'), 0, ',', '.') }}</td>
-                    <td>{{ number_format($gajis->sum('pendapatan_lainnya'), 0, ',', '.') }}</td>
-                    <td>({{ number_format($gajis->sum('potongan'), 0, ',', '.') }})</td>
-                    <td>{{ number_format($gajis->sum('gaji_bersih'), 0, ',', '.') }}</td>
+                    <td>{{ number_format($totals->total_gaji_pokok ?? 0, 0, ',', '.') }}</td>
+                    <td>{{ number_format($totals->total_semua_tunjangan ?? 0, 0, ',', '.') }}</td>
+                    <td>{{ number_format($totals->total_pendapatan_lainnya ?? 0, 0, ',', '.') }}</td>
+                    <td>({{ number_format($totals->total_potongan ?? 0, 0, ',', '.') }})</td>
+                    <td>{{ number_format($totals->total_gaji_bersih ?? 0, 0, ',', '.') }}</td>
                 </tr>
             </tfoot>
         @endif

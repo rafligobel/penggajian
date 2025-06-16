@@ -50,14 +50,10 @@
                         </li>
                     </ul>
                 </li>
-                <li class="{{ Request::routeIs('aturan.index') ? '' : '' }}">
-                    <a href="{{ route('aturan.index') }}">
-                        <i class="fas fa-file-invoice-dollar"></i> Aturan Gaji
-                    </a>
-                </li>
+                {{-- HAPUS LINK ATURAN GAJI DI BAWAH INI --}}
             @endif
 
-            {{-- PERUBAHAN DI SINI: Role Bendahara --}}
+            {{-- Role Bendahara --}}
             @if (auth()->user()->role === 'bendahara')
                 <li class="{{ Request::routeIs('dashboard') ? '' : '' }}">
                     <a href="{{ route('dashboard') }}">
@@ -65,14 +61,12 @@
                     </a>
                 </li>
 
-                {{-- Menu Dropdown Kelola Gaji --}}
                 <li class="{{ Request::routeIs('gaji.*') ? '' : '' }}">
                     <a href="{{ route('gaji.index') }}">
                         <i class="fas fa-money-check-alt"></i> Kelola Gaji
                     </a>
                 </li>
 
-                {{-- Menu Dropdown Baru Kelola Absensi --}}
                 <li class="{{ Request::routeIs(['sesi-absensi.*', 'laporan.absensi.index']) ? '' : '' }}">
                     <a href="#absensiSubmenu" data-bs-toggle="collapse"
                         aria-expanded="{{ Request::routeIs(['sesi-absensi.*', 'laporan.absensi.index']) ? 'true' : 'false' }}"

@@ -4,6 +4,10 @@
     <input type="text" name="nama" class="form-control" value="{{ old('nama', $karyawan->nama ?? '') }}">
 </div>
 <div class="mb-3">
+    <label>Email (Untuk Pengiriman Slip Gaji)</label>
+    <input type="email" name="email" class="form-control" value="{{ old('email', $karyawan->email ?? '') }}">
+</div>
+<div class="mb-3">
     <label>NIP</label>
     <input type="text" name="nip" class="form-control" value="{{ old('nip', $karyawan->nip ?? '') }}">
 </div>

@@ -111,7 +111,6 @@
 
 <body>
     <div class="wrapper">
-
         @auth
             @include('layouts.navigation')
         @endauth
@@ -120,21 +119,14 @@
             <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 shadow-sm">
                 <div class="container-fluid">
                     @guest
-                        <a href="{{ url('/') }}" class="btn btn-primary">
-                            <i class="fas fa-arrow-left"></i> Kembali
-                        </a>
+                        <a href="{{ url('/') }}" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Kembali</a>
                     @endguest
-
                     @auth
-                        {{-- Tombol untuk toggle sidebar --}}
-                        <button type="button" data-toggle="sidebar" class="btn btn-primary">
-                            <i class="fa-solid fa-bars"></i>
-                        </button>
+                        <button type="button" data-toggle="sidebar" class="btn btn-primary"><i
+                                class="fa-solid fa-bars"></i></button>
 
-                        {{-- Wrapper untuk semua item di sebelah kanan navbar --}}
                         <div class="d-flex align-items-center ms-auto">
                             <ul class="navbar-nav flex-row">
-                                {{-- Dropdown Notifikasi --}}
                                 <li class="nav-item dropdown me-2">
                                     <a class="nav-link" href="#" id="notificationDropdown" role="button"
                                         data-bs-toggle="dropdown" aria-expanded="false">
@@ -166,8 +158,6 @@
                                         @endforelse
                                     </ul>
                                 </li>
-
-                                {{-- Dropdown Profil Pengguna --}}
                                 <li class="nav-item dropdown">
                                     <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button"
                                         data-bs-toggle="dropdown" aria-expanded="false">

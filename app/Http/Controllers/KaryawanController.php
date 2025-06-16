@@ -10,14 +10,10 @@ class KaryawanController extends Controller
 {
     public function index(Request $request)
     {
-        // PERUBAHAN: Ambil SEMUA data karyawan, bukan per halaman (paginate)
-        // Data ini akan difilter secara real-time oleh JavaScript di view.
         $karyawans = Karyawan::where('status_aktif', true)->orderBy('nama')->get();
-
         return view('karyawan.index', compact('karyawans'));
     }
 
-    // ... method lainnya (create, store, show, dll) tidak perlu diubah ...
     public function create()
     {
         return view('karyawan.create');
@@ -30,6 +26,7 @@ class KaryawanController extends Controller
             'nip' => 'required|unique:karyawans,nip',
             'alamat' => 'required',
             'telepon' => 'required',
+            'email' => 'nullable|email|max:255|unique:karyawans,email', // <-- TAMBAHKAN INI
             'jabatan' => 'required',
         ]);
 
@@ -57,6 +54,7 @@ class KaryawanController extends Controller
             'nip' => 'required|unique:karyawans,nip,' . $karyawan->id,
             'alamat' => 'required',
             'telepon' => 'required',
+            'email' => 'nullable|email|max:255|unique:karyawans,email,' . $karyawan->id, // <-- TAMBAHKAN INI
             'jabatan' => 'required',
         ]);
         $karyawan->update($request->all());
