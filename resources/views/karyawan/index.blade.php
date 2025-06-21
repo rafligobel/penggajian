@@ -73,6 +73,8 @@
                         <th>No.</th>
                         <th class="text-start">Nama</th>
                         <th>NIP</th>
+                        {{-- PERUBAHAN 1: Tambah kolom Email --}}
+                        <th class="text-start">Email</th>
                         <th class="text-start">Jabatan</th>
                         <th>Status</th>
                         <th>Aksi</th>
@@ -133,7 +135,7 @@
                         const row = document.createElement('tr');
                         row.className = 'summary-row';
                         row.dataset.karyawanJson = JSON.stringify(
-                        karyawan); // Simpan data di elemen untuk modal
+                            karyawan); // Simpan data di elemen untuk modal
 
                         const statusBadge = karyawan.status_aktif ?
                             `<span class="badge bg-success">Aktif</span>` :
@@ -148,10 +150,12 @@
                                    data-url="/karyawan/${karyawan.id}" title="Hapus"><i class="fas fa-trash"></i></button>`;
                         }
 
+                        // PERUBAHAN 2: Tambahkan <td> untuk email
                         row.innerHTML = `
                             <td class="text-center">${index + 1}</td>
                             <td class="text-start fw-bold">${karyawan.nama}</td>
                             <td class="text-center">${karyawan.nip}</td>
+                            <td class="text-start">${karyawan.email || '-'}</td>
                             <td class="text-start">${karyawan.jabatan}</td>
                             <td class="text-center">${statusBadge}</td>
                             <td class="text-center">
@@ -194,12 +198,14 @@
                             minute: '2-digit'
                         });
 
+                        // PERUBAHAN 3: Tambahkan baris email di dalam modal
                         modalBody.innerHTML = `
                             <div class="row">
                                 <div class="col-lg-6">
                                     <dl class="row">
                                         <dt class="col-sm-4">Nama Lengkap</dt><dd class="col-sm-8">: ${karyawan.nama}</dd>
                                         <dt class="col-sm-4">NIP</dt><dd class="col-sm-8">: ${karyawan.nip}</dd>
+                                        <dt class="col-sm-4">Email</dt><dd class="col-sm-8">: ${karyawan.email || 'Tidak ada'}</dd>
                                         <dt class="col-sm-4">Jabatan</dt><dd class="col-sm-8">: ${karyawan.jabatan}</dd>
                                         <dt class="col-sm-4">Status Aktif</dt><dd class="col-sm-8">: ${statusBadge}</dd>
                                     </dl>

@@ -42,34 +42,33 @@ class GajiController extends Controller
         ]);
     }
 
+    // app/Http/Controllers/GajiController.php
+
     public function saveOrUpdate(Request $request)
     {
-        $validated = $request->validate([
+        // Validasi semua field yang relevan dari form
+        $validatedData = $request->validate([
             'karyawan_id' => 'required|exists:karyawans,id',
             'bulan' => 'required|date_format:Y-m',
+            'gaji_pokok' => 'required|numeric|min:0',
+            'tunj_jabatan' => 'required|numeric|min:0',
+            'tunj_anak' => 'required|numeric|min:0',
+            'tunj_komunikasi' => 'required|numeric|min:0',
+            'tunj_pengabdian' => 'required|numeric|min:0',
+            'tunj_kinerja' => 'required|numeric|min:0',
+            'lembur' => 'required|numeric|min:0',
+            'kelebihan_jam' => 'required|numeric|min:0',
+            'potongan' => 'required|numeric|min:0',
+            'tarif_kehadiran_hidden' => 'required|numeric|min:0',
         ]);
 
-        $karyawan = Karyawan::find($validated['karyawan_id']);
-        $tarifKehadiran = $request->input('tarif_kehadiran_hidden', 10000);
-
-        $gajiInstance = $this->salaryService->calculateSalary($karyawan, $validated['bulan'], $tarifKehadiran);
-
-        $gaji_bersih = $this->salaryService->calculateNetSalary((new Gaji)->fill(array_merge($validated, [
-            'tunj_kehadiran' => $gajiInstance->tunj_kehadiran
-        ])));
-
-        Gaji::updateOrCreate(
-            ['karyawan_id' => $validated['karyawan_id'], 'bulan' => $validated['bulan']],
-            array_merge($validated, [
-                'tunj_kehadiran' => $gajiInstance->tunj_kehadiran,
-                'gaji_bersih' => $gaji_bersih,
-            ])
-        );
+        // Panggil service untuk menangani penyimpanan
+        $karyawan = $this->salaryService->saveSalaryData($validatedData);
 
         return redirect()->route('gaji.index', [
-            'bulan' => $validated['bulan'],
-            'tarif_kehadiran' => $tarifKehadiran
-        ])->with('success', 'Data gaji untuk ' . $karyawan->nama . ' berhasil disimpan.');
+            'bulan' => $validatedData['bulan'],
+            'tarif_kehadiran' => $validatedData['tarif_kehadiran_hidden']
+        ])->with('success', 'Data gaji untuk ' . $karyawan->nama . ' berhasil diperbarui.');
     }
 
     /**

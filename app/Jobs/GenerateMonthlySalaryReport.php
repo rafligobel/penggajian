@@ -20,9 +20,6 @@ class GenerateMonthlySalaryReport implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, ManagesImageEncoding;
 
-    protected string $selectedMonth;
-    protected User $user;
-    protected ?array $gajiIds; // Bisa null
 
     /**
      * Create a new job instance.
@@ -30,6 +27,10 @@ class GenerateMonthlySalaryReport implements ShouldQueue
      * @param User $user
      * @param array|null $gajiIds ID Gaji yang akan diproses, null untuk semua
      */
+    protected string $selectedMonth;
+    protected User $user;
+    protected ?array $gajiIds;
+
     public function __construct(string $selectedMonth, User $user, ?array $gajiIds = null)
     {
         $this->selectedMonth = $selectedMonth;
@@ -40,21 +41,14 @@ class GenerateMonthlySalaryReport implements ShouldQueue
     public function handle(): void
     {
         $date = Carbon::createFromFormat('Y-m', $this->selectedMonth);
-
         $gajiQuery = Gaji::with('karyawan')->where('bulan', $this->selectedMonth);
-
-        // Jika ada ID yang diberikan, filter berdasarkan ID tersebut
         if (!empty($this->gajiIds)) {
             $gajiQuery->whereIn('id', $this->gajiIds);
         }
-
         $gajis = $gajiQuery->get();
-
-        // Jika tidak ada data yang ditemukan, hentikan proses
         if ($gajis->isEmpty()) {
             return;
         }
-
         $totals = (object) [
             'total_gaji_pokok' => $gajis->sum('gaji_pokok'),
             'total_gaji_bersih' => $gajis->sum('gaji_bersih'),
@@ -63,8 +57,14 @@ class GenerateMonthlySalaryReport implements ShouldQueue
             'total_pendapatan_lainnya' => $gajis->sum('pendapatan_lainnya'),
         ];
 
+
         $logoKiri = $this->encodeImageToBase64(public_path('logo/logoalazhar.png'));
         $logoKanan = $this->encodeImageToBase64(public_path('logo/logoyayasan.png'));
+
+        // --- PERUBAHAN LOGIKA DI SINI ---
+        $bendaharaUser = User::where('role', 'bendahara')->first();
+        $bendaharaNama = $bendaharaUser ? $bendaharaUser->name : 'Bendahara Umum';
+        // --- AKHIR PERUBAHAN ---
 
         $data = [
             'gajis' => $gajis,
@@ -72,6 +72,7 @@ class GenerateMonthlySalaryReport implements ShouldQueue
             'periode' => $date->translatedFormat('F Y'),
             'logoKiri' => $logoKiri,
             'logoKanan' => $logoKanan,
+            'bendaharaNama' => $bendaharaNama, // <-- Tambahkan ini
         ];
 
         $pdf = Pdf::loadView('gaji.cetak_semua', $data)->setPaper('a4', 'landscape');

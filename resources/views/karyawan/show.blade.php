@@ -1,4 +1,3 @@
-{{-- resources/views/karyawan/show.blade.php --}}
 @extends('layouts.app')
 
 @section('content')
@@ -16,6 +15,10 @@
 
                             <dt class="col-sm-4">NIP</dt>
                             <dd class="col-sm-8">{{ $karyawan->nip }}</dd>
+
+                            {{-- PERUBAHAN 4: Tambah baris Email --}}
+                            <dt class="col-sm-4">Email</dt>
+                            <dd class="col-sm-8">{{ $karyawan->email ?: 'Tidak ada' }}</dd>
 
                             <dt class="col-sm-4">Jabatan</dt>
                             <dd class="col-sm-8">{{ $karyawan->jabatan }}</dd>

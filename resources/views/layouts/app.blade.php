@@ -180,7 +180,9 @@
                                         {{ Auth::user()->name }}
                                     </a>
                                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
-                                        <li><a class="dropdown-item" href="{{ route('profile.edit') }}">Profile</a></li>
+                                        <li><a class="dropdown-item" href="{{ route('profile.edit') }}">
+                                                <i class="fas fa-user-circle me-2"></i>Profile
+                                            </a></li>
                                         <li>
                                             <hr class="dropdown-divider">
                                         </li>
