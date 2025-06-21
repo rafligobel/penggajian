@@ -14,12 +14,17 @@ class ReportGenerated extends Notification
     private string $filePath;
     private string $originalFilename;
     private string $reportMonth;
+    private string $customMessage; // <-- Tambahkan
+    private bool $isError; // <-- Tambahkan
 
-    public function __construct(string $filePath, string $originalFilename, string $reportMonth)
+    public function __construct(string $filePath, string $originalFilename, string $reportMonth, string $customMessage = '', bool $isError = false)
     {
         $this->filePath = $filePath;
         $this->originalFilename = $originalFilename;
         $this->reportMonth = $reportMonth;
+        $this->isError = $isError;
+        // Atur pesan default jika pesan kustom kosong
+        $this->customMessage = $customMessage ?: 'Laporan gaji untuk periode ' . Carbon::createFromFormat('Y-m', $this->reportMonth)->translatedFormat('F Y') . ' telah selesai.';
     }
 
     public function via(object $notifiable): array
@@ -29,11 +34,11 @@ class ReportGenerated extends Notification
 
     public function toArray(object $notifiable): array
     {
-        $periode = Carbon::createFromFormat('Y-m', $this->reportMonth)->translatedFormat('F Y');
         return [
-            'message' => 'Laporan gaji untuk periode ' . $periode . ' telah selesai.',
+            'message' => $this->customMessage,
             'path' => $this->filePath,
             'filename' => $this->originalFilename,
+            'is_error' => $this->isError, // <-- Tambahkan
         ];
     }
 }

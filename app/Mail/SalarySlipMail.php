@@ -2,23 +2,30 @@
 
 namespace App\Mail;
 
+use App\Models\Gaji;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Attachment; // <-- Import ini
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Storage; // <-- Import ini
 
 class SalarySlipMail extends Mailable
 {
     use Queueable, SerializesModels;
 
+    public Gaji $gaji;
+    public string $pdfPath;
+
     /**
      * Create a new message instance.
      */
-    public function __construct()
+    public function __construct(Gaji $gaji, string $pdfPath)
     {
-        //
+        $this->gaji = $gaji;
+        $this->pdfPath = $pdfPath;
     }
 
     /**
@@ -26,8 +33,9 @@ class SalarySlipMail extends Mailable
      */
     public function envelope(): Envelope
     {
+        $periode = \Carbon\Carbon::parse($this->gaji->bulan)->translatedFormat('F Y');
         return new Envelope(
-            subject: 'Salary Slip Mail',
+            subject: 'Slip Gaji Anda untuk Periode ' . $periode,
         );
     }
 
@@ -37,7 +45,11 @@ class SalarySlipMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.salary.slip',
+            markdown: 'emails.salary.slip', // View untuk isi email
+            with: [
+                'nama' => $this->gaji->karyawan->nama,
+                'periode' => \Carbon\Carbon::parse($this->gaji->bulan)->translatedFormat('F Y'),
+            ],
         );
     }
 
@@ -48,6 +60,13 @@ class SalarySlipMail extends Mailable
      */
     public function attachments(): array
     {
-        return [];
+        // Ambil nama file asli untuk ditampilkan di email
+        $originalFilename = 'slip-gaji-' . str_replace(' ', '_', strtolower($this->gaji->karyawan->nama)) . '-' . $this->gaji->bulan . '.pdf';
+
+        return [
+            Attachment::fromPath(Storage::disk('public')->path($this->pdfPath))
+                ->as($originalFilename)
+                ->withMime('application/pdf'),
+        ];
     }
 }

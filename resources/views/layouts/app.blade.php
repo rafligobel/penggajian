@@ -142,15 +142,31 @@
                                         style="width: 350px;">
                                         @forelse (auth()->user()->unreadNotifications as $notification)
                                             <li class="notification-item">
-                                                <a href="{{ \Illuminate\Support\Facades\Storage::url($notification->data['path']) }}"
-                                                    target="_blank">
-                                                    <i class="fas fa-file-pdf text-success me-2 mt-1"></i>
-                                                    <div>
-                                                        <small class="fw-bold">{{ $notification->data['message'] }}</small>
-                                                        <small
-                                                            class="d-block text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                                                {{-- Jika notifikasi bukan error, buat link. Jika error, jangan buat link. --}}
+                                                @if (empty($notification->data['is_error']))
+                                                    <a href="{{ \Illuminate\Support\Facades\Storage::url($notification->data['path']) }}"
+                                                        target="_blank">
+                                                        <i class="fas fa-file-pdf text-success me-2 mt-1"></i>
+                                                        {{-- Ikon Sukses --}}
+                                                        <div>
+                                                            <small
+                                                                class="fw-bold">{{ $notification->data['message'] }}</small>
+                                                            <small
+                                                                class="d-block text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                                                        </div>
+                                                    </a>
+                                                @else
+                                                    <div class="px-3 py-2"> {{-- Gunakan div biasa, bukan link --}}
+                                                        <i class="fas fa-exclamation-triangle text-danger me-2 mt-1"></i>
+                                                        {{-- Ikon Gagal --}}
+                                                        <div>
+                                                            <small
+                                                                class="fw-bold">{{ $notification->data['message'] }}</small>
+                                                            <small
+                                                                class="d-block text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                                                        </div>
                                                     </div>
-                                                </a>
+                                                @endif
                                             </li>
                                         @empty
                                             <li><a class="dropdown-item text-muted text-center" href="#">Tidak ada

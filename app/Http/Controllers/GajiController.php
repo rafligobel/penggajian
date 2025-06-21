@@ -91,7 +91,8 @@ class GajiController extends Controller
             return response()->json(['message' => 'Gagal. Karyawan ini tidak memiliki alamat email.'], 422);
         }
 
-        SendSlipToEmail::dispatch($gaji, Auth::user());
+        // Kirim ID-nya, bukan seluruh objek
+        SendSlipToEmail::dispatch($gaji->id, Auth::id());
 
         return response()->json(['message' => 'Proses pengiriman email dimulai. Anda akan dinotifikasi jika berhasil.']);
     }
