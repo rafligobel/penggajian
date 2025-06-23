@@ -106,21 +106,36 @@
             margin-top: 50px;
             border-bottom: 1px solid #333;
         }
+
+        .header-table .logo svg {
+            /* Tambahkan style ini */
+            width: 60px;
+            height: auto;
+        }
+
+        .header-table .logo {
+            width: 60px;
+            /* PASTIKAN ATURAN INI ADA */
+        }
+
+        .header-table h3 {
+            font-size: 13pt;
+            color: #555;
+        }
     </style>
 </head>
 
 <body>
 
     {{-- KOP SURAT --}}
-    <table class="header-table">
+    <table class="header">
         <tr>
-            <td style="width: 20%; text-align: left;"><img src="{{ $logoKiri }}" class="logo"></td>
-            <td style="width: 60%;">
-                <h3>YAYASAN AL-AZHAR 43 GORONTALO</h3>
-                <h4>DAFTAR REKAPITULASI GAJI PEGAWAI</h4>
-                <span>Periode: {{ $periode }}</span>
+            <td style="width: 20%; text-align: left;"><img src="{{ $logoAlAzhar }}" alt="Logo" class="logo"></td>
+            <td class="title-container">
+                <h3>YAYASAN ISLAM AL-AZHAR 43 GORONTALO</h3>
+                <h4>SLIP GAJI KARYAWAN</h4>
             </td>
-            <td style="width: 20%; text-align: right;"><img src="{{ $logoKanan }}" class="logo"></td>
+            <td style="width: 20%; text-align: right;"><img src="{{ $logoYayasan }}" alt="Logo" class="logo"></td>
         </tr>
     </table>
 

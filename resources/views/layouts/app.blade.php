@@ -76,35 +76,46 @@
         }
 
         /* -- PERBAIKAN CSS UNTUK NOTIFIKASI -- */
-        .notification-item a {
-            display: flex !important;
-            align-items: flex-start;
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid #eee;
-            text-decoration: none;
-            color: #333;
-        }
-
-        .notification-item:last-child a {
-            border-bottom: none;
-        }
-
         .notification-item a:hover {
             background-color: #f8f9fa;
         }
+
+        /* --- TAMBAHKAN KODE CSS BARU DI SINI --- */
+        .notification-item a.dropdown-item {
+            white-space: normal;
+            /* Memastikan teks panjang bisa wrap */
+        }
+
+        .icon-circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .notification-content {
+            line-height: 1.3;
+        }
+
+        .dropdown-item.non-clickable {
+            cursor: default;
+        }
+
+        .dropdown-item.non-clickable:hover {
+            background-color: transparent;
+        }
+
+        /* --- AKHIR DARI KODE CSS BARU --- */
 
         @media (max-width: 768px) {
             #sidebar {
                 margin-left: -250px;
             }
 
-            #sidebar.active {
-                margin-left: 0;
-            }
-
-            #sidebarCollapse span {
-                display: none;
-            }
+            /* ... (sisa CSS Anda) ... */
         }
     </style>
 </head>
@@ -138,40 +149,73 @@
                                             </span>
                                         @endif
                                     </a>
-                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationDropdown"
-                                        style="width: 350px;">
-                                        @forelse (auth()->user()->unreadNotifications as $notification)
-                                            <li class="notification-item">
-                                                {{-- Jika notifikasi bukan error, buat link. Jika error, jangan buat link. --}}
-                                                @if (empty($notification->data['is_error']))
-                                                    <a href="{{ \Illuminate\Support\Facades\Storage::url($notification->data['path']) }}"
-                                                        target="_blank">
-                                                        <i class="fas fa-file-pdf text-success me-2 mt-1"></i>
-                                                        {{-- Ikon Sukses --}}
-                                                        <div>
-                                                            <small
-                                                                class="fw-bold">{{ $notification->data['message'] }}</small>
-                                                            <small
-                                                                class="d-block text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow border-0"
+                                        aria-labelledby="notificationDropdown" style="width: 380px;">
+                                        <li
+                                            class="dropdown-header d-flex justify-content-between align-items-center px-3 py-2">
+                                            <h6 class="mb-0">Notifikasi</h6>
+                                            @if (auth()->user()->unreadNotifications->isNotEmpty())
+                                                <form action="{{ route('notifications.markAllAsRead') }}" method="POST"
+                                                    class="mb-0">
+                                                    @csrf
+                                                    <button type="submit"
+                                                        class="btn btn-link btn-sm p-0 text-decoration-none">Tandai semua
+                                                        dibaca</button>
+                                                </form>
+                                            @endif
+                                        </li>
+                                        <li>
+                                            <hr class="dropdown-divider my-0">
+                                        </li>
+
+                                        <div style="max-height: 400px; overflow-y: auto;">
+                                            @forelse (auth()->user()->unreadNotifications->take(5) as $notification)
+                                                <li class="notification-item">
+                                                    @if (empty($notification->data['is_error']))
+                                                        <a class="dropdown-item d-flex align-items-start py-2"
+                                                            href="{{ route('notifications.markAsRead', $notification->id) }}"
+                                                            target="_blank">
+                                                            <div class="icon-circle bg-success-subtle text-success me-3">
+                                                                <i class="fas fa-file-pdf"></i>
+                                                            </div>
+                                                            <div class="notification-content">
+                                                                <p class="mb-0 fw-semibold" style="white-space: normal;">
+                                                                    {{ $notification->data['message'] }}</p>
+                                                                <small
+                                                                    class="text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                                                            </div>
+                                                        </a>
+                                                    @else
+                                                        <div
+                                                            class="dropdown-item d-flex align-items-start py-2 non-clickable">
+                                                            <div class="icon-circle bg-danger-subtle text-danger me-3">
+                                                                <i class="fas fa-exclamation-triangle"></i>
+                                                            </div>
+                                                            <div class="notification-content">
+                                                                <p class="mb-0 fw-semibold" style="white-space: normal;">
+                                                                    {{ $notification->data['message'] }}</p>
+                                                                <small
+                                                                    class="text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                                                            </div>
                                                         </div>
-                                                    </a>
-                                                @else
-                                                    <div class="px-3 py-2"> {{-- Gunakan div biasa, bukan link --}}
-                                                        <i class="fas fa-exclamation-triangle text-danger me-2 mt-1"></i>
-                                                        {{-- Ikon Gagal --}}
-                                                        <div>
-                                                            <small
-                                                                class="fw-bold">{{ $notification->data['message'] }}</small>
-                                                            <small
-                                                                class="d-block text-muted">{{ $notification->created_at->diffForHumans() }}</small>
-                                                        </div>
-                                                    </div>
-                                                @endif
-                                            </li>
-                                        @empty
-                                            <li><a class="dropdown-item text-muted text-center" href="#">Tidak ada
-                                                    notifikasi baru</a></li>
-                                        @endforelse
+                                                    @endif
+                                                </li>
+                                            @empty
+                                                <li>
+                                                    <p class="text-muted text-center my-4">Tidak ada notifikasi baru.</p>
+                                                </li>
+                                            @endforelse
+                                        </div>
+
+                                        <li>
+                                            <hr class="dropdown-divider my-0">
+                                        </li>
+                                        <li class="text-center py-1 bg-light">
+                                            <a href="{{ route('notifications.index') }}"
+                                                class="dropdown-item text-primary fw-bold">
+                                                Lihat Semua Notifikasi
+                                            </a>
+                                        </li>
                                     </ul>
                                 </li>
                                 <li class="nav-item dropdown">

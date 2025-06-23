@@ -135,6 +135,29 @@
             margin-top: 50px;
             border-bottom: 1px solid #333;
         }
+
+        .header .logo svg {
+            /* Tambahkan style ini untuk mengontrol ukuran SVG */
+            width: 55px;
+            height: 55px;
+        }
+
+        .header h4 {
+            font-size: 13pt;
+            color: #555;
+        }
+
+        /* PASTIKAN BLOK CSS INI ADA DAN TIDAK DIKOMENTARI */
+        .header .logo {
+            width: 55px;
+            height: 55px;
+            vertical-align: middle;
+        }
+
+        .employee-details table td {
+            padding: 3px 0;
+            /* Jarak diperkecil */
+        }
     </style>
 </head>
 
@@ -237,7 +260,7 @@
                 </tr>
 
                 <tr class="grand-total-row">
-                    <td class="text-right">GAJI BERSIH (A - B)</td>
+                    <td class="text-right">GAJI BERSIH</td>
                     <td class="text-right">Rp {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
                 </tr>
             </tbody>

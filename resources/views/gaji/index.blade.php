@@ -68,12 +68,16 @@
                                     <td class="text-end fw-bold">Rp {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}
                                     </td>
                                     <td class="text-center">
-                                        <button class="btn btn-sm btn-info btn-detail" title="Detail Gaji"
-                                            data-bs-toggle="modal" data-bs-target="#detailModal"><i
-                                                class="fas fa-eye"></i></button>
-                                        <button class="btn btn-sm btn-warning btn-edit" title="Edit Gaji"
-                                            data-bs-toggle="modal" data-bs-target="#editModal"><i
-                                                class="fas fa-edit"></i></button>
+                                        @if (Auth::user()->role === 'bendahara')
+                                            <button class="btn btn-sm btn-info btn-detail" title="Detail Gaji"
+                                                data-bs-toggle="modal" data-bs-target="#detailModal"><i
+                                                    class="fas fa-eye"></i></button>
+                                            <button class="btn btn-sm btn-warning btn-edit" title="Edit Gaji"
+                                                data-bs-toggle="modal" data-bs-target="#editModal"><i
+                                                    class="fas fa-edit"></i></button>
+                                        @else
+                                            <span class="badge bg-secondary">Hanya Dilihat</span>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
@@ -227,7 +231,7 @@
 
                     const createRincianHtml = (items) => items.map(item =>
                         `<div class="row mb-2"><div class="col-7">${item.label}</div><div class="col-5 text-end">${formatRupiah(item.value)}</div></div>`
-                        ).join('');
+                    ).join('');
                     const pendapatanTetap = [{
                         label: 'Gaji Pokok',
                         value: data.gaji_pokok
@@ -264,7 +268,7 @@
                         <div class="col-lg-6 mb-4 mb-lg-0"><h5 class="mb-3">A. Pendapatan Tetap</h5>${createRincianHtml(pendapatanTetap)}</div>
                         <div class="col-lg-6"><h5 class="mb-3">B. Pendapatan Tidak Tetap</h5>${createRincianHtml(pendapatanTidakTetap)}<hr><h5 class="mb-3">C. Potongan</h5><div class="row mb-2"><div class="col-7">Potongan Lain-lain</div><div class="col-5 text-end text-danger">(${formatRupiah(data.potongan)})</div></div></div>
                     </div><hr class="my-4">
-                    <div class="bg-light p-3 rounded"><div class="row align-items-center"><div class="col-7"><h5 class="mb-0">GAJI BERSIH (A+B-C)</h5></div><div class="col-5 text-end"><h5 class="mb-0 fw-bold">${formatRupiah(data.gaji_bersih)}</h5></div></div></div>
+                    <div class="bg-light p-3 rounded"><div class="row align-items-center"><div class="col-7"><h5 class="mb-0">GAJI BERSIH</h5></div><div class="col-5 text-end"><h5 class="mb-0 fw-bold">${formatRupiah(data.gaji_bersih)}</h5></div></div></div>
                     <div class="mt-4 border-top pt-2 text-center small">${updateInfo}</div>`;
 
                     const downloadBtn = modal.querySelector('.btn-download-slip');
@@ -330,7 +334,7 @@
                     }, ];
                     let fieldsHtml = fields.map(f =>
                         `<div class="col-md-6 mb-3"><label class="form-label">${f.label}</label><input type="number" name="${f.name}" class="form-control" value="${f.value || 0}"></div>`
-                        ).join('');
+                    ).join('');
 
                     formContent.innerHTML =
                         `<input type="hidden" name="karyawan_id" value="${data.karyawan.id}"><input type="hidden" name="bulan" value="${data.bulan}"><div class="alert alert-info"><p class="mb-1"><strong>Periode: ${data.bulan}</strong></p><p class="mb-1">Jumlah Kehadiran: <strong>${data.jumlah_kehadiran} hari</strong></p><p class="mb-0">Tunjangan Kehadiran (Otomatis): <strong>${formatRupiah(data.tunj_kehadiran || 0)}</strong></p></div><div class="row">${fieldsHtml}<div class="col-md-6 mb-3"><label class="form-label">Potongan</label><input type="number" name="potongan" class="form-control" value="${data.potongan || 0}"></div></div>`;

@@ -58,8 +58,8 @@ class GenerateMonthlySalaryReport implements ShouldQueue
         ];
 
 
-        $logoKiri = $this->encodeImageToBase64(public_path('logo/logoalazhar.png'));
-        $logoKanan = $this->encodeImageToBase64(public_path('logo/logoyayasan.png'));
+        $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
+        $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
 
         // --- PERUBAHAN LOGIKA DI SINI ---
         $bendaharaUser = User::where('role', 'bendahara')->first();
@@ -70,8 +70,8 @@ class GenerateMonthlySalaryReport implements ShouldQueue
             'gajis' => $gajis,
             'totals' => $totals,
             'periode' => $date->translatedFormat('F Y'),
-            'logoKiri' => $logoKiri,
-            'logoKanan' => $logoKanan,
+            'logoKiri' => $logoAlAzhar,
+            'logoKanan' => $logoYayasan,
             'bendaharaNama' => $bendaharaNama, // <-- Tambahkan ini
         ];
 

@@ -30,27 +30,28 @@
         {{-- Role: Admin --}}
         @auth
             @if (auth()->user()->role === 'admin')
-                <li class="{{ Request::routeIs('dashboard') ? '' : '' }}">
+                <li class="{{ Request::routeIs('dashboard') ? 'active' : '' }}">
                     <a href="{{ route('dashboard') }}">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
-                <li class="{{ Request::routeIs('karyawan.*') ? '' : '' }}">
-                    <a href="#karyawanSubmenu" data-bs-toggle="collapse"
-                        aria-expanded="{{ Request::routeIs('karyawan.*') ? 'true' : 'false' }}" class="dropdown-toggle">
+                <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">
+                    <a href="{{ route('karyawan.index') }}">
                         <i class="fas fa-users"></i> Kelola Karyawan
                     </a>
-                    <ul class="collapse list-unstyled {{ Request::routeIs('karyawan.*') ? 'show' : '' }}"
-                        id="karyawanSubmenu">
-                        <li class="{{ Request::routeIs('karyawan.index') ? '' : '' }}">
-                            <a href="{{ route('karyawan.index') }}">Daftar Karyawan</a>
-                        </li>
-                        <li class="{{ Request::routeIs('karyawan.create') ? '' : '' }}">
-                            <a href="{{ route('karyawan.create') }}">Tambah Karyawan</a>
-                        </li>
-                    </ul>
                 </li>
-                {{-- HAPUS LINK ATURAN GAJI DI BAWAH INI --}}
+
+                <li class="{{ Request::routeIs('users.*') ? 'active' : '' }}">
+                    <a href="{{ route('users.index') }}">
+                        <i class="fas fa-user-shield"></i> Manajemen Pengguna
+                    </a>
+                </li>
+
+                <li class="{{ Request::routeIs('laporan.*') ? 'active' : '' }}">
+                    <a href="{{ route('laporan.gaji.bulanan') }}">
+                        <i class="fas fa-chart-line"></i> Lihat Laporan
+                    </a>
+                </li>
             @endif
 
             {{-- Role Bendahara --}}

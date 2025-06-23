@@ -9,9 +9,10 @@ use App\Services\SalaryService;
 use App\Traits\ManagesImageEncoding;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Auth; // <-- Tambahkan ini
-use App\Jobs\GenerateIndividualSlip; // <-- Tambahkan ini
-use App\Jobs\SendSlipToEmail;       // <-- Tambahkan ini
+use Illuminate\Support\Facades\Auth;
+use App\Jobs\GenerateIndividualSlip;
+use App\Jobs\SendSlipToEmail;
+use App\Models\User;
 
 
 class GajiController extends Controller
@@ -99,16 +100,24 @@ class GajiController extends Controller
     /**
      * Method ini tidak lagi digunakan oleh UI, tapi bisa dipertahankan untuk referensi atau debugging.
      */
+    // app/Http/Controllers/GajiController.php
+
     public function cetakPDF($id)
     {
         $gaji = Gaji::findOrFail($id);
-        $logoAlAzhar = $this->encodeImageToBase64(public_path('logo/logoalazhar.png'));
-        $logoYayasan = $this->encodeImageToBase64(public_path('logo/logoyayasan.png'));
+        $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
+        $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
+
+        // --- TAMBAHKAN LOGIKA INI ---
+        $bendaharaUser = User::where('role', 'bendahara')->first();
+        $bendaharaNama = $bendaharaUser ? $bendaharaUser->name : 'Bendahara Umum';
+        // --- AKHIR PENAMBAHAN ---
 
         $pdf = Pdf::loadView('gaji.slip_pdf', [
             'gaji' => $gaji,
             'logoAlAzhar' => $logoAlAzhar,
-            'logoYayasan' => $logoYayasan
+            'logoYayasan' => $logoYayasan,
+            'bendaharaNama' => $bendaharaNama // <-- Pastikan variabel ditambahkan di sini
         ]);
         $pdf->setPaper('A4', 'portrait');
         return $pdf->stream('slip_gaji_' . $gaji->karyawan->nama . '.pdf');

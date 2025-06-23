@@ -33,8 +33,8 @@ class GenerateIndividualSlip implements ShouldQueue
     {
         try {
             $gaji = $this->gaji;
-            $logoAlAzhar = $this->encodeImageToBase64(public_path('logo/logoalazhar.png'));
-            $logoYayasan = $this->encodeImageToBase64(public_path('logo/logoyayasan.png'));
+            $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
+            $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
 
             // --- PERUBAHAN LOGIKA DI SINI ---
             // 1. Cari pengguna dengan peran 'bendahara' di database.
