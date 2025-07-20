@@ -1,95 +1,83 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Middleware\RoleMiddleware;
-use App\Http\Controllers\KaryawanController;
-use App\Http\Controllers\GajiController;
-use App\Http\Controllers\SimulasiGajiController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\AbsensiController;
-use App\Http\Controllers\LaporanController;
+use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\SesiAbsensiController;
+use App\Http\Controllers\AbsensiController;
+use App\Http\Controllers\GajiController;
+use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\NotificationController;
-use App\Models\User;
+use App\Http\Controllers\SimulasiGajiController;
+use App\Http\Controllers\UserController; // Diasumsikan ada untuk manajemen user oleh Admin
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
+|
+| Di sini adalah tempat Anda dapat mendaftarkan rute web untuk aplikasi Anda.
+| Rute-rute ini dimuat oleh RouteServiceProvider dan semuanya akan
+| ditugaskan ke grup middleware "web". Buat sesuatu yang hebat!
+|
 */
 
+//========================================================================
+// RUTE PUBLIK (Untuk Tenaga Kerja - Tanpa Autentikasi)
+//========================================================================
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+// Fitur Simulasi Gaji dapat diakses publik
+Route::get('/simulasi-gaji', [SimulasiGajiController::class, 'index'])->name('simulasi.index');
+Route::post('/simulasi-gaji', [SimulasiGajiController::class, 'calculate'])->name('simulasi.calculate');
+
+// Fitur Absensi dapat diakses publik
+// CATATAN: Ini memerlukan method dan view baru di AbsensiController yang dirancang untuk publik.
+// Misalnya, halaman di mana karyawan memilih nama mereka dari daftar dan mencatat kehadiran.
+Route::get('/absensi-karyawan', [AbsensiController::class, 'createPublic'])->name('absensi.public.create');
+Route::post('/absensi-karyawan', [AbsensiController::class, 'storePublic'])->name('absensi.public.store');
 
 
+//========================================================================
+// RUTE YANG MEMERLUKAN AUTENTIKASI (Untuk Admin & Bendahara)
+//========================================================================
 Route::middleware('auth')->group(function () {
+    // Rute Umum setelah login
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Rute Profil Pengguna (bisa diakses Admin & Bendahara)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Bendahara specific routes
-    Route::middleware(['role:bendahara'])->group(function () {
-        Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
-        Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save');
-
-        // RUTE BARU UNTUK PROSES BACKGROUND
-        Route::post('/gaji/{gaji}/download', [GajiController::class, 'downloadSlip'])->name('gaji.download');
-        Route::post('/gaji/{gaji}/send-email', [GajiController::class, 'sendEmail'])->name('gaji.send-email');
-
-        Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
-        Route::get('/laporan/gaji-bulanan', [LaporanController::class, 'gajiBulanan'])->name('laporan.gaji.bulanan');
-        Route::post('/laporan/gaji-bulanan/cetak', [LaporanController::class, 'cetakGajiBulanan'])->name('laporan.gaji.cetak');
-        Route::get('/laporan/per-karyawan', [LaporanController::class, 'perKaryawan'])->name('laporan.per.karyawan');
-
-        Route::get('/laporan/absensi', [AbsensiController::class, 'rekapPerBulan'])->name('laporan.absensi.index');
-        Route::get('/laporan/absensi/data', [AbsensiController::class, 'fetchRekapData'])->name('laporan.absensi.data');
-        Route::resource('sesi-absensi', SesiAbsensiController::class)->except(['show']);
+    //-------------------------------------------------
+    // RUTE KHUSUS BENDAHARA
+    //-------------------------------------------------
+    Route::middleware('role:bendahara')->prefix('bendahara')->name('bendahara.')->group(function () {
+        Route::resource('karyawan', KaryawanController::class);
+        Route::resource('sesi-absensi', SesiAbsensiController::class);
+        Route::get('absensi/{sesi_absensi_id}/rekap', [AbsensiController::class, 'rekap'])->name('absensi.rekap');
+        Route::resource('absensi', AbsensiController::class);
+        Route::post('gaji/generate-all', [GajiController::class, 'generateAllSalaries'])->name('gaji.generate_all');
+        Route::get('gaji/cetak-semua', [GajiController::class, 'cetakSemuaSlip'])->name('gaji.cetak_semua');
+        Route::post('gaji/send-all-slips', [GajiController::class, 'sendAllSlips'])->name('gaji.send_all_slips');
+        Route::resource('gaji', GajiController::class);
+        Route::get('laporan/gaji-bulanan', [LaporanController::class, 'gajiBulanan'])->name('laporan.gaji_bulanan');
+        Route::get('laporan/per-karyawan', [LaporanController::class, 'perKaryawan'])->name('laporan.per_karyawan');
     });
 
-    // Admin specific routes for Karyawan Management (CRUD except index and show)
-    Route::middleware(['role:admin'])->group(function () {
-        Route::resource('/karyawan', KaryawanController::class)->except(['index', 'show']);
-        Route::resource('/users', ProfileController::class);
-    });
-
-
-    // Admin and Bendahara can view Karyawan list and details
-    Route::middleware(['role:admin,bendahara'])->group(function () {
-        Route::get('/karyawan', [KaryawanController::class, 'index'])->name('karyawan.index');
-        Route::get('/karyawan/{karyawan}', [KaryawanController::class, 'show'])->name('karyawan.show');
-
-        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-        Route::get('/notifications/{id}/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
-        Route::post('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
-        Route::post('/notifications/delete-selected', [NotificationController::class, 'deleteSelected'])->name('notifications.deleteSelected');
-        Route::post('/notifications/delete-all', [NotificationController::class, 'deleteAll'])->name('notifications.deleteAll');
-        // Rute yang bisa diakses Bendahara & Admin (sebagai pengawas)
-        Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
-        Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save');
-        Route::post('/gaji/{gaji}/download', [GajiController::class, 'downloadSlip'])->name('gaji.download');
-        Route::post('/gaji/{gaji}/send-email', [GajiController::class, 'sendEmail'])->name('gaji.send-email');
-
-        Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
-        Route::get('/laporan/gaji-bulanan', [LaporanController::class, 'gajiBulanan'])->name('laporan.gaji.bulanan');
-        Route::post('/laporan/gaji-bulanan/cetak', [LaporanController::class, 'cetakGajiBulanan'])->name('laporan.gaji.cetak');
-        Route::get('/laporan/per-karyawan', [LaporanController::class, 'perKaryawan'])->name('laporan.per.karyawan');
-
-        Route::get('/laporan/absensi', [AbsensiController::class, 'rekapPerBulan'])->name('laporan.absensi.index');
-        Route::get('/laporan/absensi/data', [AbsensiController::class, 'fetchRekapData'])->name('laporan.absensi.data');
-        Route::resource('sesi-absensi', SesiAbsensiController::class)->except(['show']);
+    //-------------------------------------------------
+    // RUTE KHUSUS ADMIN
+    //-------------------------------------------------
+    Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
+        // Contoh: Admin dapat mengelola akun pengguna (termasuk akun Bendahara)
+        // CATATAN: Anda perlu membuat UserController untuk fungsionalitas ini.
+        Route::resource('users', UserController::class);
+        Route::resource('notifications', NotificationController::class)->only(['index']);
     });
 });
 
-
-// Guest routes
-Route::get('/simulasi', [SimulasiGajiController::class, 'index'])->name('simulasi.index');
-Route::post('/simulasi/hitung', [SimulasiGajiController::class, 'hitung'])->name('simulasi.hitung');
-Route::get('/absensi', [AbsensiController::class, 'index'])->name('absensi.form');
-Route::post('/absensi', [AbsensiController::class, 'store'])->name('absensi.store');
-
-
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';
