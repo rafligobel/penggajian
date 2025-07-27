@@ -10,7 +10,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AbsensiController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\SesiAbsensiController;
-
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\UserController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -29,6 +30,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+
     // Bendahara specific routes
     Route::middleware(['role:bendahara'])->group(function () {
         Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
@@ -46,11 +48,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/laporan/absensi', [AbsensiController::class, 'rekapPerBulan'])->name('laporan.absensi.index');
         Route::get('/laporan/absensi/data', [AbsensiController::class, 'fetchRekapData'])->name('laporan.absensi.data');
         Route::resource('sesi-absensi', SesiAbsensiController::class)->except(['show']);
+
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('/notifications/{id}/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+        Route::post('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
     });
 
     // Admin specific routes for Karyawan Management (CRUD except index and show)
     Route::middleware(['role:admin'])->group(function () {
-        Route::resource('/karyawan', KaryawanController::class)->except(['index', 'show']);
+        Route::resource('/karyawan', KaryawanController::class);
+        Route::resource('users', UserController::class);
     });
 
     // Admin and Bendahara can view Karyawan list and details

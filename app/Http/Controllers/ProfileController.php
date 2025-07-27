@@ -2,76 +2,59 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Http\Requests\ProfileUpdateRequest;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
-    public function index()
+    /**
+     * Menampilkan form profil pengguna yang sedang login.
+     */
+    public function edit(Request $request): View
     {
-        $users = User::orderBy('name')->paginate(10);
-        return view('users.index', compact('users'));
-    }
-
-    public function create()
-    {
-        return view('users.create', ['user' => new User()]);
-    }
-
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'role' => ['required', Rule::in(['admin', 'bendahara', 'karyawan'])],
-            'password' => 'required|string|min:8|confirmed',
+        return view('profile.edit', [
+            'user' => $request->user(),
         ]);
-
-        User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'role' => $request->role,
-            'password' => Hash::make($request->password),
-        ]);
-
-        return redirect()->route('users.index')->with('success', 'Pengguna baru berhasil ditambahkan.');
     }
 
-    public function edit(User $user)
+    /**
+     * Mengupdate informasi profil pengguna yang sedang login.
+     */
+    public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        return view('users.edit', compact('user'));
-    }
+        $request->user()->fill($request->validated());
 
-    public function update(Request $request, User $user)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'role' => ['required', Rule::in(['admin', 'bendahara', 'karyawan'])],
-            'password' => 'nullable|string|min:8|confirmed',
-        ]);
-
-        $data = $request->only('name', 'email', 'role');
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
+        if ($request->user()->isDirty('email')) {
+            $request->user()->email_verified_at = null;
         }
 
-        $user->update($data);
+        $request->user()->save();
 
-        return redirect()->route('users.index')->with('success', 'Data pengguna berhasil diperbarui.');
+        return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
-    public function destroy(User $user)
+    /**
+     * Menghapus akun pengguna yang sedang login.
+     */
+    public function destroy(Request $request): RedirectResponse
     {
-        // Mencegah admin menghapus akunnya sendiri
-        if (Auth::id() === $user->id) {
-            return redirect()->route('users.index')->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
-        }
+        $request->validateWithBag('userDeletion', [
+            'password' => ['required', 'current_password'],
+        ]);
+
+        $user = $request->user();
+
+        Auth::logout();
 
         $user->delete();
-        return redirect()->route('users.index')->with('success', 'Pengguna berhasil dihapus.');
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return Redirect::to('/');
     }
 }
