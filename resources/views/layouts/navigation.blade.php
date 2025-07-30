@@ -46,11 +46,11 @@
                     </a>
                 </li>
 
-                <li class="{{ Request::routeIs('laporan.*') ? 'active' : '' }}">
+                {{-- <li class="{{ Request::routeIs('laporan.*') ? 'active' : '' }}">
                     <a href="{{ route('laporan.gaji.bulanan') }}">
                         <i class="fas fa-chart-line"></i> Lihat Laporan
                     </a>
-                </li>
+                </li> --}}
             @endif
 
             @if (auth()->user()->role === 'admin')
@@ -71,11 +71,11 @@
                     </a>
                 </li>
 
-                <li class="{{ Request::routeIs('laporan.*') ? 'active' : '' }}">
+                {{-- <li class="{{ Request::routeIs('laporan.*') ? 'active' : '' }}">
                     <a href="{{ route('laporan.gaji.bulanan') }}">
                         <i class="fas fa-chart-line"></i> Lihat Laporan
                     </a>
-                </li>
+                </li> --}}
             @endif
 
             {{-- Role Bendahara --}}
