@@ -55,7 +55,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Admin specific routes for Karyawan Management (CRUD except index and show)
-    Route::middleware(['role:admin'])->group(function () {
+    Route::middleware(['role:admin,superadmin'])->group(function () {
         Route::resource('/karyawan', KaryawanController::class);
         Route::resource('users', UserController::class);
     });

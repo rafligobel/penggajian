@@ -56,8 +56,8 @@
             <img src="{{ asset('logo/logoalazhar.png') }}" alt="Logo Perusahaan" style="max-height: 100px;">
         </div>
         <div class="mb-4">
-            <h1 class="brand-title">Sistem Informasi Penggajian</h1>
-            <p class="brand-subtitle">Al-Azhar 43 Gorontalo</p>
+            <h1 class="brand-title">Sistem Informasi Kepegawaian & Penggajian</h1>
+            <h5 class="brand-subtitle">Sekolah Al-Azhar 43 Gorontalo</h1>
         </div>
 
         <!-- Menu -->
@@ -87,7 +87,7 @@
                     <div class="card-body">
                         <h5 class="card-title">Absensi</h5>
                         <p class="card-text text-muted">Isi absensi tanpa login.</p>
-                        <a href="{{ route('absensi.form') }}" class="btn btn-warning w-100">Isi Absensi</a>
+                        <a href="{{ route('absensi.form') }}" class="btn btn-warning w-100 text-white">Isi Absensi</a>
                     </div>
                 </div>
             </div>

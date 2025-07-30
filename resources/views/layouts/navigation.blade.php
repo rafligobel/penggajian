@@ -27,8 +27,32 @@
             </li>
         @endguest
 
-        {{-- Role: Admin --}}
         @auth
+            @if (auth()->user()->role === 'superadmin')
+                <li class="{{ Request::routeIs('dashboard') ? 'active' : '' }}">
+                    <a href="{{ route('dashboard') }}">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                </li>
+                <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">
+                    <a href="{{ route('karyawan.index') }}">
+                        <i class="fas fa-users"></i> Kelola Karyawan
+                    </a>
+                </li>
+
+                <li class="{{ Request::routeIs('users.*') ? 'active' : '' }}">
+                    <a href="{{ route('users.index') }}">
+                        <i class="fas fa-user-shield"></i> Manajemen Pengguna
+                    </a>
+                </li>
+
+                <li class="{{ Request::routeIs('laporan.*') ? 'active' : '' }}">
+                    <a href="{{ route('laporan.gaji.bulanan') }}">
+                        <i class="fas fa-chart-line"></i> Lihat Laporan
+                    </a>
+                </li>
+            @endif
+
             @if (auth()->user()->role === 'admin')
                 <li class="{{ Request::routeIs('dashboard') ? 'active' : '' }}">
                     <a href="{{ route('dashboard') }}">
