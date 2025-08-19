@@ -19,6 +19,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Throwable;
 use Illuminate\Support\Facades\Log;
 
+
 class SendSlipToEmail implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, ManagesImageEncoding;
@@ -60,8 +61,8 @@ class SendSlipToEmail implements ShouldQueue
             Log::info("--> Email ditemukan: {$karyawan->email}");
 
             Log::info("[Checkpoint 5] Menyiapkan data untuk PDF.");
-            $logoAlAzhar = $this->encodeImageToBase64(public_path('logo/logoalazhar.png'));
-            $logoYayasan = $this->encodeImageToBase64(public_path('logo/logoyayasan.png'));
+            $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
+            $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
             Log::info("--> Gambar logo selesai di-encode.");
 
             Log::info("[Checkpoint 6] Membuat PDF.");

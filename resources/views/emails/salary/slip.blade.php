@@ -1,13 +1,13 @@
 <x-mail::message>
     # Slip Gaji Anda
 
-    Yth. **{{ $nama }}**,
+    Yth. {{ $nama }},
 
-    Terlampir adalah slip gaji Anda untuk periode **{{ $periode }}**.
+    Terlampir adalah slip gaji Anda untuk periode {{ $periode }}.
 
     Terima kasih atas dedikasi Anda.
 
     Salam,
-    <br>
-    **Bendahara Al-Azhar 43 Gorontalo**
+
+    Bendahara Al-Azhar 43 Gorontalo
 </x-mail::message>

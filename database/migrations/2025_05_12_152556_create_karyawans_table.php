@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('nama');
             $table->string('nip')->unique();
-            $table->string('email')->unique()->nullable();
+            $table->string('email')->unique();
             $table->text('alamat');
             $table->string('telepon');
             $table->string('jabatan');

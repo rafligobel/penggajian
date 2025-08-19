@@ -13,17 +13,17 @@ return new class extends Migration
     {
         Schema::create('absensis', function (Blueprint $table) {
             $table->id();
-            $table->string('nip'); // Relasi ke karyawan
-            $table->string('nama'); // Nama karyawan (opsional untuk cache)
-            $table->date('tanggal'); // Tanggal absen
-            $table->time('jam')->nullable(); // Jam absen (opsional)
+            $table->string('nip');
+            $table->string('nama');
+            $table->date('tanggal');
+            $table->time('jam');
             $table->timestamps();
-
-            // Tambahkan indeks unik agar tidak bisa absen 2x di hari yang sama
-            $table->unique(['nip', 'tanggal']);
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('absensis');
