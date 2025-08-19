@@ -29,18 +29,18 @@
 
         @auth
             @if (auth()->user()->role === 'superadmin')
-                <li class="{{ Request::routeIs('dashboard') ? 'active' : '' }}">
+                <li class="{{ Request::routeIs('dashboard') ? '' : '' }}">
                     <a href="{{ route('dashboard') }}">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
-                <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">
+                <li class="{{ Request::routeIs('karyawan.*') ? '' : '' }}">
                     <a href="{{ route('karyawan.index') }}">
                         <i class="fas fa-users"></i> Kelola Karyawan
                     </a>
                 </li>
 
-                <li class="{{ Request::routeIs('users.*') ? 'active' : '' }}">
+                <li class="{{ Request::routeIs('users.*') ? '' : '' }}">
                     <a href="{{ route('users.index') }}">
                         <i class="fas fa-user-shield"></i> Manajemen Pengguna
                     </a>
@@ -54,18 +54,18 @@
             @endif
 
             @if (auth()->user()->role === 'admin')
-                <li class="{{ Request::routeIs('dashboard') ? 'active' : '' }}">
+                <li class="{{ Request::routeIs('dashboard') ? '' : '' }}">
                     <a href="{{ route('dashboard') }}">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
-                <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">
+                <li class="{{ Request::routeIs('karyawan.*') ? '' : '' }}">
                     <a href="{{ route('karyawan.index') }}">
                         <i class="fas fa-users"></i> Kelola Karyawan
                     </a>
                 </li>
 
-                <li class="{{ Request::routeIs('users.*') ? 'active' : '' }}">
+                <li class="{{ Request::routeIs('users.*') ? '' : '' }}">
                     <a href="{{ route('users.index') }}">
                         <i class="fas fa-user-shield"></i> Manajemen Pengguna
                     </a>
@@ -132,6 +132,11 @@
                             <a href="{{ route('laporan.absensi.index') }}">Laporan Absensi</a>
                         </li>
                     </ul>
+                </li>
+                <li class="{{ Request::routeIs('pengaturan.*') ? '' : '' }}">
+                    <a href="{{ route('pengaturan.index') }}">
+                        <i class="fas fa-cog"></i> Pengaturan
+                    </a>
                 </li>
             @endif
 

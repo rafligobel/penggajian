@@ -273,7 +273,16 @@
                 <td style="width: 35%;">
                     Gorontalo, {{ now()->translatedFormat('d F Y') }}<br>
                     Bendahara
-                    <div class="signature-line"></div>
+
+                    {{-- BLOK BARU UNTUK MENAMPILKAN TANDA TANGAN --}}
+                    <div class="signature-space" style="height: 60px; margin-top: 5px; margin-bottom: 5px;">
+                        @if (!empty($tandaTanganBendahara))
+                            <img src="{{ $tandaTanganBendahara }}" alt="Tanda Tangan"
+                                style="height: 100%; width: auto;">
+                        @endif
+                    </div>
+                    {{-- AKHIR BLOK BARU --}}
+
                     ( {{ $bendaharaNama ?? '.....................' }} )
                 </td>
             </tr>

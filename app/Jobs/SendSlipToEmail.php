@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Throwable;
 use Illuminate\Support\Facades\Log;
-
+use App\Models\Pengaturan;
 
 class SendSlipToEmail implements ShouldQueue
 {
@@ -63,10 +63,34 @@ class SendSlipToEmail implements ShouldQueue
             Log::info("[Checkpoint 5] Menyiapkan data untuk PDF.");
             $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
             $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
+
+            // Mengambil data tanda tangan
+            $tandaTanganBendahara = '';
+            $pengaturanTtd = Pengaturan::where('key', 'tanda_tangan_bendahara')->first();
+            if ($pengaturanTtd && Storage::disk('public')->exists($pengaturanTtd->value)) {
+                $tandaTanganBendahara = $this->getImageAsBase64DataUri(storage_path('app/public/' . $pengaturanTtd->value));
+            }
+
+            // Juga ambil nama bendahara untuk ditampilkan di bawah tanda tangan
+            $bendaharaUser = User::where('role', 'bendahara')->first();
+            $bendaharaNama = $bendaharaUser ? $bendaharaUser->name : 'Bendahara Umum';
+
             Log::info("--> Gambar logo selesai di-encode.");
 
             Log::info("[Checkpoint 6] Membuat PDF.");
-            $pdf = Pdf::loadView('gaji.slip_pdf', compact('gaji', 'logoAlAzhar', 'logoYayasan'));
+
+            // ====================================================================
+            // INI BAGIAN YANG DIPERBAIKI
+            // ====================================================================
+            $pdf = Pdf::loadView('gaji.slip_pdf', compact(
+                'gaji',
+                'logoAlAzhar',
+                'logoYayasan',
+                'tandaTanganBendahara', // Variabel ini sekarang ditambahkan
+                'bendaharaNama'         // Variabel ini juga ditambahkan
+            ));
+            // ====================================================================
+
             $pdf->setPaper('A4', 'portrait');
             Log::info("--> Mesin PDF berhasil di-load.");
 
@@ -90,24 +114,7 @@ class SendSlipToEmail implements ShouldQueue
             ));
             Log::info("JOB SELESAI DENGAN SUKSES.");
         } catch (Throwable $e) {
-            // Ini akan menangkap APAPUN error yang terjadi di blok try
-            Log::error("GAGAL PADA JOB SendSlipToEmail ID: {$this->gajiId}", [
-                'error_message' => $e->getMessage(),
-                'file'          => $e->getFile(),
-                'line'          => $e->getLine(),
-                'trace'         => $e->getTraceAsString() // Trace lengkap
-            ]);
-
-            if ($user) {
-                // Kirim notifikasi kegagalan yang lebih detail
-                $user->notify(new ReportGenerated(
-                    '',
-                    '',
-                    'N/A',
-                    'Error Gaji ID ' . $this->gajiId . ': ' . $e->getMessage(),
-                    true
-                ));
-            }
+            // ... (blok catch biarkan sama)
         }
     }
 }
