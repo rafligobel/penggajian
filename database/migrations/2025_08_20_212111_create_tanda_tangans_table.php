@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('pengaturan', function (Blueprint $table) {
+        // Nama tabel sengaja dibuat singular untuk konsistensi
+        Schema::create('tanda_tangan', function (Blueprint $table) {
             $table->id();
             $table->string('key')->unique();
             $table->text('value')->nullable();
@@ -18,6 +19,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('pengaturan');
+        Schema::dropIfExists('tanda_tangan');
     }
 };

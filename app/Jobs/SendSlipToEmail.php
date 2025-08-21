@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Throwable;
 use Illuminate\Support\Facades\Log;
-use App\Models\Pengaturan;
+use App\Models\TandaTangan;
 
 class SendSlipToEmail implements ShouldQueue
 {
@@ -66,7 +66,7 @@ class SendSlipToEmail implements ShouldQueue
 
             // Mengambil data tanda tangan
             $tandaTanganBendahara = '';
-            $pengaturanTtd = Pengaturan::where('key', 'tanda_tangan_bendahara')->first();
+            $pengaturanTtd = TandaTangan::where('key', 'tanda_tangan_bendahara')->first(); // Ganti ini
             if ($pengaturanTtd && Storage::disk('public')->exists($pengaturanTtd->value)) {
                 $tandaTanganBendahara = $this->getImageAsBase64DataUri(storage_path('app/public/' . $pengaturanTtd->value));
             }

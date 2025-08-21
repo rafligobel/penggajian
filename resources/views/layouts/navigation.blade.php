@@ -133,8 +133,8 @@
                         </li>
                     </ul>
                 </li>
-                <li class="{{ Request::routeIs('pengaturan.*') ? '' : '' }}">
-                    <a href="{{ route('pengaturan.index') }}">
+                <li class="{{ Request::routeIs('tanda_tangan.*') ? '' : '' }}">
+                    <a href="{{ route('tanda_tangan.index') }}">
                         <i class="fas fa-cog"></i> Pengaturan
                     </a>
                 </li>

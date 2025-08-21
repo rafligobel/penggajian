@@ -12,6 +12,8 @@ use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\SesiAbsensiController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\TandaTanganController;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -31,30 +33,37 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
 
-    // Bendahara specific routes
+    
     Route::middleware(['role:bendahara'])->group(function () {
         Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
         Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save');
-
-        // RUTE BARU UNTUK PROSES BACKGROUND
         Route::post('/gaji/{gaji}/download', [GajiController::class, 'downloadSlip'])->name('gaji.download');
         Route::post('/gaji/{gaji}/send-email', [GajiController::class, 'sendEmail'])->name('gaji.send-email');
 
-        Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
+        // --- RUTE LAPORAN YANG SUDAH DIRAPIKAN ---
+        
+        // Menampilkan halaman laporan
         Route::get('/laporan/gaji-bulanan', [LaporanController::class, 'gajiBulanan'])->name('laporan.gaji.bulanan');
-        Route::post('/laporan/gaji-bulanan/cetak', [LaporanController::class, 'cetakGajiBulanan'])->name('laporan.gaji.cetak');
         Route::get('/laporan/per-karyawan', [LaporanController::class, 'perKaryawan'])->name('laporan.per.karyawan');
+        
+        // Rute untuk Laporan Absensi (diperbaiki)
+        Route::get('/laporan/absensi', [LaporanController::class, 'rekapAbsensi'])->name('laporan.absensi.index');
 
-        Route::get('/laporan/absensi', [AbsensiController::class, 'rekapPerBulan'])->name('laporan.absensi.index');
-        Route::get('/laporan/absensi/data', [AbsensiController::class, 'fetchRekapData'])->name('laporan.absensi.data');
+        // Aksi spesifik untuk Laporan Gaji Bulanan (Cetak/Kirim yang Terpilih)
+        Route::post('/laporan/gaji-bulanan/cetak-terpilih', [LaporanController::class, 'cetakGajiBulanan'])->name('laporan.gaji.cetak');
+        Route::post('/laporan/gaji-bulanan/kirim-email-terpilih', [LaporanController::class, 'kirimEmailGajiTerpilih'])->name('laporan.gaji.kirim-email-terpilih');
+
+        // Rute terpusat untuk mencetak atau mengirim laporan KESELURUHAN
+        Route::post('/laporan/cetak', [LaporanController::class, 'cetakLaporanPdf'])->name('laporan.cetak');
+        Route::post('/laporan/kirim-email', [LaporanController::class, 'kirimLaporanEmail'])->name('laporan.kirim-email');
+        
+        // Rute lainnya
         Route::resource('sesi-absensi', SesiAbsensiController::class)->except(['show']);
-
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::get('/notifications/{id}/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
         Route::post('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
-
-        Route::get('/pengaturan', [\App\Http\Controllers\PengaturanController::class, 'index'])->name('pengaturan.index');
-        Route::post('/pengaturan', [\App\Http\Controllers\PengaturanController::class, 'update'])->name('pengaturan.update');
+        Route::get('/tanda-tangan', [TandaTanganController::class, 'index'])->name('tanda_tangan.index');
+        Route::post('/tanda-tangan', [TandaTanganController::class, 'update'])->name('tanda_tangan.update');
     });
 
     // Admin specific routes for Karyawan Management (CRUD except index and show)

@@ -14,7 +14,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
-use App\Models\Pengaturan;
+use App\Models\TandaTangan;
 use Throwable;
 
 class GenerateIndividualSlip implements ShouldQueue
@@ -41,7 +41,7 @@ class GenerateIndividualSlip implements ShouldQueue
             $bendaharaNama = $bendaharaUser ? $bendaharaUser->name : 'Bendahara Umum';
 
             $tandaTanganBendahara = '';
-            $pengaturanTtd = Pengaturan::where('key', 'tanda_tangan_bendahara')->first();
+            $pengaturanTtd = TandaTangan::where('key', 'tanda_tangan_bendahara')->first(); // <-- SUDAH DIGANTI
             if ($pengaturanTtd && Storage::disk('public')->exists($pengaturanTtd->value)) {
                 $tandaTanganBendahara = $this->getImageAsBase64DataUri(storage_path('app/public/' . $pengaturanTtd->value));
             }

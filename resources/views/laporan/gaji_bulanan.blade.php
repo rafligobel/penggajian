@@ -8,20 +8,25 @@
             <div class="card-body">
                 <form id="laporan-form" method="POST" action="{{ route('laporan.gaji.cetak') }}">
                     @csrf
-                    <div class="row align-items-end">
-                        <div class="col-md-4">
+                    <div class="row align-items-end g-3">
+                        <div class="col-md-3">
                             <label for="bulan" class="form-label fw-bold">Pilih Periode</label>
                             <input type="month" class="form-control" id="bulan" name="bulan"
                                 value="{{ $selectedMonth }}">
                         </div>
-                        <div class="col-md-3">
-                            <button type="button" id="filter-btn" class="btn btn-primary w-100"><i
-                                    class="fas fa-filter me-1"></i>
-                                Tampilkan</button>
+                        <div class="col-md-2">
+                            <button type="button" id="filter-btn" class="btn btn-primary w-100">
+                                <i class="fas fa-filter me-1"></i> Tampilkan
+                            </button>
                         </div>
                         <div class="col-md-3">
-                            <button type="submit" class="btn btn-danger w-100">
+                            <button type="button" id="cetak-terpilih-btn" class="btn btn-danger w-100">
                                 <i class="fas fa-file-pdf me-1"></i> Cetak PDF Terpilih
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" id="kirim-email-terpilih-btn" class="btn btn-info w-100">
+                                <i class="fas fa-envelope me-1"></i> Kirim Email Terpilih
                             </button>
                         </div>
                     </div>
@@ -75,16 +80,32 @@
             document.addEventListener('DOMContentLoaded', function() {
                 const form = document.getElementById('laporan-form');
 
+                // --- Logika Tombol Filter (tetap sama) ---
                 document.getElementById('filter-btn').addEventListener('click', function() {
-                    // Ubah method ke GET untuk filter
                     form.method = 'GET';
                     form.action = "{{ route('laporan.gaji.bulanan') }}";
-                    // Hapus atribut _token sebelum submit GET
                     const token = form.querySelector('input[name="_token"]');
                     if (token) token.remove();
                     form.submit();
                 });
 
+                // --- Logika Tombol Cetak PDF Terpilih (DIPERBAIKI) ---
+                document.getElementById('cetak-terpilih-btn').addEventListener('click', function() {
+                    form.method = 'POST';
+                    form.action = "{{ route('laporan.gaji.cetak') }}";
+                    form.removeAttribute('target'); // Pastikan tidak ada target
+                    form.submit();
+                });
+
+                // --- Logika Tombol Kirim Email Terpilih (tetap sama) ---
+                document.getElementById('kirim-email-terpilih-btn').addEventListener('click', function() {
+                    form.method = 'POST';
+                    form.action = "{{ route('laporan.gaji.kirim-email-terpilih') }}";
+                    form.removeAttribute('target'); // Pastikan tidak membuka tab baru
+                    form.submit();
+                });
+
+                // --- Logika Select All (tetap sama) ---
                 document.getElementById('select-all').addEventListener('change', function(e) {
                     document.querySelectorAll('.gaji-checkbox').forEach(checkbox => {
                         checkbox.checked = e.target.checked;

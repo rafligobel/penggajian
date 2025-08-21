@@ -3,13 +3,17 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Laporan Gaji Bulanan - {{ $periode }}</title>
+    <title>Laporan Gaji Bulanan - {{ \Carbon\Carbon::parse($periode)->translatedFormat('F Y') }}</title>
     <style>
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
-            font-size: 9pt;
-            /* Ukuran font diperkecil agar lebih compact */
+            font-size: 8pt;
             color: #333;
+        }
+
+        .container {
+            width: 100%;
+            margin: 0 auto;
         }
 
         table {
@@ -17,21 +21,43 @@
             border-collapse: collapse;
         }
 
+        /* KOP SURAT */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 10px;
+        }
+
+        .header .logo {
+            width: 50px;
+            vertical-align: middle;
+        }
+
+        .header h3 {
+            font-size: 14pt;
+            margin: 0;
+        }
+
+        .header h4 {
+            font-size: 12pt;
+            margin: 0;
+            color: #333;
+        }
+
+        /* TABEL UTAMA */
         .main-table th,
         .main-table td {
             border: 1px solid #ccc;
-            padding: 5px 8px;
-            /* Padding diperkecil */
+            padding: 4px 5px;
             text-align: right;
         }
 
         .main-table th {
-            background-color: #0056b3;
-            /* Header tabel lebih modern */
-            color: #ffffff;
+            background-color: #f2f2f2;
             font-weight: bold;
             text-align: center;
-            padding: 8px;
+            white-space: nowrap;
         }
 
         .main-table .text-left {
@@ -42,56 +68,13 @@
             text-align: center;
         }
 
-        /* Zebra-striping untuk baris tabel agar mudah dibaca */
-        .main-table tbody tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-
+        /* FOOTER TABEL */
         .main-table tfoot .footer-row {
             font-weight: bold;
             background-color: #e9ecef;
-            /* Warna footer berbeda */
         }
 
-        /* Styling untuk Kop Surat */
-        .header-table {
-            width: 100%;
-            border: none;
-            margin-bottom: 20px;
-        }
-
-        .header-table td {
-            border: none;
-            vertical-align: middle;
-            text-align: center;
-        }
-
-        .header-table .logo {
-            width: 60px;
-        }
-
-        .header-table h3,
-        .header-table h4,
-        .header-table span {
-            margin: 0;
-        }
-
-        .header-table h3 {
-            font-size: 16pt;
-            color: #0056b3;
-        }
-
-        .header-table h4 {
-            font-size: 14pt;
-            color: #333;
-        }
-
-        .header-table span {
-            font-size: 11pt;
-            color: #555;
-        }
-
-        /* Styling untuk Tanda Tangan */
+        /* TANDA TANGAN */
         .signature-section {
             margin-top: 30px;
         }
@@ -101,105 +84,104 @@
             text-align: center;
             border: none;
         }
-
-        .signature-section .signature-line {
-            margin-top: 50px;
-            border-bottom: 1px solid #333;
-        }
-
-        .header-table .logo svg {
-            /* Tambahkan style ini */
-            width: 60px;
-            height: auto;
-        }
-
-        .header-table .logo {
-            width: 60px;
-            /* PASTIKAN ATURAN INI ADA */
-        }
-
-        .header-table h3 {
-            font-size: 13pt;
-            color: #555;
-        }
     </style>
 </head>
 
 <body>
-
-    {{-- KOP SURAT --}}
-    <table class="header">
-        <tr>
-            <td style="width: 20%; text-align: left;"><img src="{{ $logoAlAzhar }}" alt="Logo" class="logo"></td>
-            <td class="title-container">
-                <h3>YAYASAN ISLAM AL-AZHAR 43 GORONTALO</h3>
-                <h4>SLIP GAJI KARYAWAN</h4>
-            </td>
-            <td style="width: 20%; text-align: right;"><img src="{{ $logoYayasan }}" alt="Logo" class="logo"></td>
-        </tr>
-    </table>
-
-    {{-- TABEL UTAMA --}}
-    <table class="main-table">
-        <thead>
+    <div class="container">
+        {{-- KOP SURAT --}}
+        <table class="header">
             <tr>
-                <th style="width: 3%;">No</th>
-                <th class="text-left" style="width: 20%;">Nama Karyawan</th>
-                <th class="text-left" style="width: 15%;">Jabatan</th>
-                <th>Gaji Pokok</th>
-                <th>Total Tunjangan</th>
-                <th>Lembur & Lainnya</th>
-                <th>Potongan</th>
-                <th>Gaji Bersih (Diterima)</th>
+                <td style="width: 15%; text-align: left;"><img src="{{ $logoAlAzhar }}" alt="Logo" class="logo"></td>
+                <td>
+                    <h3>YAYASAN ISLAM AL-AZHAR 43 GORONTALO</h3>
+                    <h4>LAPORAN GAJI TENAGA KERJA</h4>
+                    <span>Periode: {{ \Carbon\Carbon::parse($periode)->translatedFormat('F Y') }}</span>
+                </td>
+                <td style="width: 15%; text-align: right;"><img src="{{ $logoYayasan }}" alt="Logo" class="logo">
+                </td>
             </tr>
-        </thead>
-        <tbody>
-            @forelse($gajis as $gaji)
+        </table>
+
+        {{-- TABEL UTAMA --}}
+        <table class="main-table">
+            <thead>
                 <tr>
-                    <td class="text-center">{{ $loop->iteration }}</td>
-                    <td class="text-left">{{ $gaji->karyawan->nama }}</td>
-                    <td class="text-left">{{ $gaji->karyawan->jabatan }}</td>
-                    <td>{{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
-                    <td>{{ number_format($gaji->total_tunjangan, 0, ',', '.') }}</td>
-                    <td>{{ number_format($gaji->pendapatan_lainnya, 0, ',', '.') }}</td>
-                    <td>({{ number_format($gaji->potongan, 0, ',', '.') }})</td>
-                    <td style="font-weight: bold;">{{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
+                    <th rowspan="2" style="width: 3%;">No</th>
+                    <th rowspan="2" class="text-left" style="width: 15%;">Nama Karyawan</th>
+                    <th rowspan="2">Gaji Pokok</th>
+                    <th colspan="5">Tunjangan</th>
+                    <th rowspan="2">Lainnya</th>
+                    <th rowspan="2">Potongan</th>
+                    <th rowspan="2">Gaji Bersih</th>
                 </tr>
-            @empty
                 <tr>
-                    <td colspan="8" class="text-center" style="padding: 20px;">Tidak ada data gaji untuk periode ini.
-                    </td>
+                    <th>Jabatan</th>
+                    <th>Anak</th>
+                    <th>Komunikasi</th>
+                    <th>Pengabdian</th>
+                    <th>Kinerja</th>
                 </tr>
-            @endforelse
-        </tbody>
+            </thead>
+            <tbody>
+                @forelse($gajis as $gaji)
+                    <tr>
+                        <td class="text-center">{{ $loop->iteration }}</td>
+                        <td class="text-left">{{ $gaji->karyawan->nama }}</td>
+                        <td>{{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
+                        <td>{{ number_format($gaji->tunj_jabatan, 0, ',', '.') }}</td>
+                        <td>{{ number_format($gaji->tunj_anak, 0, ',', '.') }}</td>
+                        <td>{{ number_format($gaji->tunj_komunikasi, 0, ',', '.') }}</td>
+                        <td>{{ number_format($gaji->tunj_pengabdian, 0, ',', '.') }}</td>
+                        <td>{{ number_format($gaji->tunj_kinerja, 0, ',', '.') }}</td>
+                        <td>{{ number_format($gaji->pendapatan_lainnya, 0, ',', '.') }}</td>
+                        <td>({{ number_format($gaji->potongan, 0, ',', '.') }})</td>
+                        <td style="font-weight: bold;">{{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="11" class="text-center" style="padding: 20px;">Tidak ada data gaji untuk periode
+                            ini.</td>
+                    </tr>
+                @endforelse
+            </tbody>
 
-        @if ($gajis->isNotEmpty())
-            <tfoot>
-                <tr class="footer-row">
-                    <td colspan="3" class="text-center">TOTAL KESELURUHAN</td>
-                    <td>{{ number_format($totals->total_gaji_pokok ?? 0, 0, ',', '.') }}</td>
-                    <td>{{ number_format($totals->total_semua_tunjangan ?? 0, 0, ',', '.') }}</td>
-                    <td>{{ number_format($totals->total_pendapatan_lainnya ?? 0, 0, ',', '.') }}</td>
-                    <td>({{ number_format($totals->total_potongan ?? 0, 0, ',', '.') }})</td>
-                    <td>{{ number_format($totals->total_gaji_bersih ?? 0, 0, ',', '.') }}</td>
-                </tr>
-            </tfoot>
-        @endif
-    </table>
+            @if ($gajis->isNotEmpty())
+                <tfoot>
+                    <tr class="footer-row">
+                        <td colspan="2" class="text-center">TOTAL (Rp)</td>
+                        <td>{{ number_format($totals->total_gaji_pokok, 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals->total_tunj_jabatan, 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals->total_tunj_anak, 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals->total_tunj_komunikasi, 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals->total_tunj_pengabdian, 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals->total_tunj_kinerja, 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals->total_pendapatan_lainnya, 0, ',', '.') }}</td>
+                        <td>({{ number_format($totals->total_potongan, 0, ',', '.') }})</td>
+                        <td>{{ number_format($totals->total_gaji_bersih, 0, ',', '.') }}</td>
+                    </tr>
+                </tfoot>
+            @endif
+        </table>
 
-    {{-- TATA LETAK TANDA TANGAN YANG BARU --}}
-    <table class="signature-section">
-        <tr>
-            <td style="width: 65%;"></td> {{-- Kolom kosong untuk mendorong ke kanan --}}
-            <td style="width: 35%;">
-                Gorontalo, {{ now()->translatedFormat('d F Y') }}<br>
-                Bendahara
-                <div class="signature-line"></div>
-                <b>( {{ $bendaharaNama ?? '.....................' }} )</b>
-            </td>
-        </tr>
-    </table>
-
+        {{-- TANDA TANGAN --}}
+        <table class="signature-section">
+            <tr>
+                <td style="width: 65%;"></td>
+                <td style="width: 35%;">
+                    Gorontalo, {{ now()->translatedFormat('d F Y') }}<br>
+                    Bendahara
+                    <div style="height: 60px; margin-top: 5px; margin-bottom: 5px;">
+                        @if (!empty($tandaTanganBendahara))
+                            <img src="{{ $tandaTanganBendahara }}" alt="Tanda Tangan"
+                                style="height: 100%; width: auto;">
+                        @endif
+                    </div>
+                    <b>( {{ $bendaharaNama ?? '.....................' }} )</b>
+                </td>
+            </tr>
+        </table>
+    </div>
 </body>
 
 </html>
