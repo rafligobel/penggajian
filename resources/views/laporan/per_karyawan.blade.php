@@ -39,13 +39,41 @@
             </div>
         </div>
 
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @if (session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
+
         @if ($selectedKaryawan)
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-light">
-                    <h4 class="mb-0">Laporan untuk: <strong>{{ $selectedKaryawan->nama }}</strong></h4>
-                    <p class="mb-0 text-muted">Periode: {{ \Carbon\Carbon::parse($tanggalMulai)->translatedFormat('F Y') }}
-                        s.d. {{ \Carbon\Carbon::parse($tanggalSelesai)->translatedFormat('F Y') }}</p>
+                {{-- CARD HEADER DENGAN TOMBOL AKSI --}}
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">Laporan untuk: <strong>{{ $selectedKaryawan->nama }}</strong></h4>
+                        <p class="mb-0 text-muted">Periode:
+                            {{ \Carbon\Carbon::parse($tanggalMulai)->translatedFormat('F Y') }}
+                            s.d. {{ \Carbon\Carbon::parse($tanggalSelesai)->translatedFormat('F Y') }}</p>
+                    </div>
+                    <div>
+                        {{-- FORM UNTUK MENGIRIM PERINTAH CETAK/KIRIM --}}
+                        <form id="laporan-karyawan-form" method="POST" class="d-inline">
+                            @csrf
+                            <input type="hidden" name="karyawan_id" value="{{ $selectedKaryawan->id }}">
+                            <input type="hidden" name="tanggal_mulai" value="{{ $tanggalMulai }}">
+                            <input type="hidden" name="tanggal_selesai" value="{{ $tanggalSelesai }}">
+
+                            <button type="button" id="cetak-pdf-btn" class="btn btn-danger">
+                                <i class="fas fa-file-pdf me-1"></i> Cetak PDF
+                            </button>
+                            <button type="button" id="kirim-email-btn" class="btn btn-info text-white">
+                                <i class="fas fa-envelope me-1"></i> Kirim Email
+                            </button>
+                        </form>
+                    </div>
                 </div>
+
                 <div class="card-body">
                     {{-- Ringkasan Absensi --}}
                     <h5 class="mb-3">Ringkasan Absensi Periode Ini</h5>
@@ -127,4 +155,28 @@
             </div>
         @endif
     </div>
+
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const form = document.getElementById('laporan-karyawan-form');
+
+                if (form) {
+                    // Event listener untuk tombol Cetak PDF
+                    document.getElementById('cetak-pdf-btn').addEventListener('click', function() {
+                        // Mengatur action form ke rute cetak dan submit
+                        form.action = "{{ route('laporan.per.karyawan.cetak') }}";
+                        form.submit();
+                    });
+
+                    // Event listener untuk tombol Kirim Email
+                    document.getElementById('kirim-email-btn').addEventListener('click', function() {
+                        // Mengatur action form ke rute kirim email dan submit
+                        form.action = "{{ route('laporan.per.karyawan.kirim-email') }}";
+                        form.submit();
+                    });
+                }
+            });
+        </script>
+    @endpush
 @endsection

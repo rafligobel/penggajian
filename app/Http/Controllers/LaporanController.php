@@ -12,6 +12,12 @@ use Illuminate\Support\Facades\Auth;
 use App\Traits\ManagesImageEncoding;
 use App\Jobs\GenerateMonthlySalaryReport;
 use App\Jobs\SendSlipToEmail; // Pastikan use statement ini ada
+use App\Jobs\GenerateIndividualReport;
+use App\Jobs\SendIndividualReportToEmail;
+use App\Jobs\GenerateIndividualSlip;
+use App\Models\SesiAbsensi;
+use App\Jobs\GenerateAttendanceReport;
+use App\Jobs\SendAttendanceReportToEmail;
 
 class LaporanController extends Controller
 {
@@ -82,6 +88,50 @@ class LaporanController extends Controller
         }
         return view('laporan.per_karyawan', compact('karyawans', 'selectedKaryawanId', 'tanggalMulai', 'tanggalSelesai', 'laporanData', 'selectedKaryawan'));
     }
+    public function cetakLaporanPerKaryawan(Request $request)
+    {
+        $validated = $request->validate([
+            'karyawan_id' => 'required|exists:karyawans,id',
+            'tanggal_mulai' => 'required|date_format:Y-m',
+            'tanggal_selesai' => 'required|date_format:Y-m',
+        ]);
+
+        GenerateIndividualReport::dispatch(
+            $validated['karyawan_id'],
+            $validated['tanggal_mulai'],
+            $validated['tanggal_selesai'],
+            Auth::id()
+        );
+
+        return redirect()->back()->with('success', 'Permintaan cetak PDF untuk laporan karyawan sedang diproses. Anda akan dinotifikasi jika sudah siap.');
+    }
+
+    /**
+     * Menangani permintaan untuk mengirim laporan per karyawan ke email di latar belakang.
+     */
+    public function kirimEmailLaporanPerKaryawan(Request $request)
+    {
+        $validated = $request->validate([
+            'karyawan_id' => 'required|exists:karyawans,id',
+            'tanggal_mulai' => 'required|date_format:Y-m',
+            'tanggal_selesai' => 'required|date_format:Y-m',
+        ]);
+
+        $karyawan = Karyawan::findOrFail($validated['karyawan_id']);
+
+        if (empty($karyawan->email)) {
+            return redirect()->back()->with('error', 'Gagal. Karyawan ini tidak memiliki alamat email.');
+        }
+
+        SendIndividualReportToEmail::dispatch(
+            $validated['karyawan_id'],
+            $validated['tanggal_mulai'],
+            $validated['tanggal_selesai'],
+            Auth::id()
+        );
+
+        return redirect()->back()->with('success', "Permintaan pengiriman email untuk {$karyawan->nama} sedang diproses. Anda akan dinotifikasi jika sudah siap.");
+    }
 
     /**
      * METODE YANG HILANG, SEKARANG DITAMBAHKAN KEMBALI
@@ -116,5 +166,89 @@ class LaporanController extends Controller
         } else {
             return back()->with('error', 'Tidak ada karyawan terpilih yang memiliki alamat email.');
         }
+    }
+
+
+    //laporan absensi
+    public function rekapAbsensi(Request $request)
+    {
+        $periode = $request->input('periode', date('Y-m'));
+        $date = Carbon::createFromFormat('Y-m', $periode);
+        $bulan = $date->format('m');
+        $tahun = $date->format('Y');
+
+        $karyawanData = Karyawan::where('status_aktif', true)
+            ->with(['absensi' => function ($query) use ($bulan, $tahun) {
+                $query->whereMonth('tanggal', $bulan)->whereYear('tanggal', $tahun);
+            }])
+            ->get();
+
+        $sesiAbsensi = SesiAbsensi::all()->keyBy('id');
+        $jumlahHariKerja = $date->daysInMonth;
+
+        $rekapData = $karyawanData->map(function ($karyawan) use ($sesiAbsensi, $jumlahHariKerja) {
+            $summary = [
+                'total_hadir' => $karyawan->absensi->count(),
+                'total_alpha' => $jumlahHariKerja - $karyawan->absensi->count(),
+                'sesi' => []
+            ];
+
+            foreach ($sesiAbsensi as $sesi) {
+                $summary['sesi'][$sesi->id] = ['nama' => $sesi->nama, 'hadir' => $karyawan->absensi->where('sesi_absensi_id', $sesi->id)->count()];
+            }
+
+            return (object)['id' => $karyawan->id, 'nip' => $karyawan->nip, 'nama' => $karyawan->nama, 'email' => $karyawan->email, 'summary' => $summary];
+        });
+
+        return view('laporan.laporan_absensi', compact('rekapData', 'bulan', 'tahun', 'sesiAbsensi'));
+    }
+
+    /**
+     * Menangani permintaan cetak PDF untuk rekap absensi terpilih.
+     */
+    public function cetakRekapAbsensi(Request $request)
+    {
+        $validated = $request->validate([
+            'karyawan_ids' => 'required|array|min:1',
+            'periode' => 'required|date_format:Y-m',
+        ]);
+
+        $date = Carbon::createFromFormat('Y-m', $validated['periode']);
+
+        GenerateAttendanceReport::dispatch(
+            $validated['karyawan_ids'],
+            $date->format('m'),
+            $date->format('Y'),
+            Auth::id()
+        );
+
+        return redirect()->back()->with('success', 'Permintaan cetak PDF rekap absensi sedang diproses. Anda akan dinotifikasi jika sudah siap.');
+    }
+
+    /**
+     * Menangani permintaan kirim email untuk rekap absensi terpilih.
+     */
+    public function kirimEmailRekapAbsensi(Request $request)
+    {
+        $validated = $request->validate([
+            'karyawan_ids' => 'required|array|min:1',
+            'periode' => 'required|date_format:Y-m',
+        ]);
+
+        $date = Carbon::createFromFormat('Y-m', $validated['periode']);
+
+        // ======================================================
+        // FUNGSI SEKARANG BERJALAN: Memanggil Job untuk setiap karyawan
+        // ======================================================
+        foreach ($validated['karyawan_ids'] as $karyawanId) {
+            SendAttendanceReportToEmail::dispatch(
+                $karyawanId,
+                $date->format('m'),
+                $date->format('Y'),
+                Auth::id()
+            );
+        }
+
+        return redirect()->back()->with('success', 'Permintaan kirim email rekap absensi untuk karyawan terpilih sedang diproses.');
     }
 }

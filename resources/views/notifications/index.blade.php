@@ -2,6 +2,7 @@
 
 @section('content')
     <div class="container py-4">
+        {{-- Judul Halaman dan Tombol Hapus Semua --}}
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="fw-bold text-primary">Riwayat Notifikasi</h3>
             @if ($notifications->isNotEmpty())
@@ -11,6 +12,7 @@
             @endif
         </div>
 
+        {{-- Notifikasi Sukses --}}
         @if (session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
                 {{ session('success') }}
@@ -20,8 +22,12 @@
 
         <div class="card shadow-sm border-0">
             <div class="card-body">
+
+                {{-- FORM UNTUK HAPUS NOTIFIKASI YANG DIPILIH --}}
                 <form action="{{ route('notifications.deleteSelected') }}" method="POST" id="notifications-form">
                     @csrf
+                    @method('DELETE') {{-- <-- INI ADALAH PERBAIKANNYA --}}
+
                     @if ($notifications->isNotEmpty())
                         <div class="mb-3">
                             <button type="submit" class="btn btn-outline-danger btn-sm">
@@ -30,19 +36,21 @@
                         </div>
                     @endif
 
+                    {{-- Daftar Notifikasi --}}
                     <ul class="list-group list-group-flush">
                         @forelse ($notifications as $notification)
                             <li
                                 class="list-group-item d-flex align-items-center p-3 {{ $notification->read_at ? 'bg-light text-muted' : '' }}">
+
                                 <div class="form-check me-3">
-                                    <input class="form-check-input" type="checkbox" name="notification_ids[]"
+                                    <input class="form-check-input" type="checkbox" name="ids[]"
                                         value="{{ $notification->id }}" id="notif-{{ $notification->id }}">
                                 </div>
 
                                 <div
-                                    class="icon-circle {{ $notification->data['is_error'] ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success' }} me-3">
+                                    class="icon-circle {{ $notification->data['is_error'] ?? false ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success' }} me-3">
                                     <i
-                                        class="fas {{ $notification->data['is_error'] ? 'fa-exclamation-triangle' : 'fa-file-pdf' }}"></i>
+                                        class="fas {{ $notification->data['is_error'] ?? false ? 'fa-exclamation-triangle' : 'fa-file-pdf' }}"></i>
                                 </div>
 
                                 <div class="flex-grow-1">
@@ -50,7 +58,7 @@
                                     <small>{{ $notification->created_at->translatedFormat('d F Y, H:i') }}</small>
                                 </div>
 
-                                @if (!$notification->data['is_error'])
+                                @if (!($notification->data['is_error'] ?? true))
                                     <a href="{{ route('notifications.markAsRead', $notification->id) }}" target="_blank"
                                         class="btn btn-sm btn-outline-primary ms-3">Lihat PDF</a>
                                 @endif
@@ -63,6 +71,8 @@
                     </ul>
                 </form>
             </div>
+
+            {{-- Paginasi --}}
             @if ($notifications->hasPages())
                 <div class="card-footer bg-white">
                     {{ $notifications->links() }}
@@ -71,6 +81,7 @@
         </div>
     </div>
 
+    {{-- MODAL KONFIRMASI HAPUS SEMUA --}}
     <div class="modal fade" id="deleteAllModal" tabindex="-1" aria-labelledby="deleteAllModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -86,6 +97,7 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                     <form action="{{ route('notifications.deleteAll') }}" method="POST">
                         @csrf
+                        @method('DELETE') {{-- <-- DAN INI JUGA PERBAIKANNYA --}}
                         <button type="submit" class="btn btn-danger">Ya, Hapus Semua</button>
                     </form>
                 </div>
@@ -99,7 +111,7 @@
             height: 40px;
             border-radius: 50%;
             display: flex;
-            align-items: center;
+            align-items-center;
             justify-content: center;
             flex-shrink: 0;
         }

@@ -158,9 +158,9 @@
                                                 <form action="{{ route('notifications.markAllAsRead') }}" method="POST"
                                                     class="mb-0">
                                                     @csrf
-                                                    <button type="submit"
+                                                    {{-- <button type="submit"
                                                         class="btn btn-link btn-sm p-0 text-decoration-none">Tandai semua
-                                                        dibaca</button>
+                                                        dibaca</button> --}}
                                                 </form>
                                             @endif
                                         </li>

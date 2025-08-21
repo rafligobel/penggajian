@@ -28,7 +28,7 @@
         @endguest
 
         @auth
-            @if (auth()->user()->role === 'superadmin')
+            @if (auth()->user()->role === 'superadmin,admin')
                 <li class="{{ Request::routeIs('dashboard') ? '' : '' }}">
                     <a href="{{ route('dashboard') }}">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
@@ -53,7 +53,7 @@
                 </li> --}}
             @endif
 
-            @if (auth()->user()->role === 'admin')
+            {{-- @if (auth()->user()->role === 'admin')
                 <li class="{{ Request::routeIs('dashboard') ? '' : '' }}">
                     <a href="{{ route('dashboard') }}">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
@@ -75,8 +75,8 @@
                     <a href="{{ route('laporan.gaji.bulanan') }}">
                         <i class="fas fa-chart-line"></i> Lihat Laporan
                     </a>
-                </li> --}}
-            @endif
+                </li> 
+            @endif --}}
 
             {{-- Role Bendahara --}}
             @if (auth()->user()->role === 'bendahara')
@@ -128,10 +128,13 @@
                         <li class="{{ Request::routeIs('laporan.per.karyawan') ? '' : '' }}">
                             <a href="{{ route('laporan.per.karyawan') }}">Laporan per Karyawan</a>
                         </li>
-                        <li class="{{ Request::routeIs('laporan.absensi.index') ? '' : '' }}">
-                            <a href="{{ route('laporan.absensi.index') }}">Laporan Absensi</a>
-                        </li>
+                        <li><a href="{{ route('laporan.absensi') }}">Laporan Absensi</a></li>
                     </ul>
+                </li>
+                <li class="{{ Request::routeIs('notifications.*') ? '' : '' }}">
+                    <a href="{{ route('notifications.index') }}">
+                        <i class="fas fa-bell"></i> Notifikasi
+                    </a>
                 </li>
                 <li class="{{ Request::routeIs('tanda_tangan.*') ? '' : '' }}">
                     <a href="{{ route('tanda_tangan.index') }}">

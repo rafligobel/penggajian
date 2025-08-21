@@ -8,9 +8,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Mail\Mailables\Attachment; // <-- Import ini
+use Illuminate\Mail\Mailables\Attachment; 
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Storage; // <-- Import ini
+use Illuminate\Support\Facades\Storage; 
 
 class SalarySlipMail extends Mailable
 {

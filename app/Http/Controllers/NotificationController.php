@@ -9,12 +9,25 @@ use Illuminate\Support\Facades\Storage;
 class NotificationController extends Controller
 {
     /**
-     * Menampilkan halaman riwayat notifikasi dengan paginasi.
+     * Menampilkan halaman riwayat notifikasi.
      */
     public function index()
     {
-        $notifications = Auth::user()->notifications()->paginate(15);
-        return view('notifications.index', compact('notifications'));
+        // Tandai semua notifikasi yang belum dibaca sebagai "telah dibaca" saat halaman dibuka
+        Auth::user()->unreadNotifications->markAsRead();
+
+        // Ambil notifikasi milik pengguna dan tampilkan dengan paginasi
+        $notifications = Auth::user()->notifications->sortByDesc('created_at');
+        $notifications = $notifications->forPage(request('page', 1), 15);
+        $paginatedNotifications = new \Illuminate\Pagination\LengthAwarePaginator(
+            $notifications,
+            Auth::user()->notifications->count(),
+            15,
+            request('page', 1),
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
+
+        return view('notifications.index', ['notifications' => $paginatedNotifications]);
     }
 
     /**
@@ -22,40 +35,35 @@ class NotificationController extends Controller
      */
     public function markAsRead($id)
     {
-        $notification = Auth::user()->notifications()->findOrFail($id);
+        $notification = Auth::user()->notifications->find($id);
+
+        if (!$notification) {
+            abort(404);
+        }
         $notification->markAsRead();
 
         if (isset($notification->data['path']) && !empty($notification->data['path'])) {
-            return redirect(Storage::url($notification->data['path']));
+            if (Storage::disk('public')->exists($notification->data['path'])) {
+                return redirect(Storage::url($notification->data['path']));
+            }
         }
 
-        return redirect()->back();
+        return redirect()->route('notifications.index');
     }
 
     /**
-     * Menandai semua notifikasi yang belum dibaca sebagai telah dibaca.
-     */
-    public function markAllAsRead()
-    {
-        Auth::user()->unreadNotifications->markAsRead();
-        return redirect()->back()->with('success', 'Semua notifikasi telah ditandai sebagai sudah dibaca.');
-    }
-
-    /**
-     * Menghapus notifikasi yang dipilih oleh pengguna.
+     * Menghapus notifikasi yang dipilih.
      */
     public function deleteSelected(Request $request)
     {
         $request->validate([
-            'notification_ids' => 'required|array',
-            'notification_ids.*' => 'exists:notifications,id',
+            'ids'   => 'required|array',
+            'ids.*' => 'exists:notifications,id',
         ]);
 
-        Auth::user()->notifications()
-            ->whereIn('id', $request->notification_ids)
-            ->delete();
+        Auth::user()->notifications->whereIn('id', $request->ids)->each->delete();
 
-        return redirect()->route('notifications.index')->with('success', 'Notifikasi yang dipilih berhasil dihapus.');
+        return back()->with('success', 'Notifikasi yang dipilih berhasil dihapus.');
     }
 
     /**
@@ -63,7 +71,8 @@ class NotificationController extends Controller
      */
     public function deleteAll()
     {
-        Auth::user()->notifications()->delete();
-        return redirect()->route('notifications.index')->with('success', 'Semua riwayat notifikasi telah dihapus.');
+        Auth::user()->notifications->each->delete();
+
+        return back()->with('success', 'Semua notifikasi berhasil dihapus.');
     }
 }

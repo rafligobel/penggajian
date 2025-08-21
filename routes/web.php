@@ -17,11 +17,6 @@ use App\Http\Controllers\TandaTanganController; // Pastikan controller ini ada
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
 */
 
 Route::get('/', function () {
@@ -39,6 +34,18 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // ========================================================================
+    // PERUBAHAN DI SINI: Rute notifikasi ditempatkan di dalam middleware 'auth'
+    // agar bisa diakses oleh semua pengguna yang login.
+    // ========================================================================
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+    Route::delete('/notifications/delete-selected', [NotificationController::class, 'deleteSelected'])->name('notifications.deleteSelected');
+    Route::delete('/notifications/delete-all', [NotificationController::class, 'deleteAll'])->name('notifications.deleteAll');
+
+    Route::get('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+    Route::get('/notifications/mark-as-read/{id}', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
 });
 
 Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
@@ -57,18 +64,23 @@ Route::middleware(['role:bendahara'])->group(function () {
     Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
     Route::get('/laporan/gaji-bulanan', [LaporanController::class, 'gajiBulanan'])->name('laporan.gaji.bulanan');
     Route::post('/laporan/gaji-bulanan/cetak', [LaporanController::class, 'cetakGajiBulanan'])->name('laporan.gaji.cetak');
+
     Route::get('/laporan/per-karyawan', [LaporanController::class, 'perKaryawan'])->name('laporan.per.karyawan');
+    Route::post('/laporan/per-karyawan/cetak', [LaporanController::class, 'cetakLaporanPerKaryawan'])->name('laporan.per.karyawan.cetak');
+    Route::post('/laporan/per-karyawan/kirim-email', [LaporanController::class, 'kirimEmailLaporanPerKaryawan'])->name('laporan.per.karyawan.kirim-email');
 
     // Rute yang hilang sebelumnya, sekarang dikembalikan
     Route::post('/laporan/gaji/kirim-email-terpilih', [LaporanController::class, 'kirimEmailGajiTerpilih'])->name('laporan.gaji.kirim-email-terpilih');
 
-    Route::get('/laporan/absensi', [AbsensiController::class, 'rekapPerBulan'])->name('laporan.absensi.index');
+    Route::get('/rekap-absensi', [AbsensiController::class, 'rekapPerBulan'])->name('laporan.absensi.index');
     Route::get('/laporan/absensi/data', [AbsensiController::class, 'fetchRekapData'])->name('laporan.absensi.data');
     Route::resource('sesi-absensi', SesiAbsensiController::class)->except(['show']);
 
-    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-    Route::get('/notifications/{id}/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
-    Route::post('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+    //laporan absensi
+    Route::get('/laporan/absensi', [LaporanController::class, 'rekapAbsensi'])->name('laporan.absensi');
+    Route::post('/laporan/absensi/cetak', [LaporanController::class, 'cetakRekapAbsensi'])->name('laporan.absensi.cetak');
+    Route::post('/laporan/absensi/kirim-email', [LaporanController::class, 'kirimEmailRekapAbsensi'])->name('laporan.absensi.kirim-email');
+
 
     // Rute Tanda Tangan yang hilang sebelumnya, sekarang dikembalikan
     Route::get('/tanda-tangan', [TandaTanganController::class, 'index'])->name('tanda_tangan.index');
