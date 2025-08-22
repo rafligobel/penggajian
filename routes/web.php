@@ -65,6 +65,9 @@ Route::middleware(['role:bendahara'])->group(function () {
     Route::get('/laporan/gaji-bulanan', [LaporanController::class, 'gajiBulanan'])->name('laporan.gaji.bulanan');
     Route::post('/laporan/gaji-bulanan/cetak', [LaporanController::class, 'cetakGajiBulanan'])->name('laporan.gaji.cetak');
 
+    Route::resource('karyawan', KaryawanController::class);
+
+
     Route::get('/laporan/per-karyawan', [LaporanController::class, 'perKaryawan'])->name('laporan.per.karyawan');
     Route::post('/laporan/per-karyawan/cetak', [LaporanController::class, 'cetakLaporanPerKaryawan'])->name('laporan.per.karyawan.cetak');
     Route::post('/laporan/per-karyawan/kirim-email', [LaporanController::class, 'kirimEmailLaporanPerKaryawan'])->name('laporan.per.karyawan.kirim-email');
