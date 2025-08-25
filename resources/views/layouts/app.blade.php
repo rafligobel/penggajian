@@ -129,10 +129,11 @@
         <div id="content">
             <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 shadow-sm">
                 <div class="container-fluid">
-                    @guest
+                    {{-- @guest
                         <a href="{{ url('/') }}" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Kembali</a>
-                    @endguest
+                    @endguest --}}
                     @auth
+
                         <button type="button" data-toggle="sidebar" class="btn btn-primary"><i
                                 class="fa-solid fa-bars"></i></button>
 

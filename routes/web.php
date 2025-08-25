@@ -11,7 +11,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SimulasiGajiController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\TandaTanganController; // Pastikan controller ini ada
+use App\Http\Controllers\TandaTanganController;
+use App\Http\Controllers\JabatanController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,9 +25,6 @@ Route::get('/', function () {
 });
 
 // Rute untuk menampilkan form absensi (publik)
-Route::get('/absensi', [AbsensiController::class, 'showAbsensiForm'])->name('absensi.form');
-Route::post('/absensi', [AbsensiController::class, 'storeAbsensi'])->name('absensi.store');
-
 
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
@@ -35,10 +33,6 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // ========================================================================
-    // PERUBAHAN DI SINI: Rute notifikasi ditempatkan di dalam middleware 'auth'
-    // agar bisa diakses oleh semua pengguna yang login.
-    // ========================================================================
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
     Route::delete('/notifications/delete-selected', [NotificationController::class, 'deleteSelected'])->name('notifications.deleteSelected');
@@ -49,13 +43,15 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
-    Route::resource('karyawan', KaryawanController::class);
+    // <-- Rute untuk admin
     Route::resource('users', UserController::class);
+    Route::resource('jabatan', JabatanController::class);
 });
 
 Route::middleware(['role:bendahara'])->group(function () {
     Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
     Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save');
+
 
     // RUTE BARU UNTUK PROSES BACKGROUND
     Route::post('/gaji/{gaji}/download', [GajiController::class, 'downloadSlip'])->name('gaji.download');
@@ -65,8 +61,8 @@ Route::middleware(['role:bendahara'])->group(function () {
     Route::get('/laporan/gaji-bulanan', [LaporanController::class, 'gajiBulanan'])->name('laporan.gaji.bulanan');
     Route::post('/laporan/gaji-bulanan/cetak', [LaporanController::class, 'cetakGajiBulanan'])->name('laporan.gaji.cetak');
 
-    Route::resource('karyawan', KaryawanController::class);
-
+    // Route::get('karyawan', [KaryawanController::class, 'index'])->name('karyawan.index');
+    Route::get('karyawan/{karyawan}', [KaryawanController::class, 'show'])->name('karyawan.show');
 
     Route::get('/laporan/per-karyawan', [LaporanController::class, 'perKaryawan'])->name('laporan.per.karyawan');
     Route::post('/laporan/per-karyawan/cetak', [LaporanController::class, 'cetakLaporanPerKaryawan'])->name('laporan.per.karyawan.cetak');
@@ -75,7 +71,7 @@ Route::middleware(['role:bendahara'])->group(function () {
     // Rute yang hilang sebelumnya, sekarang dikembalikan
     Route::post('/laporan/gaji/kirim-email-terpilih', [LaporanController::class, 'kirimEmailGajiTerpilih'])->name('laporan.gaji.kirim-email-terpilih');
 
-    Route::get('/rekap-absensi', [AbsensiController::class, 'rekapPerBulan'])->name('laporan.absensi.index');
+    Route::get('/rekap-absensi', [AbsensiController::class, 'rekapPerBulan'])->name('absensi.rekap');
     Route::get('/laporan/absensi/data', [AbsensiController::class, 'fetchRekapData'])->name('laporan.absensi.data');
     Route::resource('sesi-absensi', SesiAbsensiController::class)->except(['show']);
 
@@ -90,8 +86,15 @@ Route::middleware(['role:bendahara'])->group(function () {
     Route::post('/tanda-tangan', [TandaTanganController::class, 'update'])->name('tanda_tangan.update');
 });
 
+Route::resource('karyawan', KaryawanController::class);
+
+
 // Rute Simulasi Gaji (publik)
 Route::get('/simulasi-gaji', [SimulasiGajiController::class, 'index'])->name('simulasi.index');
 Route::post('/simulasi-gaji/hitung', [SimulasiGajiController::class, 'hitung'])->name('simulasi.hitung');
+
+Route::get('/absensi', [AbsensiController::class, 'index'])->name('absensi.form');
+Route::post('/absensi', [AbsensiController::class, 'store'])->name('absensi.store');
+
 
 require __DIR__ . '/auth.php';

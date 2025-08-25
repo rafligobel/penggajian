@@ -2,7 +2,7 @@
 
 @section('content')
     <div class="container py-4">
-        <h3 class="mb-4 fw-bold text-primary">Kelola Gaji Karyawan</h3>
+        <h3 class="mb-4 fw-bold text-primary">Kelola Gaji </h3>
 
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
@@ -100,7 +100,7 @@
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="detailModalLabel">Detail Gaji Karyawan</h5>
+                    <h5 class="modal-title" id="detailModalLabel">Detail Gaji </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -232,6 +232,7 @@
                     const createRincianHtml = (items) => items.map(item =>
                         `<div class="row mb-2"><div class="col-7">${item.label}</div><div class="col-5 text-end">${formatRupiah(item.value)}</div></div>`
                     ).join('');
+
                     const pendapatanTetap = [{
                         label: 'Gaji Pokok',
                         value: data.gaji_pokok
@@ -251,6 +252,7 @@
                         label: 'Tunjangan Kinerja',
                         value: data.tunj_kinerja
                     }, ];
+
                     const pendapatanTidakTetap = [{
                         label: `Tunjangan Kehadiran (${data.jumlah_kehadiran} hari)`,
                         value: data.tunj_kehadiran
@@ -262,8 +264,11 @@
                         value: data.kelebihan_jam
                     }, ];
 
+                    const namaJabatan = data.karyawan.jabatan ? data.karyawan.jabatan.nama_jabatan :
+                        'Jabatan tidak diatur';
+
                     detailContent.innerHTML = `
-                    <div class="row"><div class="col-md-6"><p class="mb-1"><strong>Periode:</strong> ${new Date(data.bulan + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</p><p><strong>Jabatan:</strong> ${data.karyawan.jabatan}</p></div></div><hr>
+                    <div class="row"><div class="col-md-6"><p class="mb-1"><strong>Periode:</strong> ${new Date(data.bulan + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</p><p><strong>Jabatan:</strong> ${namaJabatan}</p></div></div><hr>
                     <div class="row">
                         <div class="col-lg-6 mb-4 mb-lg-0"><h5 class="mb-3">A. Pendapatan Tetap</h5>${createRincianHtml(pendapatanTetap)}</div>
                         <div class="col-lg-6"><h5 class="mb-3">B. Pendapatan Tidak Tetap</h5>${createRincianHtml(pendapatanTidakTetap)}<hr><h5 class="mb-3">C. Potongan</h5><div class="row mb-2"><div class="col-7">Potongan Lain-lain</div><div class="col-5 text-end text-danger">(${formatRupiah(data.potongan)})</div></div></div>
@@ -299,14 +304,21 @@
                     const formContent = modal.querySelector('#edit-form-content');
                     modal.querySelector('#editModalLabel').textContent = `Edit Gaji: ${data.karyawan.nama}`;
 
+                    // **PERUBAHAN LOGIKA DI SINI**
+                    // Ambil gaji pokok dan tunjangan jabatan dari data relasi, bukan dari data gaji yang mungkin sudah diedit.
+                    const gajiPokokFromJabatan = data.karyawan.jabatan ? data.karyawan.jabatan.gaji_pokok : 0;
+                    const tunjanganJabatanFromJabatan = data.karyawan.jabatan ? data.karyawan.jabatan.tunj_jabatan : 0;
+
                     const fields = [{
                         name: 'gaji_pokok',
-                        label: 'Gaji Pokok',
-                        value: data.gaji_pokok
+                        label: 'Gaji Pokok (Sesuai Jabatan)',
+                        value: gajiPokokFromJabatan,
+                        readonly: true // Jadikan read-only agar tidak bisa diubah manual
                     }, {
                         name: 'tunj_jabatan',
-                        label: 'Tunjangan Jabatan',
-                        value: data.tunj_jabatan
+                        label: 'Tunjangan Jabatan (Sesuai Jabatan)',
+                        value: tunjanganJabatanFromJabatan,
+                        readonly: true // Jadikan read-only
                     }, {
                         name: 'tunj_anak',
                         label: 'Tunjangan Anak',
@@ -332,12 +344,28 @@
                         label: 'Kelebihan Jam',
                         value: data.kelebihan_jam
                     }, ];
+
                     let fieldsHtml = fields.map(f =>
-                        `<div class="col-md-6 mb-3"><label class="form-label">${f.label}</label><input type="number" name="${f.name}" class="form-control" value="${f.value || 0}"></div>`
+                        `<div class="col-md-6 mb-3">
+                        <label class="form-label">${f.label}</label>
+                        <input type="number" name="${f.name}" class="form-control" value="${f.value || 0}" ${f.readonly ? 'readonly' : ''}>
+                    </div>`
                     ).join('');
 
                     formContent.innerHTML =
-                        `<input type="hidden" name="karyawan_id" value="${data.karyawan.id}"><input type="hidden" name="bulan" value="${data.bulan}"><div class="alert alert-info"><p class="mb-1"><strong>Periode: ${data.bulan}</strong></p><p class="mb-1">Jumlah Kehadiran: <strong>${data.jumlah_kehadiran} hari</strong></p><p class="mb-0">Tunjangan Kehadiran (Otomatis): <strong>${formatRupiah(data.tunj_kehadiran || 0)}</strong></p></div><div class="row">${fieldsHtml}<div class="col-md-6 mb-3"><label class="form-label">Potongan</label><input type="number" name="potongan" class="form-control" value="${data.potongan || 0}"></div></div>`;
+                        `<input type="hidden" name="karyawan_id" value="${data.karyawan.id}">
+                     <input type="hidden" name="bulan" value="${data.bulan}">
+                     <div class="alert alert-info">
+                         <p class="mb-1"><strong>Periode: ${data.bulan}</strong></p>
+                         <p class="mb-1">Jumlah Kehadiran: <strong>${data.jumlah_kehadiran} hari</strong></p>
+                         <p class="mb-0">Tunjangan Kehadiran (Otomatis): <strong>${formatRupiah(data.tunj_kehadiran || 0)}</strong></p>
+                     </div>
+                     <div class="row">${fieldsHtml}
+                         <div class="col-md-6 mb-3">
+                             <label class="form-label">Potongan</label>
+                             <input type="number" name="potongan" class="form-control" value="${data.potongan || 0}">
+                         </div>
+                     </div>`;
                 }
 
                 document.querySelectorAll('.btn-detail').forEach(button => {

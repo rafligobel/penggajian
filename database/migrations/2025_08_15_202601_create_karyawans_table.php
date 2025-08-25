@@ -6,27 +6,22 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('karyawans', function (Blueprint $table) {
             $table->id();
+            // Foreign key ini sekarang akan berhasil dibuat
+            $table->foreignId('jabatan_id')->nullable()->constrained('jabatans')->onDelete('set null');
             $table->string('nama');
             $table->string('nip')->unique();
             $table->string('email')->unique();
             $table->text('alamat');
             $table->string('telepon');
-            $table->string('jabatan');
             $table->boolean('status_aktif')->default(true);
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('karyawans');

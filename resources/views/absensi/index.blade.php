@@ -24,11 +24,17 @@
                         <form method="POST" action="{{ route('absensi.store') }}">
                             @csrf
                             <div class="mb-3">
-                                <label for="nip" class="form-label">Masukkan NIP Anda</label>
-                                <input type="text" name="nip"
-                                    class="form-control form-control-lg @error('nip') is-invalid @enderror" required
-                                    autofocus>
-                                @error('nip')
+                                {{-- PERUBAHAN LABEL --}}
+                                <label for="identifier" class="form-label">Masukkan NIP atau Nama Lengkap Anda</label>
+
+                                {{-- PERUBAHAN INPUT FIELD --}}
+                                <input type="text" name="identifier" id="identifier"
+                                    class="form-control form-control-lg @error('identifier') is-invalid @enderror"
+                                    placeholder="Ketik NIP atau Nama Anda di sini..." value="{{ old('identifier') }}"
+                                    required autofocus>
+
+                                {{-- PERUBAHAN ERROR MESSAGE --}}
+                                @error('identifier')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>

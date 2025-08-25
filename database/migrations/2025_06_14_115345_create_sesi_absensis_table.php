@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('sesi_absensis', function (Blueprint $table) {
             $table->id();
-            $table->string('nama_sesi'); // Contoh: 'Masuk Pagi', 'Pulang Sore'
+            // $table->string('nama_sesi'); // Contoh: 'Masuk Pagi', 'Pulang Sore'
             $table->date('tanggal')->unique();
             $table->time('waktu_mulai');
             $table->time('waktu_selesai');

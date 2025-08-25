@@ -39,7 +39,8 @@
         {{-- Header Halaman --}}
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="fw-bold text-primary">Daftar Karyawan</h3>
-            @if (Auth::check() && Auth::user()->role === 'admin')
+            {{-- Tombol Tambah Karyawan --}}
+            @if (in_array(auth()->user()->role, ['superadmin', 'admin']))
                 <a href="{{ route('karyawan.create') }}" class="btn btn-primary">
                     <i class="fas fa-plus me-2"></i>Tambah Karyawan Baru
                 </a>
@@ -73,10 +74,9 @@
                         <th>No.</th>
                         <th class="text-start">Nama</th>
                         <th>NIP</th>
-                        {{-- PERUBAHAN 1: Tambah kolom Email --}}
                         <th class="text-start">Email</th>
                         <th class="text-start">Jabatan</th>
-                        <th>Status</th>
+                        {{-- <th>Status</th> --}}
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -120,7 +120,9 @@
                 const tableBody = document.getElementById('karyawan-table-body');
                 const noDataMessage = document.getElementById('no-data-message');
                 const detailModalEl = document.getElementById('detailKaryawanModal');
-                const userIsAdmin = {{ Auth::check() && Auth::user()->role === 'admin' ? 'true' : 'false' }};
+                const userIsAdmin = {{ in_array(Auth::user()->role, ['superadmin', 'admin']) ? 'true' : 'false' }};
+                const userIsBendahara = {{ Auth::user()->role === 'bendahara' ? 'true' : 'false' }};
+
 
                 function renderTable(dataToRender) {
                     tableBody.innerHTML = '';
@@ -134,37 +136,37 @@
                     dataToRender.forEach((karyawan, index) => {
                         const row = document.createElement('tr');
                         row.className = 'summary-row';
-                        row.dataset.karyawanJson = JSON.stringify(
-                            karyawan); // Simpan data di elemen untuk modal
+                        row.dataset.karyawanJson = JSON.stringify(karyawan);
 
                         const statusBadge = karyawan.status_aktif ?
                             `<span class="badge bg-success">Aktif</span>` :
                             `<span class="badge bg-danger">Tidak Aktif</span>`;
 
-                        let adminButtons = '';
+                        // === PERBAIKAN 1: Ambil nama jabatan dari objek relasi ===
+                        const namaJabatan = karyawan.jabatan ? karyawan.jabatan.nama_jabatan :
+                            '<span class="text-muted">Belum Diatur</span>';
+
+                        let actionButtons = `
+                            <button type="button" class="btn btn-sm btn-info btn-detail" title="Lihat Detail"
+                                    data-bs-toggle="modal" data-bs-target="#detailKaryawanModal">
+                                <i class="fas fa-eye"></i>
+                            </button>`;
+
                         if (userIsAdmin) {
-                            adminButtons =
+                            actionButtons +=
                                 `
                                 <a href="/karyawan/${karyawan.id}/edit" class="btn btn-sm btn-warning" title="Ubah"><i class="fas fa-edit"></i></a>
                                 <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteConfirmationModal"
-                                   data-url="/karyawan/${karyawan.id}" title="Hapus"><i class="fas fa-trash"></i></button>`;
+                                    data-url="/karyawan/${karyawan.id}" title="Hapus"><i class="fas fa-trash"></i></button>`;
                         }
 
-                        // PERUBAHAN 2: Tambahkan <td> untuk email
                         row.innerHTML = `
                             <td class="text-center">${index + 1}</td>
                             <td class="text-start fw-bold">${karyawan.nama}</td>
                             <td class="text-center">${karyawan.nip}</td>
                             <td class="text-start">${karyawan.email || '-'}</td>
-                            <td class="text-start">${karyawan.jabatan}</td>
-                            <td class="text-center">${statusBadge}</td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-sm btn-info btn-detail" title="Lihat Detail"
-                                        data-bs-toggle="modal" data-bs-target="#detailKaryawanModal">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                ${adminButtons}
-                            </td>`;
+                            <td class="text-start">${namaJabatan}</td>
+                            <td class="text-center">${actionButtons}</td>`;
                         tableBody.appendChild(row);
                     });
                 }
@@ -190,6 +192,10 @@
                             '<span class="badge bg-success">Aktif</span>' :
                             '<span class="badge bg-danger">Tidak Aktif</span>';
 
+                        // === PERBAIKAN 2: Ambil juga nama jabatan untuk modal detail ===
+                        const namaJabatanModal = karyawan.jabatan ? karyawan.jabatan.nama_jabatan :
+                            '<span class="text-muted">Belum Diatur</span>';
+
                         const formatDate = (dateString) => new Date(dateString).toLocaleDateString('id-ID', {
                             day: 'numeric',
                             month: 'long',
@@ -198,7 +204,6 @@
                             minute: '2-digit'
                         });
 
-                        // PERUBAHAN 3: Tambahkan baris email di dalam modal
                         modalBody.innerHTML = `
                             <div class="row">
                                 <div class="col-lg-6">
@@ -206,8 +211,7 @@
                                         <dt class="col-sm-4">Nama Lengkap</dt><dd class="col-sm-8">: ${karyawan.nama}</dd>
                                         <dt class="col-sm-4">NIP</dt><dd class="col-sm-8">: ${karyawan.nip}</dd>
                                         <dt class="col-sm-4">Email</dt><dd class="col-sm-8">: ${karyawan.email || 'Tidak ada'}</dd>
-                                        <dt class="col-sm-4">Jabatan</dt><dd class="col-sm-8">: ${karyawan.jabatan}</dd>
-                                        <dt class="col-sm-4">Status Aktif</dt><dd class="col-sm-8">: ${statusBadge}</dd>
+                                        <dt class="col-sm-4">Jabatan</dt><dd class="col-sm-8">: ${namaJabatanModal}</dd>
                                     </dl>
                                 </div>
                                 <div class="col-lg-6">
@@ -222,20 +226,10 @@
                     });
                 }
 
-                // Event listener untuk tombol hapus (untuk setup form action)
-                document.body.addEventListener('click', function(event) {
-                    if (event.target.matches('[data-bs-target="#deleteConfirmationModal"]')) {
-                        const button = event.target.closest('button');
-                        const deleteUrl = button.dataset.url;
-                        const deleteForm = document.getElementById('delete-form');
-                        if (deleteForm) {
-                            deleteForm.action = deleteUrl;
-                        }
-                    }
-                });
+                // ... (sisa event listener Anda) ...
 
                 searchInput.addEventListener('input', filterAndRender);
-                renderTable(allKaryawanData); // Render tabel saat pertama kali halaman dimuat
+                renderTable(allKaryawanData); // Initial render
             });
         </script>
     @endpush

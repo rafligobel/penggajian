@@ -31,43 +31,56 @@ class AbsensiController extends Controller
     // Menyimpan data absensi dari karyawan
     public function store(Request $request)
     {
-        $request->validate(['nip' => 'required|exists:karyawans,nip']);
+        // 1. Validasi input
+        $request->validate(['identifier' => 'required|string']);
+        $identifier = $request->identifier;
 
+        // 2. Cari karyawan berdasarkan NIP atau Nama
+        $karyawan = Karyawan::where('nip', $identifier)
+            ->orWhere('nama', $identifier)
+            ->first();
+
+        // 3. Jika karyawan tidak ditemukan, kembalikan dengan pesan error
+        if (!$karyawan) {
+            return redirect()->back()
+                ->withErrors(['identifier' => 'NIP atau Nama tidak ditemukan. Pastikan penulisan sudah benar.'])
+                ->withInput();
+        }
+
+        // --- Logika absensi ---
         $now = Carbon::now();
         $today = $now->copy()->startOfDay();
 
-        // 1. Cek sesi aktif
+        // Cek sesi aktif
         $sesiAktif = SesiAbsensi::where('tanggal', $today)->where('is_active', true)->first();
         if (!$sesiAktif) {
             return redirect()->back()->with('info', 'Sesi absensi untuk hari ini belum dibuka.');
         }
 
-        // 2. Cek rentang waktu sesi
+        // Cek rentang waktu sesi
         $waktuMulai = Carbon::parse($today->format('Y-m-d') . ' ' . $sesiAktif->waktu_mulai);
         $waktuSelesai = Carbon::parse($today->format('Y-m-d') . ' ' . $sesiAktif->waktu_selesai);
         if (!$now->between($waktuMulai, $waktuSelesai)) {
             return redirect()->back()->with('info', 'Sesi absensi sedang ditutup. Sesi berlaku dari jam ' . $waktuMulai->format('H:i') . ' hingga ' . $waktuSelesai->format('H:i') . '.');
         }
 
-        // 3. Cek apakah sudah absen hari ini
-        $karyawan = Karyawan::where('nip', $request->nip)->first();
+        // Cek apakah sudah absen hari ini menggunakan NIP dari karyawan yang ditemukan
         $sudahAbsen = Absensi::where('nip', $karyawan->nip)
             ->whereDate('tanggal', $today)
             ->exists();
         if ($sudahAbsen) {
-            return redirect()->back()->with('info', 'Anda sudah melakukan absensi hari ini.');
+            return redirect()->back()->with('info', 'Anda (' . $karyawan->nama . ') sudah melakukan absensi hari ini.');
         }
 
-        // 4. Jika semua validasi lolos, catat absensi
+        // Jika semua validasi lolos, catat absensi
         Absensi::create([
             'nip' => $karyawan->nip,
             'nama' => $karyawan->nama,
             'tanggal' => $now->toDateString(),
-            // 'status' => 'Hadir', // <-- INI DIHAPUS
             'jam' => $now->toTimeString(),
         ]);
 
-        return redirect()->back()->with('success', 'Absensi berhasil dicatat. Terima kasih!');
+        return redirect()->back()->with('success', 'Absensi untuk ' . $karyawan->nama . ' berhasil dicatat. Terima kasih!');
     }
 
     // ... method rekapPerBulan() dan fetchRekapData() tidak berubah ...

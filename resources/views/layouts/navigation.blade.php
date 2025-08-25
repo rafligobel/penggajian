@@ -28,10 +28,15 @@
         @endguest
 
         @auth
-            @if (auth()->user()->role === 'superadmin,admin')
+            @if (auth()->user()->role === 'superadmin')
                 <li class="{{ Request::routeIs('dashboard') ? '' : '' }}">
                     <a href="{{ route('dashboard') }}">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                </li>
+                <li class="{{ Request::routeIs('jabatan.*') ? 'active' : '' }}">
+                    <a href="{{ route('jabatan.index') }}">
+                        <i class="fas fa-briefcase"></i> Kelola Jabatan
                     </a>
                 </li>
                 <li class="{{ Request::routeIs('karyawan.*') ? '' : '' }}">
@@ -53,13 +58,18 @@
                 </li> --}}
             @endif
 
-            {{-- @if (auth()->user()->role === 'admin')
+            @if (auth()->user()->role === 'admin')
                 <li class="{{ Request::routeIs('dashboard') ? '' : '' }}">
                     <a href="{{ route('dashboard') }}">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
-                <li class="{{ Request::routeIs('karyawan.*') ? '' : '' }}">
+                <li class="{{ Request::routeIs('jabatan.*') ? 'active' : '' }}">
+                    <a href="{{ route('jabatan.index') }}">
+                        <i class="fas fa-briefcase"></i> Kelola Jabatan
+                    </a>
+                </li>
+                <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">
                     <a href="{{ route('karyawan.index') }}">
                         <i class="fas fa-users"></i> Kelola Karyawan
                     </a>
@@ -75,8 +85,8 @@
                     <a href="{{ route('laporan.gaji.bulanan') }}">
                         <i class="fas fa-chart-line"></i> Lihat Laporan
                     </a>
-                </li> 
-            @endif --}}
+                </li> --}}
+            @endif
 
             {{-- Role Bendahara --}}
             @if (auth()->user()->role === 'bendahara')
@@ -103,15 +113,20 @@
                         <li class="{{ Request::routeIs('sesi-absensi.*') ? '' : '' }}">
                             <a href="{{ route('sesi-absensi.index') }}">Sesi Absensi</a>
                         </li>
-                        <li class="{{ Request::routeIs('laporan.absensi.index') ? '' : '' }}">
-                            <a href="{{ route('laporan.absensi.index') }}">Rekap Absensi</a>
+                        <li class="{{ Request::routeIs('absensi.rekap') ? '' : '' }}">
+                            <a href="{{ route('absensi.rekap') }}">Rekap Absensi</a>
                         </li>
                     </ul>
                 </li>
 
-                <li class="{{ Request::routeIs('karyawan.index', 'karyawan.show') ? '' : '' }}">
+                {{-- <li class="{{ Request::routeIs('karyawan.index', 'karyawan.show') ? '' : '' }}">
                     <a href="{{ route('karyawan.index') }}">
                         <i class="fas fa-user-tie"></i> Daftar Karyawan
+                    </a>
+                </li> --}}
+                <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">
+                    <a href="{{ route('karyawan.index') }}">
+                        <i class="fas fa-users"></i> Daftar Karyawan
                     </a>
                 </li>
 

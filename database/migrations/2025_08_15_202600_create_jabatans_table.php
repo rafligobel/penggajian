@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('jabatans', function (Blueprint $table) {
             $table->id();
             $table->string('nama_jabatan')->unique();
-            $table->decimal('gaji_pokok', 15, 2); // Gaji pokok untuk jabatan ini
+            $table->unsignedInteger('gaji_pokok')->default(0);
             $table->timestamps();
         });
     }
