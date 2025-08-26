@@ -137,12 +137,14 @@
         </tr>
     </table>
 
-    {{-- TABEL KONTEN (TIDAK BERUBAH) --}}
+    {{-- TABEL KONTEN --}}
     <table class="content-table">
         <thead>
             <tr>
                 <th rowspan="2" style="width: 3%;">No</th>
-                <th rowspan="2" style="width: 20%;">Nama Karyawan</th>
+                <th rowspan="2" style="width: 15%;">Nama Karyawan</th>
+                {{-- PENAMBAHAN KOLOM JABATAN --}}
+                <th rowspan="2" style="width: 15%;">Jabatan</th>
                 <th colspan="{{ $daysInMonth }}">Tanggal</th>
                 <th colspan="2">Total</th>
             </tr>
@@ -159,6 +161,8 @@
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td class="karyawan-name">{{ $data->nama }}</td>
+                    {{-- PENAMBAHAN DATA JABATAN --}}
+                    <td class="karyawan-name">{{ $data->jabatan?->nama_jabatan ?? 'N/A' }}</td>
                     @for ($day = 1; $day <= $daysInMonth; $day++)
                         <td class="{{ $data->daily_data[$day] === 'H' ? 'text-success' : 'text-danger' }}">
                             {{ $data->daily_data[$day] }}

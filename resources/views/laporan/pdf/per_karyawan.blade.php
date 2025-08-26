@@ -156,6 +156,11 @@
                 <td><strong>NIP</strong></td>
                 <td>: {{ $selectedKaryawan->nip }}</td>
             </tr>
+            {{-- PENAMBAHAN BARIS JABATAN --}}
+            <tr>
+                <td><strong>JABATAN</strong></td>
+                <td>: {{ $selectedKaryawan->jabatan?->nama_jabatan ?? 'Jabatan Belum Diatur' }}</td>
+            </tr>
             <tr>
                 <td><strong>PERIODE LAPORAN</strong></td>
                 <td>: {{ \Carbon\Carbon::parse($tanggalMulai)->translatedFormat('F Y') }} s.d.
@@ -208,7 +213,7 @@
                             <td class="text-end">{{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
                         </tr>
                         <tr>
-                            <td>Tunjangan Kehadiran</td>
+                            <td>Tunjangan Kehadiran {{ $absensiSummary['hadir'] }} hari</td>
                             <td class="text-end">{{ number_format($gaji->tunj_kehadiran, 0, ',', '.') }}</td>
                         </tr>
                         <tr>
@@ -291,6 +296,7 @@
                 </td>
             </tr>
         </table>
+
     </div>
 </body>
 

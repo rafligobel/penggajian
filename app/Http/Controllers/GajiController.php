@@ -60,6 +60,26 @@ class GajiController extends Controller
         ]);
     }
 
+    public function saveBulk(Request $request)
+    {
+        $validated = $request->validate([
+            'gaji' => 'required|array',
+            'gaji.*.karyawan_id' => 'required|exists:karyawans,id',
+            'gaji.*.bulan' => 'required|date_format:Y-m',
+            'gaji.*.tarif_kehadiran_hidden' => 'sometimes|numeric',
+        ]);
+
+        foreach ($validated['gaji'] as $gajiData) {
+            if (isset($gajiData['tarif_kehadiran_hidden'])) {
+                $gajiData['tarif_kehadiran'] = $gajiData['tarif_kehadiran_hidden'];
+            }
+            $this->salaryService->saveSalaryData($gajiData);
+        }
+
+        return redirect()->back()->with('success', 'Semua data gaji yang ditampilkan berhasil disimpan.');
+    }
+
+
     public function saveOrUpdate(Request $request)
     {
         $validatedData = $request->validate([
@@ -77,6 +97,8 @@ class GajiController extends Controller
             'tarif_kehadiran_hidden' => 'required|numeric|min:0',
         ]);
         $karyawan = $this->salaryService->saveSalaryData($validatedData);
+
+        // Kode yang hilang sebelumnya sekarang ditambahkan kembali
         return redirect()->route('gaji.index', [
             'bulan' => $validatedData['bulan'],
             'tarif_kehadiran' => $validatedData['tarif_kehadiran_hidden']

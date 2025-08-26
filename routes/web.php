@@ -87,6 +87,9 @@ Route::middleware(['role:bendahara'])->group(function () {
 });
 
 Route::resource('karyawan', KaryawanController::class);
+Route::get('karyawan/{karyawan}', [KaryawanController::class, 'create'])->name('karyawan.create');
+
+
 
 
 // Rute Simulasi Gaji (publik)

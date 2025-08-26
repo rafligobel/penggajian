@@ -56,7 +56,8 @@
                                                 class="gaji-checkbox"></td>
                                         <td>{{ $loop->iteration }}</td>
                                         <td>{{ $gaji->karyawan->nama }}</td>
-                                        <td>{{ $gaji->karyawan->jabatan }}</td>
+                                        {{-- PERUBAHAN DI SINI --}}
+                                        <td>{{ $gaji->karyawan->jabatan->nama_jabatan ?? 'Jabatan Belum Diatur' }}</td>
                                         <td class="text-end fw-bold">Rp {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}
                                         </td>
                                     </tr>
@@ -80,7 +81,6 @@
             document.addEventListener('DOMContentLoaded', function() {
                 const form = document.getElementById('laporan-form');
 
-                // --- Logika Tombol Filter (tetap sama) ---
                 document.getElementById('filter-btn').addEventListener('click', function() {
                     form.method = 'GET';
                     form.action = "{{ route('laporan.gaji.bulanan') }}";
@@ -89,23 +89,20 @@
                     form.submit();
                 });
 
-                // --- Logika Tombol Cetak PDF Terpilih (DIPERBAIKI) ---
                 document.getElementById('cetak-terpilih-btn').addEventListener('click', function() {
                     form.method = 'POST';
                     form.action = "{{ route('laporan.gaji.cetak') }}";
-                    form.removeAttribute('target'); // Pastikan tidak ada target
+                    form.removeAttribute('target');
                     form.submit();
                 });
 
-                // --- Logika Tombol Kirim Email Terpilih (tetap sama) ---
                 document.getElementById('kirim-email-terpilih-btn').addEventListener('click', function() {
                     form.method = 'POST';
                     form.action = "{{ route('laporan.gaji.kirim-email-terpilih') }}";
-                    form.removeAttribute('target'); // Pastikan tidak membuka tab baru
+                    form.removeAttribute('target');
                     form.submit();
                 });
 
-                // --- Logika Select All (tetap sama) ---
                 document.getElementById('select-all').addEventListener('change', function(e) {
                     document.querySelectorAll('.gaji-checkbox').forEach(checkbox => {
                         checkbox.checked = e.target.checked;
