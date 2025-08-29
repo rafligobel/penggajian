@@ -69,6 +69,12 @@
                         <i class="fas fa-briefcase"></i> Kelola Jabatan
                     </a>
                 </li>
+                <li class="{{ Request::routeIs('tunjangan-kehadiran.*') ? 'active' : '' }}">
+                    <a href="{{ route('tunjangan-kehadiran.index') }}">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>Tunjangan Kehadiran</span>
+                    </a>
+                </li>
                 <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">
                     <a href="{{ route('karyawan.index') }}">
                         <i class="fas fa-users"></i> Kelola Karyawan

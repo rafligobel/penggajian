@@ -53,37 +53,19 @@
             color: #333;
         }
 
-        /* INFO KARYAWAN & ABSENSI */
+        /* INFO KARYAWAN */
         .employee-details td {
-            padding: 2px 0;
-        }
-
-        .summary-box {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: center;
-        }
-
-        .summary-box h6 {
-            margin: 0 0 5px 0;
-            font-size: 10pt;
-            color: #555;
-        }
-
-        .summary-box p {
-            margin: 0;
-            font-size: 14pt;
-            font-weight: bold;
+            padding: 3px 0;
         }
 
         /* TABEL GAJI (GAYA SLIP) */
         .salary-details {
-            margin-top: 15px;
+            margin-top: 20px;
         }
 
         .salary-details th,
         .salary-details td {
-            padding: 7px;
+            padding: 8px;
             border-bottom: 1px solid #e9e9e9;
         }
 
@@ -93,40 +75,38 @@
             font-weight: bold;
         }
 
+        .salary-details .text-right {
+            text-align: right;
+        }
+
         .salary-details .section-header td {
             background-color: #e9f5ff;
             font-weight: bold;
+            padding: 6px 8px;
         }
 
-        .salary-details .total-row td {
+        .total-row td {
             font-weight: bold;
+            font-size: 10pt;
             background-color: #f8f9fa;
         }
 
-        .salary-details .grand-total-row td {
+        .grand-total-row td {
             font-weight: bold;
             font-size: 11pt;
             background-color: #d1e7dd;
             color: #0a3622;
         }
 
-        .text-end {
-            text-align: right;
-        }
-
         /* TANDA TANGAN */
         .signature-section {
-            margin-top: 40px;
+            margin-top: 35px;
         }
 
         .signature-section td {
             padding: 5px;
             text-align: center;
             border: none;
-        }
-
-        .page-break {
-            page-break-after: always;
         }
     </style>
 </head>
@@ -156,7 +136,6 @@
                 <td><strong>NIP</strong></td>
                 <td>: {{ $selectedKaryawan->nip }}</td>
             </tr>
-            {{-- PENAMBAHAN BARIS JABATAN --}}
             <tr>
                 <td><strong>JABATAN</strong></td>
                 <td>: {{ $selectedKaryawan->jabatan?->nama_jabatan ?? 'Jabatan Belum Diatur' }}</td>
@@ -168,118 +147,89 @@
             </tr>
         </table>
 
-        {{-- RINGKASAN ABSENSI --}}
-        <h4 style="margin-top: 25px; margin-bottom: 10px;">Ringkasan Absensi Selama Periode</h4>
-        <table style="width: 60%;">
-            <tr>
-                <td style="padding: 0 5px 0 0;">
-                    <div class="summary-box" style="background-color: #e9f5ff;">
-                        <h6>Total Kehadiran</h6>
-                        <p style="color: #0056b3;">{{ $absensiSummary['hadir'] }} Hari</p>
-                    </div>
-                </td>
-                <td style="padding: 0 0 0 5px;">
-                    <div class="summary-box" style="background-color: #ffe9e9;">
-                        <h6>Total Alpha</h6>
-                        <p style="color: #b30000;">{{ $absensiSummary['alpha'] }} Hari</p>
-                    </div>
-                </td>
-            </tr>
-        </table>
+        <hr style="margin-top: 20px; border: 0; border-top: 1px solid #ccc;">
 
-        <hr style="margin-top: 25px; border: 0; border-top: 1px solid #ccc;">
+        {{-- TABEL REKAP GAJI DENGAN GAYA SLIP --}}
+        @if ($gajis->isNotEmpty())
+            <h4 style="margin-top: 20px; margin-bottom: 10px; text-align:center;">Rekapitulasi Gaji Selama Periode</h4>
+            <table class="salary-details">
+                <thead>
+                    <tr>
+                        <th width="70%">KETERANGAN</th>
+                        <th class="text-right">TOTAL JUMLAH (Rp)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="section-header">
+                        <td colspan="2">A. PENDAPATAN</td>
+                    </tr>
+                    <tr>
+                        <td>Gaji Pokok</td>
+                        <td class="text-right">{{ number_format($gajis->sum('gaji_pokok'), 0, ',', '.') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tunjangan Kehadiran ({{ $absensiSummary['hadir'] ?? 0 }} hari)</td>
+                        <td class="text-right">{{ number_format($gajis->sum('tunj_kehadiran'), 0, ',', '.') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tunjangan Jabatan</td>
+                        <td class="text-right">{{ number_format($gajis->sum('tunj_jabatan'), 0, ',', '.') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tunjangan Kinerja</td>
+                        <td class="text-right">{{ number_format($gajis->sum('tunj_kinerja'), 0, ',', '.') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tunjangan Anak</td>
+                        <td class="text-right">{{ number_format($gajis->sum('tunj_anak'), 0, ',', '.') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tunjangan Komunikasi</td>
+                        <td class="text-right">{{ number_format($gajis->sum('tunj_komunikasi'), 0, ',', '.') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tunjangan Pengabdian</td>
+                        <td class="text-right">{{ number_format($gajis->sum('tunj_pengabdian'), 0, ',', '.') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Lembur</td>
+                        <td class="text-right">{{ number_format($gajis->sum('lembur'), 0, ',', '.') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Kelebihan Jam</td>
+                        <td class="text-right">{{ number_format($gajis->sum('kelebihan_jam'), 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td class="text-right">TOTAL PENDAPATAN</td>
+                        <td class="text-right">{{ number_format($gajis->sum('total_pendapatan'), 0, ',', '.') }}</td>
+                    </tr>
 
-        {{-- LOOP UNTUK SETIAP SLIP GAJI --}}
-        @forelse ($gajis as $gaji)
-            <div class="slip-wrapper">
-                <h4
-                    style="text-align: center; background-color: #f2f2f2; padding: 5px; margin-top: 25px; margin-bottom: 15px;">
-                    Rincian Gaji Periode: {{ \Carbon\Carbon::parse($gaji->bulan)->translatedFormat('F Y') }}
-                </h4>
+                    <tr class="section-header">
+                        <td colspan="2">B. POTONGAN</td>
+                    </tr>
+                    <tr>
+                        <td>Potongan Lain-lain</td>
+                        <td class="text-right">{{ number_format($gajis->sum('potongan'), 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td class="text-right">TOTAL POTONGAN</td>
+                        <td class="text-right">{{ number_format($gajis->sum('potongan'), 0, ',', '.') }}</td>
+                    </tr>
 
-                <table class="salary-details">
-                    <thead>
-                        <tr>
-                            <th width="70%">KETERANGAN</th>
-                            <th class="text-end">JUMLAH (Rp)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr class="section-header">
-                            <td colspan="2">A. PENDAPATAN</td>
-                        </tr>
-                        <tr>
-                            <td>Gaji Pokok</td>
-                            <td class="text-end">{{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
-                        </tr>
-                        <tr>
-                            <td>Tunjangan Kehadiran {{ $absensiSummary['hadir'] }} hari</td>
-                            <td class="text-end">{{ number_format($gaji->tunj_kehadiran, 0, ',', '.') }}</td>
-                        </tr>
-                        <tr>
-                            <td>Tunjangan Jabatan</td>
-                            <td class="text-end">{{ number_format($gaji->tunj_jabatan, 0, ',', '.') }}</td>
-                        </tr>
-                        <tr>
-                            <td>Tunjangan Kinerja</td>
-                            <td class="text-end">{{ number_format($gaji->tunj_kinerja, 0, ',', '.') }}</td>
-                        </tr>
-                        <tr>
-                            <td>Tunjangan Anak</td>
-                            <td class="text-end">{{ number_format($gaji->tunj_anak, 0, ',', '.') }}</td>
-                        </tr>
-                        <tr>
-                            <td>Tunjangan Komunikasi</td>
-                            <td class="text-end">{{ number_format($gaji->tunj_komunikasi, 0, ',', '.') }}</td>
-                        </tr>
-                        <tr>
-                            <td>Tunjangan Pengabdian</td>
-                            <td class="text-end">{{ number_format($gaji->tunj_pengabdian, 0, ',', '.') }}</td>
-                        </tr>
-                        <tr>
-                            <td>Lembur</td>
-                            <td class="text-end">{{ number_format($gaji->lembur, 0, ',', '.') }}</td>
-                        </tr>
-                        <tr>
-                            <td>Kelebihan Jam</td>
-                            <td class="text-end">{{ number_format($gaji->kelebihan_jam, 0, ',', '.') }}</td>
-                        </tr>
-                        <tr class="total-row">
-                            <td class="text-end">TOTAL PENDAPATAN</td>
-                            <td class="text-end">{{ number_format($gaji->total_pendapatan, 0, ',', '.') }}</td>
-                        </tr>
-
-                        <tr class="section-header">
-                            <td colspan="2">B. POTONGAN</td>
-                        </tr>
-                        <tr>
-                            <td>Potongan Lain-lain</td>
-                            <td class="text-end">{{ number_format($gaji->potongan, 0, ',', '.') }}</td>
-                        </tr>
-                        <tr class="total-row">
-                            <td class="text-end">TOTAL POTONGAN</td>
-                            <td class="text-end">{{ number_format($gaji->potongan, 0, ',', '.') }}</td>
-                        </tr>
-
-                        <tr class="grand-total-row">
-                            <td class="text-end">GAJI BERSIH</td>
-                            <td class="text-end">Rp {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            {{-- Memberi jeda antar slip, kecuali untuk yang terakhir --}}
-            @if (!$loop->last)
-                <div class="page-break"></div>
-            @endif
-        @empty
+                    <tr class="grand-total-row">
+                        <td class="text-right">TOTAL GAJI BERSIH DITERIMA</td>
+                        <td class="text-right">Rp {{ number_format($gajis->sum('gaji_bersih'), 0, ',', '.') }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        @else
             <div style="text-align: center; padding: 20px; border: 1px dashed #ccc; margin-top: 20px;">
                 Tidak ada data riwayat gaji pada periode yang dipilih.
             </div>
-        @endforelse
+        @endif
 
-        {{-- TANDA TANGAN (Hanya muncul di halaman terakhir) --}}
+
+        {{-- TANDA TANGAN --}}
         <table class="signature-section">
             <tr>
                 <td style="width: 65%;"></td>

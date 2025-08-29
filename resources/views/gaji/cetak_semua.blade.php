@@ -21,7 +21,6 @@
             border-collapse: collapse;
         }
 
-        /* KOP SURAT */
         .header {
             text-align: center;
             margin-bottom: 20px;
@@ -45,12 +44,12 @@
             color: #333;
         }
 
-        /* TABEL UTAMA */
         .main-table th,
         .main-table td {
             border: 1px solid #ccc;
             padding: 4px 5px;
             text-align: right;
+            /* Default alignment for numbers */
         }
 
         .main-table th {
@@ -58,6 +57,7 @@
             font-weight: bold;
             text-align: center;
             white-space: nowrap;
+            vertical-align: middle;
         }
 
         .main-table .text-left {
@@ -68,13 +68,11 @@
             text-align: center;
         }
 
-        /* FOOTER TABEL */
         .main-table tfoot .footer-row {
             font-weight: bold;
             background-color: #e9ecef;
         }
 
-        /* TANDA TANGAN */
         .signature-section {
             margin-top: 30px;
         }
@@ -103,12 +101,15 @@
             </tr>
         </table>
 
-        {{-- TABEL UTAMA --}}
+        {{-- TABEL GAJI UTAMA --}}
         <table class="main-table">
             <thead>
                 <tr>
                     <th rowspan="2" style="width: 3%;">No</th>
                     <th rowspan="2" class="text-left" style="width: 15%;">Nama Karyawan</th>
+                    {{-- KOLOM JABATAN BARU --}}
+                    <th rowspan="2" class="text-left" style="width: 12%;">Jabatan</th>
+                    <th rowspan="2">Kehadiran</th>
                     <th rowspan="2">Gaji Pokok</th>
                     <th colspan="5">Tunjangan</th>
                     <th rowspan="2">Lainnya</th>
@@ -128,6 +129,11 @@
                     <tr>
                         <td class="text-center">{{ $loop->iteration }}</td>
                         <td class="text-left">{{ $gaji->karyawan->nama }}</td>
+                        {{-- DATA JABATAN BARU --}}
+                        <td class="text-left">{{ $gaji->karyawan->jabatan->nama_jabatan ?? '-' }}</td>
+                        <td class="text-center">
+                            {{ $kehadiranData[$gaji->karyawan_id]->total_hadir ?? 0 }} Hari
+                        </td>
                         <td>{{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
                         <td>{{ number_format($gaji->tunj_jabatan, 0, ',', '.') }}</td>
                         <td>{{ number_format($gaji->tunj_anak, 0, ',', '.') }}</td>
@@ -140,7 +146,8 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="text-center" style="padding: 20px;">Tidak ada data gaji untuk periode
+                        {{-- Colspan disesuaikan menjadi 13 --}}
+                        <td colspan="13" class="text-center" style="padding: 20px;">Tidak ada data gaji untuk periode
                             ini.</td>
                     </tr>
                 @endforelse
@@ -149,7 +156,8 @@
             @if ($gajis->isNotEmpty())
                 <tfoot>
                     <tr class="footer-row">
-                        <td colspan="2" class="text-center">TOTAL (Rp)</td>
+                        {{-- Colspan disesuaikan menjadi 4 --}}
+                        <td colspan="4" class="text-center">TOTAL (Rp)</td>
                         <td>{{ number_format($totals->total_gaji_pokok, 0, ',', '.') }}</td>
                         <td>{{ number_format($totals->total_tunj_jabatan, 0, ',', '.') }}</td>
                         <td>{{ number_format($totals->total_tunj_anak, 0, ',', '.') }}</td>

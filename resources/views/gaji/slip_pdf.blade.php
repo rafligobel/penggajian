@@ -189,7 +189,8 @@
                     <td><strong>NIP</strong></td>
                     <td>: {{ $gaji->karyawan->nip }}</td>
                     <td><strong>JABATAN</strong></td>
-                    <td>: {{ $gaji->karyawan->jabatan }}</td>
+                    {{-- PERUBAHAN DI BARIS INI --}}
+                    <td>: {{ $gaji->karyawan->jabatan?->nama_jabatan ?? 'Jabatan Belum Diatur' }}</td>
                 </tr>
             </table>
         </div>
@@ -211,7 +212,7 @@
                     <td class="text-right">{{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
-                    <td>Tunjangan Kehadiran</td>
+                    <td>Tunjangan Kehadiran ({{ $absensiSummary['hadir'] ?? 0 }} hari)</td>
                     <td class="text-right">{{ number_format($gaji->tunj_kehadiran, 0, ',', '.') }}</td>
                 </tr>
                 <tr>

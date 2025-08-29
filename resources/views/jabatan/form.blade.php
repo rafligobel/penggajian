@@ -9,10 +9,11 @@
 </div>
 
 <div class="form-group">
-    <label for="gaji_pokok">Gaji Pokok (Rp)</label>
-    <input type="number" name="gaji_pokok" id="gaji_pokok"
-        class="form-control @error('gaji_pokok') is-invalid @enderror"
-        value="{{ old('gaji_pokok', $jabatan->gaji_pokok ?? '') }}" required min="0">
+    <label for="gaji_pokok" class="block text-sm font-medium text-gray-700">Jumlah Tunjangan Jabatan (Rp)</label>
+    <input type="number" name="tunjangan_jabatan" id="gaji_pokok"
+        value="{{ old('tunjangan_jabatan', $jabatan->tunjangan_jabatan ?? '') }}"
+        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        required>
     @error('gaji_pokok')
         <div class="invalid-feedback">{{ $message }}</div>
     @enderror

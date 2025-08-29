@@ -13,6 +13,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TandaTanganController;
 use App\Http\Controllers\JabatanController;
+use App\Http\Controllers\TunjanganKehadiranController;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,11 +47,13 @@ Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
     // <-- Rute untuk admin
     Route::resource('users', UserController::class);
     Route::resource('jabatan', JabatanController::class);
+    Route::resource('tunjangan-kehadiran', TunjanganKehadiranController::class)->except(['create', 'edit', 'show']);
 });
 
 Route::middleware(['role:bendahara'])->group(function () {
     Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
     Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save');
+    
 
 
     // RUTE BARU UNTUK PROSES BACKGROUND

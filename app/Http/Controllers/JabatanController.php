@@ -7,35 +7,37 @@ use Illuminate\Http\Request;
 
 class JabatanController extends Controller
 {
+    /**
+     * Menampilkan daftar jabatan.
+     */
     public function index()
     {
-        $jabatans = Jabatan::orderBy('nama_jabatan')->get();
+        $jabatans = Jabatan::latest()->paginate(10);
         return view('jabatan.index', compact('jabatans'));
     }
 
-    public function create()
-    {
-        return view('jabatan.create');
-    }
-
+    /**
+     * Menyimpan jabatan baru.
+     */
     public function store(Request $request)
     {
         $request->validate([
-            'nama_jabatan' => 'required|string|max:255|unique:jabatans',
-            'gaji_pokok' => 'required|numeric|min:0',
+            'nama_jabatan' => 'required|string|max:255|unique:jabatans,nama_jabatan',
+            'gaji_pokok' => 'required|numeric|min:0', // Nama input dari form
         ]);
 
-        Jabatan::create($request->all());
+        Jabatan::create([
+            'nama_jabatan' => $request->nama_jabatan,
+            'gaji_pokok' => $request->gaji_pokok,
+        ]);
 
         return redirect()->route('jabatan.index')
-            ->with('success', 'Jabatan baru berhasil ditambahkan.');
+            ->with('success', 'Jabatan berhasil ditambahkan.');
     }
 
-    public function edit(Jabatan $jabatan)
-    {
-        return view('jabatan.edit', compact('jabatan'));
-    }
-
+    /**
+     * Memperbarui data jabatan.
+     */
     public function update(Request $request, Jabatan $jabatan)
     {
         $request->validate([
@@ -43,19 +45,20 @@ class JabatanController extends Controller
             'gaji_pokok' => 'required|numeric|min:0',
         ]);
 
-        $jabatan->update($request->all());
+        $jabatan->update([
+            'nama_jabatan' => $request->nama_jabatan,
+            'gaji_pokok' => $request->gaji_pokok,
+        ]);
 
         return redirect()->route('jabatan.index')
-            ->with('success', 'Data jabatan berhasil diperbarui.');
+            ->with('success', 'Jabatan berhasil diperbarui.');
     }
 
+    /**
+     * Menghapus data jabatan.
+     */
     public function destroy(Jabatan $jabatan)
     {
-        if ($jabatan->karyawans()->count() > 0) {
-            return redirect()->route('jabatan.index')
-                ->with('error', 'Gagal! Jabatan ini masih digunakan oleh karyawan.');
-        }
-
         $jabatan->delete();
 
         return redirect()->route('jabatan.index')

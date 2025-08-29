@@ -47,6 +47,14 @@ class GenerateIndividualReport implements ShouldQueue
                 ->whereBetween('bulan', [$this->tanggalMulai, $this->tanggalSelesai])
                 ->orderBy('bulan', 'asc')->get();
 
+            // === AWAL PERUBAHAN ===
+            // Menghitung total dari koleksi $gajis
+            $totalGajiPokok = $gajis->sum('gaji_pokok');
+            $totalTunjangan = $gajis->sum('tunjangan');
+            $totalPotongan = $gajis->sum('potongan');
+            $totalGajiBersih = $gajis->sum('gaji_bersih');
+            // === AKHIR PERUBAHAN ===
+
             $startOfMonth = Carbon::createFromFormat('Y-m', $this->tanggalMulai)->startOfMonth();
             $endOfMonth = Carbon::createFromFormat('Y-m', $this->tanggalSelesai)->endOfMonth();
 
@@ -82,6 +90,14 @@ class GenerateIndividualReport implements ShouldQueue
                 'tandaTanganBendahara' => $tandaTanganBendahara,
                 'logoAlAzhar' => $logoAlAzhar,
                 'logoYayasan' => $logoYayasan,
+
+                // === AWAL PERUBAHAN ===
+                // Mengirim variabel total ke view
+                'totalGajiPokok' => $totalGajiPokok,
+                'totalTunjangan' => $totalTunjangan,
+                'totalPotongan' => $totalPotongan,
+                'totalGajiBersih' => $totalGajiBersih,
+                // === AKHIR PERUBAHAN ===
             ];
 
             $pdf = Pdf::loadView('laporan.pdf.per_karyawan', $data);
