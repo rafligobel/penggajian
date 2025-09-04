@@ -16,6 +16,13 @@
             </div>
         @endif
 
+        @if (session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
         @if ($errors->any())
             <div class="alert alert-danger">
                 <ul>
@@ -34,7 +41,7 @@
                             <tr>
                                 <th>No.</th>
                                 <th>Nama Jabatan</th>
-                                <th class="text-end">Gaji Pokok (Rp)</th>
+                                <th class="text-end">Tunjangan Jabatan (Rp)</th>
                                 <th class="text-center">Aksi</th>
                             </tr>
                         </thead>
@@ -43,7 +50,7 @@
                                 <tr data-jabatan-json="{{ json_encode($jabatan) }}">
                                     <td>{{ $loop->iteration + $jabatans->firstItem() - 1 }}</td>
                                     <td>{{ $jabatan->nama_jabatan }}</td>
-                                    <td class="text-end">{{ number_format($jabatan->gaji_pokok, 0, ',', '.') }}</td>
+                                    <td class="text-end">{{ number_format($jabatan->tunj_jabatan, 0, ',', '.') }}</td>
                                     <td class="text-center">
                                         <button class="btn btn-sm btn-warning btn-edit" title="Edit Jabatan"
                                             data-bs-toggle="modal" data-bs-target="#editModal">
@@ -76,6 +83,7 @@
 
     {{-- ============== MODALS ============== --}}
 
+    {{-- Modal Tambah Jabatan --}}
     <div class="modal fade" id="createModal" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -92,9 +100,9 @@
                                 value="{{ old('nama_jabatan') }}" required>
                         </div>
                         <div class="mb-3">
-                            <label for="gaji_pokok" class="form-label">Gaji Pokok (Rp)</label>
-                            <input type="number" class="form-control" id="gaji_pokok" name="gaji_pokok"
-                                value="{{ old('gaji_pokok') }}" required>
+                            <label for="tunj_jabatan" class="form-label">Tunjangan Jabatan (Rp)</label>
+                            <input type="number" class="form-control" id="tunj_jabatan" name="tunj_jabatan"
+                                value="{{ old('tunj_jabatan', 0) }}" required>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -106,6 +114,7 @@
         </div>
     </div>
 
+    {{-- Modal Edit Jabatan --}}
     <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -119,11 +128,13 @@
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="edit_nama_jabatan" class="form-label">Nama Jabatan</label>
-                            <input type="text" class="form-control" id="edit_nama_jabatan" name="nama_jabatan" required>
+                            <input type="text" class="form-control" id="edit_nama_jabatan" name="nama_jabatan"
+                                required>
                         </div>
                         <div class="mb-3">
-                            <label for="edit_gaji_pokok" class="form-label">Gaji Pokok (Rp)</label>
-                            <input type="number" class="form-control" id="edit_gaji_pokok" name="gaji_pokok" required>
+                            <label for="edit_tunj_jabatan" class="form-label">Tunjangan Jabatan (Rp)</label>
+                            <input type="number" class="form-control" id="edit_tunj_jabatan" name="tunj_jabatan"
+                                required>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -135,6 +146,7 @@
         </div>
     </div>
 
+    {{-- Modal Hapus Jabatan --}}
     <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -169,12 +181,9 @@
                     const data = JSON.parse(row.getAttribute('data-jabatan-json'));
 
                     const form = editModal.querySelector('#editForm');
-                    const modalTitle = editModal.querySelector('#editModalLabel');
-
                     form.action = `/jabatan/${data.id}`;
-                    modalTitle.textContent = `Edit Jabatan: ${data.nama_jabatan}`;
                     form.querySelector('#edit_nama_jabatan').value = data.nama_jabatan;
-                    form.querySelector('#edit_gaji_pokok').value = data.gaji_pokok;
+                    form.querySelector('#edit_tunj_jabatan').value = data.tunj_jabatan;
                 });
             });
 
@@ -186,10 +195,9 @@
                     const data = JSON.parse(row.getAttribute('data-jabatan-json'));
 
                     const form = deleteModal.querySelector('#deleteForm');
-                    const jabatanName = deleteModal.querySelector('#delete-jabatan-name');
-
                     form.action = `/jabatan/${data.id}`;
-                    jabatanName.textContent = `"${data.nama_jabatan}"`;
+                    deleteModal.querySelector('#delete-jabatan-name').textContent =
+                        `"${data.nama_jabatan}"`;
                 });
             });
         });

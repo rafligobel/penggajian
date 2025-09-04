@@ -10,124 +10,135 @@ use Carbon\Carbon;
 class SalaryService
 {
     /**
-     * Menghitung dan menyiapkan objek Gaji untuk ditampilkan atau simulasi.
-     * Metode ini TIDAK menyimpan ke database.
+     * Menyiapkan data Gaji untuk ditampilkan.
+     * Logika ini memiliki "memori" untuk menggunakan data bulan sebelumnya sebagai template.
      *
      * @param Karyawan $karyawan
      * @param string $selectedMonth Format 'Y-m'
      * @param int $tarifKehadiran
-     * @param array $inputData Data tambahan (misal: untuk simulasi)
      * @return Gaji
      */
-    public function calculateSalary(Karyawan $karyawan, string $selectedMonth, int $tarifKehadiran, array $inputData = []): Gaji
+    public function calculateSalary(Karyawan $karyawan, string $selectedMonth, int $tarifKehadiran): Gaji
     {
-        // Cari data gaji yang sudah tersimpan untuk bulan ini
+        // 1. Cek apakah data gaji untuk bulan ini sudah ada di database.
         $gajiBulanIni = Gaji::where('karyawan_id', $karyawan->id)
             ->where('bulan', $selectedMonth)
             ->first();
 
-        // Jika tidak ada, gunakan template dari bulan terakhir atau buat objek baru
-        $templateGaji = $gajiBulanIni ?? Gaji::where('karyawan_id', $karyawan->id)
+        // 2. Jika sudah ada, langsung gunakan data tersebut.
+        if ($gajiBulanIni) {
+            $gajiBulanIni->jumlah_kehadiran = $this->getActualAttendance($karyawan->nip, $selectedMonth);
+            $gajiBulanIni->setRelation('karyawan', $karyawan);
+            return $gajiBulanIni;
+        }
+
+        // --- LOGIKA JIKA DATA GAJI BULAN INI BELUM ADA ---
+
+        // 3. Cari data gaji terakhir dari bulan sebelumnya untuk dijadikan template.
+        $templateGaji = Gaji::where('karyawan_id', $karyawan->id)
             ->orderBy('bulan', 'desc')
             ->first();
 
+        // 4. Buat objek Gaji baru untuk bulan ini.
         $gaji = new Gaji();
-        if ($templateGaji) {
-            $gaji->fill($templateGaji->getAttributes());
-        }
 
-        // Atur properti dasar
-        $gaji->id = $gajiBulanIni->id ?? null;
-        $gaji->created_at = $gajiBulanIni->created_at ?? null;
-        $gaji->updated_at = $gajiBulanIni->updated_at ?? null;
-        $gaji->karyawan_id = $karyawan->id;
-        $gaji->bulan = $selectedMonth;
-        $gaji->karyawan = $karyawan;
+        // 5. Isi Gaji Pokok dan Tunjangan individu lainnya dari template (jika ada).
+        // Ini adalah "memori" dari bulan sebelumnya.
+        $gaji->gaji_pokok      = $templateGaji->gaji_pokok ?? 0;
+        $gaji->tunj_anak       = $templateGaji->tunj_anak ?? 0;
+        $gaji->tunj_komunikasi = $templateGaji->tunj_komunikasi ?? 0;
+        $gaji->tunj_pengabdian = $templateGaji->tunj_pengabdian ?? 0;
+        $gaji->tunj_kinerja    = $templateGaji->tunj_kinerja ?? 0;
+        $gaji->lembur          = 0; // Selalu reset nilai dinamis
+        $gaji->kelebihan_jam   = 0;
+        $gaji->potongan        = 0;
 
-        // Hitung komponen dinamis
-        if (isset($inputData['jumlah_hari_masuk'])) {
-            $jumlahKehadiran = $inputData['jumlah_hari_masuk'];
-        } else {
-            $date = Carbon::createFromFormat('Y-m', $selectedMonth);
-            $jumlahKehadiran = Absensi::where('nip', $karyawan->nip)
-                ->whereYear('tanggal', $date->year)
-                ->whereMonth('tanggal', $date->month)
-                ->count();
-        }
+        // 6. Tunjangan Jabatan SELALU diambil dari data master Jabatan.
+        $gaji->tunj_jabatan = $karyawan->jabatan->tunj_jabatan ?? 0;
 
-        $gaji->jumlah_kehadiran = $jumlahKehadiran; // Properti non-persisted untuk tampilan
+        // 7. Hitung Tunjangan Kehadiran berdasarkan absensi bulan ini.
+        $jumlahKehadiran = $this->getActualAttendance($karyawan->nip, $selectedMonth);
         $gaji->tunj_kehadiran = $jumlahKehadiran * $tarifKehadiran;
 
-        // Ambil data dari input jika ada (untuk simulasi atau form edit)
-        $gaji->lembur = $inputData['lembur'] ?? $gaji->lembur ?? 0;
-        $gaji->potongan = $inputData['potongan'] ?? $gaji->potongan ?? 0;
-
-        // Isi komponen lain dari input jika ada
-        if (!empty($inputData)) {
-            $gaji->fill($inputData);
-        }
-
-        // Hitung ulang total gaji bersih
+        // 8. Hitung ulang Gaji Bersih.
         $gaji->gaji_bersih = $this->calculateNetSalary($gaji);
+
+        // 9. Tambahkan properti non-database untuk keperluan tampilan.
+        $gaji->jumlah_kehadiran = $jumlahKehadiran;
+        $gaji->setRelation('karyawan', $karyawan);
 
         return $gaji;
     }
 
     /**
-     * Menyimpan atau memperbarui data gaji berdasarkan input dari form.
-     * Metode ini bertanggung jawab penuh untuk kalkulasi akhir dan persistensi.
+     * Menyimpan atau memperbarui data gaji dari form edit.
      *
-     * @param array $data Data yang sudah divalidasi dari controller.
+     * @param array $data Data yang sudah divalidasi
      * @return Karyawan
      */
     public function saveSalaryData(array $data): Karyawan
     {
-        $karyawan = Karyawan::find($data['karyawan_id']);
-        $bulan = $data['bulan'];
-        $tarifKehadiran = (int) ($data['tarif_kehadiran_hidden'] ?? 10000);
+        $karyawan = Karyawan::with('jabatan')->find($data['karyawan_id']);
 
-        // 1. Hitung jumlah kehadiran aktual dari database
-        $date = Carbon::createFromFormat('Y-m', $bulan);
-        $jumlahKehadiran = Absensi::where('nip', $karyawan->nip)
-            ->whereYear('tanggal', $date->year)
-            ->whereMonth('tanggal', $date->month)
-            ->count();
+        // Ambil Tunjangan Jabatan dari relasi untuk memastikan konsistensi saat menyimpan.
+        $data['tunj_jabatan'] = $karyawan->jabatan->tunj_jabatan ?? 0;
 
-        // 2. Buat instance Gaji dari data yang di-submit form
-        $gaji = new Gaji($data);
+        // Cari atau buat instance Gaji baru
+        $gaji = Gaji::firstOrNew([
+            'karyawan_id' => $karyawan->id,
+            'bulan' => $data['bulan']
+        ]);
 
-        // 3. Hitung komponen dinamis berdasarkan data aktual
+        // Isi semua data dari form ke objek Gaji
+        $gaji->fill($data);
+
+        // Hitung ulang komponen dinamis sebelum menyimpan
+        $tarifKehadiran = (int) ($data['tarif_kehadiran_hidden'] ?? 0);
+        $jumlahKehadiran = $this->getActualAttendance($karyawan->nip, $data['bulan']);
         $gaji->tunj_kehadiran = $jumlahKehadiran * $tarifKehadiran;
 
-        // 4. Hitung ulang gaji bersih final
+        // Hitung ulang gaji bersih final
         $gaji->gaji_bersih = $this->calculateNetSalary($gaji);
 
-        // 5. Simpan atau perbarui data ke database menggunakan semua atribut dari objek $gaji
-        Gaji::updateOrCreate(
-            ['karyawan_id' => $data['karyawan_id'], 'bulan' => $bulan],
-            $gaji->getAttributes()
-        );
+        // Simpan ke database
+        $gaji->save();
 
         return $karyawan;
     }
 
     /**
-     * Menghitung gaji bersih berdasarkan komponen-komponen pada objek Gaji.
+     * Kalkulator Gaji Bersih.
      *
      * @param Gaji $gaji
      * @return int
      */
-    public function calculateNetSalary(Gaji $gaji): int
+    private function calculateNetSalary(Gaji $gaji): int
     {
         return ($gaji->gaji_pokok ?? 0) +
-            ($gaji->tunj_kehadiran ?? 0) +
             ($gaji->tunj_jabatan ?? 0) +
             ($gaji->tunj_anak ?? 0) +
             ($gaji->tunj_komunikasi ?? 0) +
             ($gaji->tunj_pengabdian ?? 0) +
             ($gaji->tunj_kinerja ?? 0) +
+            ($gaji->tunj_kehadiran ?? 0) +
             ($gaji->lembur ?? 0) +
             ($gaji->kelebihan_jam ?? 0) -
             ($gaji->potongan ?? 0);
+    }
+
+    /**
+     * Helper untuk mengambil jumlah kehadiran aktual dari database.
+     *
+     * @param string $nip
+     * @param string $selectedMonth
+     * @return int
+     */
+    private function getActualAttendance(string $nip, string $selectedMonth): int
+    {
+        $date = Carbon::createFromFormat('Y-m', $selectedMonth);
+        return Absensi::where('nip', $nip)
+            ->whereYear('tanggal', $date->year)
+            ->whereMonth('tanggal', $date->month)
+            ->count();
     }
 }

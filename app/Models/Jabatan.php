@@ -4,20 +4,26 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Jabatan extends Model
 {
     use HasFactory;
 
-    protected $table = 'jabatans';
-
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    // --- PERBAIKAN: Mengganti 'gaji_pokok' dengan 'tunj_jabatan' ---
     protected $fillable = [
         'nama_jabatan',
-        'gaji_pokok',
+        'tunj_jabatan',
     ];
 
-    public function karyawans(): HasMany
+    /**
+     * Get the employees for the job position.
+     */
+    public function karyawans()
     {
         return $this->hasMany(Karyawan::class);
     }

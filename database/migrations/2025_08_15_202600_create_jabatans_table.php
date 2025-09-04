@@ -6,16 +6,25 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('jabatans', function (Blueprint $table) {
             $table->id();
             $table->string('nama_jabatan')->unique();
-            $table->unsignedInteger('gaji_pokok')->default(0);
+
+            // --- FINAL: Jabatan HANYA berisi Tunjangan Jabatan ---
+            $table->unsignedInteger('tunj_jabatan')->default(0);
+
             $table->timestamps();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('jabatans');
