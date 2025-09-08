@@ -51,6 +51,7 @@ return [
     | the application so that it's available within Artisan commands.
     |
     */
+    'holiday_api_url' => env('HOLIDAY_API_URL', 'https://date.nager.at/api/v3/PublicHolidays'),
 
     'url' => env('APP_URL', 'http://localhost'),
 

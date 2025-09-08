@@ -53,7 +53,7 @@ Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
 Route::middleware(['role:bendahara'])->group(function () {
     Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
     Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save');
-    
+
 
 
     // RUTE BARU UNTUK PROSES BACKGROUND
@@ -76,7 +76,16 @@ Route::middleware(['role:bendahara'])->group(function () {
 
     Route::get('/rekap-absensi', [AbsensiController::class, 'rekapPerBulan'])->name('absensi.rekap');
     Route::get('/laporan/absensi/data', [AbsensiController::class, 'fetchRekapData'])->name('laporan.absensi.data');
-    Route::resource('sesi-absensi', SesiAbsensiController::class)->except(['show']);
+    // Route::resource('sesi-absensi', SesiAbsensiController::class)->except(['show']);
+
+    Route::get('/sesi-absensi', [SesiAbsensiController::class, 'index'])->name('sesi-absensi.index');
+    Route::post('/sesi-absensi/update-default-time', [SesiAbsensiController::class, 'updateDefaultTime'])->name('sesi-absensi.update-default-time');
+    Route::get('/sesi-absensi/calendar-events', [SesiAbsensiController::class, 'getCalendarEvents'])->name('sesi-absensi.calendar-events');
+    Route::post('/sesi-absensi/store-exception', [SesiAbsensiController::class, 'storeException'])->name('sesi-absensi.store-exception');
+
+
+    // Route::post('/sesi-absensi/update-default-time', [SesiAbsensiController::class, 'updateDefaultTime'])->name('sesi-absensi.update-default-time');
+
 
     //laporan absensi
     Route::get('/laporan/absensi', [LaporanController::class, 'rekapAbsensi'])->name('laporan.absensi');

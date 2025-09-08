@@ -43,16 +43,14 @@
                             </div>
                         </form>
                     @else
-                        {{-- Jika sesi ditutup, tampilkan pesan --}}
                         <div class="alert alert-warning text-center">
-                            <h5 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Sesi Absensi Ditutup</h5>
-                            <p class="mb-0">Saat ini sesi absensi sedang ditutup. Silakan hubungi bendahara untuk
-                                informasi jadwal.</p>
+                            <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Informasi Sesi</h5>
+                            {{-- Gunakan pesanSesi yang lebih dinamis dari controller --}}
+                            <p class="mb-0">{{ $pesanSesi ?? 'Sesi absensi untuk hari ini ditutup.' }}</p>
                             @if ($sesiHariIni)
                                 <hr>
-                                <p class="mb-0">Jadwal hari ini:
-                                    {{ \Carbon\Carbon::parse($sesiHariIni->waktu_mulai)->format('H:i') }} -
-                                    {{ \Carbon\Carbon::parse($sesiHariIni->waktu_selesai)->format('H:i') }}</p>
+                                <p class="mb-0">Jadwal Sesi: {{ $sesiHariIni->waktu_mulai }} -
+                                    {{ $sesiHariIni->waktu_selesai }}</p>
                             @endif
                         </div>
                     @endif

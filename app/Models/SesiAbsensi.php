@@ -9,19 +9,28 @@ class SesiAbsensi extends Model
 {
     use HasFactory;
 
-    protected $table = 'sesi_absensis';
-
-
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
         'tanggal',
+        'tipe',
         'waktu_mulai',
         'waktu_selesai',
-        'is_active',
+        'keterangan',
+        'is_default',
+        'hari_kerja', // Memberikan izin untuk mengisi kolom 'hari_kerja'
     ];
 
-
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
     protected $casts = [
-        'tanggal' => 'date',
-        'is_active' => 'boolean',
+        'is_default' => 'boolean',
+        'hari_kerja' => 'array', // Otomatis mengubah data array ke JSON saat disimpan, dan sebaliknya
     ];
 }
