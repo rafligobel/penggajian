@@ -4,7 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Penggajian Al-Azhar 43</title>
+
+    <title>Penggajian & Kepegawaian Al-Azhar 43</title>
+    <link rel="icon" href="{{ asset('logo/logoalazhar.png') }}" type="image/png">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
@@ -21,7 +24,7 @@
         #sidebar {
             min-width: 250px;
             max-width: 250px;
-            background: #343a40;
+            background: #f8f8f8;
             color: #fff;
             transition: all 0.3s;
         }
@@ -39,7 +42,7 @@
 
         .sidebar-header {
             padding: 20px;
-            background: #495057;
+            background: #f8f8f8;
         }
 
         .sidebar-header h3 {
@@ -49,20 +52,20 @@
 
         #sidebar ul.components {
             padding: 20px 0;
-            border-bottom: 1px solid #47748b;
+            border-top: 1px solid #cacaca;
         }
 
         #sidebar ul li a {
             padding: 10px;
             font-size: 1.1em;
             display: block;
-            color: #dee2e6;
+            color: #1b1b1b;
             text-decoration: none;
         }
 
         #sidebar ul li a:hover {
-            color: #fff;
-            background: #495057;
+            color: #f8f8f8;
+            background: #0080ff;
         }
 
         #sidebar ul li.active>a,
@@ -74,7 +77,7 @@
         ul ul a {
             font-size: 0.9em !important;
             padding-left: 30px !important;
-            background: #424950;
+            background: #f8f8f8;
         }
 
         /* -- PERBAIKAN CSS UNTUK NOTIFIKASI -- */
@@ -129,124 +132,136 @@
         @endauth
 
         <div id="content">
-            <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 shadow-sm">
-                <div class="container-fluid">
-                    {{-- @guest
-                        <a href="{{ url('/') }}" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Kembali</a>
-                    @endguest --}}
+            <nav>
+                <div>
+
+                    @guest
+                        <br>
+                        <br>
+
+                        {{-- <a href="{{ url('/') }}" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Kembali</a> --}}
+                    @endguest
                     @auth
+                        <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 shadow-sm">
+                            <div class="container-fluid">
+                                <button type="button" data-toggle="sidebar" class="btn btn-primary"><i
+                                        class="fa-solid fa-bars"></i></button>
 
-                        <button type="button" data-toggle="sidebar" class="btn btn-primary"><i
-                                class="fa-solid fa-bars"></i></button>
-
-                        <div class="d-flex align-items-center ms-auto">
-                            <ul class="navbar-nav flex-row">
-                                <li class="nav-item dropdown me-2">
-                                    <a class="nav-link" href="#" id="notificationDropdown" role="button"
-                                        data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="fas fa-bell"></i>
-                                        @if (auth()->user()->unreadNotifications->count())
-                                            <span class="badge rounded-pill bg-danger"
-                                                style="position: absolute; top: 5px; right: 0;">
-                                                {{ auth()->user()->unreadNotifications->count() }}
-                                            </span>
-                                        @endif
-                                    </a>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow border-0"
-                                        aria-labelledby="notificationDropdown" style="width: 380px;">
-                                        <li
-                                            class="dropdown-header d-flex justify-content-between align-items-center px-3 py-2">
-                                            <h6 class="mb-0">Notifikasi</h6>
-                                            @if (auth()->user()->unreadNotifications->isNotEmpty())
-                                                <form action="{{ route('notifications.markAllAsRead') }}" method="POST"
-                                                    class="mb-0">
-                                                    @csrf
-                                                    {{-- <button type="submit"
+                                <div class="d-flex align-items-center ms-auto">
+                                    <ul class="navbar-nav flex-row">
+                                        <li class="nav-item dropdown me-2">
+                                            <a class="nav-link" href="#" id="notificationDropdown" role="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fas fa-bell"></i>
+                                                @if (auth()->user()->unreadNotifications->count())
+                                                    <span class="badge rounded-pill bg-danger"
+                                                        style="position: absolute; top: 5px; right: 0;">
+                                                        {{ auth()->user()->unreadNotifications->count() }}
+                                                    </span>
+                                                @endif
+                                            </a>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow border-0"
+                                                aria-labelledby="notificationDropdown" style="width: 380px;">
+                                                <li
+                                                    class="dropdown-header d-flex justify-content-between align-items-center px-3 py-2">
+                                                    <h6 class="mb-0">Notifikasi</h6>
+                                                    @if (auth()->user()->unreadNotifications->isNotEmpty())
+                                                        <form action="{{ route('notifications.markAllAsRead') }}"
+                                                            method="POST" class="mb-0">
+                                                            @csrf
+                                                            {{-- <button type="submit"
                                                         class="btn btn-link btn-sm p-0 text-decoration-none">Tandai semua
                                                         dibaca</button> --}}
-                                                </form>
-                                            @endif
-                                        </li>
-                                        <li>
-                                            <hr class="dropdown-divider my-0">
-                                        </li>
-
-                                        <div style="max-height: 400px; overflow-y: auto;">
-                                            @forelse (auth()->user()->unreadNotifications->take(5) as $notification)
-                                                <li class="notification-item">
-                                                    @if (empty($notification->data['is_error']))
-                                                        <a class="dropdown-item d-flex align-items-start py-2"
-                                                            href="{{ route('notifications.markAsRead', $notification->id) }}"
-                                                            target="_blank">
-                                                            <div class="icon-circle bg-success-subtle text-success me-3">
-                                                                <i class="fas fa-file-pdf"></i>
-                                                            </div>
-                                                            <div class="notification-content">
-                                                                <p class="mb-0 fw-semibold" style="white-space: normal;">
-                                                                    {{ $notification->data['message'] }}</p>
-                                                                <small
-                                                                    class="text-muted">{{ $notification->created_at->diffForHumans() }}</small>
-                                                            </div>
-                                                        </a>
-                                                    @else
-                                                        <div
-                                                            class="dropdown-item d-flex align-items-start py-2 non-clickable">
-                                                            <div class="icon-circle bg-danger-subtle text-danger me-3">
-                                                                <i class="fas fa-exclamation-triangle"></i>
-                                                            </div>
-                                                            <div class="notification-content">
-                                                                <p class="mb-0 fw-semibold" style="white-space: normal;">
-                                                                    {{ $notification->data['message'] }}</p>
-                                                                <small
-                                                                    class="text-muted">{{ $notification->created_at->diffForHumans() }}</small>
-                                                            </div>
-                                                        </div>
+                                                        </form>
                                                     @endif
                                                 </li>
-                                            @empty
                                                 <li>
-                                                    <p class="text-muted text-center my-4">Tidak ada notifikasi baru.</p>
+                                                    <hr class="dropdown-divider my-0">
                                                 </li>
-                                            @endforelse
-                                        </div>
 
-                                        <li>
-                                            <hr class="dropdown-divider my-0">
+                                                <div style="max-height: 400px; overflow-y: auto;">
+                                                    @forelse (auth()->user()->unreadNotifications->take(5) as $notification)
+                                                        <li class="notification-item">
+                                                            @if (empty($notification->data['is_error']))
+                                                                <a class="dropdown-item d-flex align-items-start py-2"
+                                                                    href="{{ route('notifications.markAsRead', $notification->id) }}"
+                                                                    target="_blank">
+                                                                    <div
+                                                                        class="icon-circle bg-success-subtle text-success me-3">
+                                                                        <i class="fas fa-file-pdf"></i>
+                                                                    </div>
+                                                                    <div class="notification-content">
+                                                                        <p class="mb-0 fw-semibold"
+                                                                            style="white-space: normal;">
+                                                                            {{ $notification->data['message'] }}</p>
+                                                                        <small
+                                                                            class="text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                                                                    </div>
+                                                                </a>
+                                                            @else
+                                                                <div
+                                                                    class="dropdown-item d-flex align-items-start py-2 non-clickable">
+                                                                    <div
+                                                                        class="icon-circle bg-danger-subtle text-danger me-3">
+                                                                        <i class="fas fa-exclamation-triangle"></i>
+                                                                    </div>
+                                                                    <div class="notification-content">
+                                                                        <p class="mb-0 fw-semibold"
+                                                                            style="white-space: normal;">
+                                                                            {{ $notification->data['message'] }}</p>
+                                                                        <small
+                                                                            class="text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                                                                    </div>
+                                                                </div>
+                                                            @endif
+                                                        </li>
+                                                    @empty
+                                                        <li>
+                                                            <p class="text-muted text-center my-4">Tidak ada notifikasi
+                                                                baru.
+                                                            </p>
+                                                        </li>
+                                                    @endforelse
+                                                </div>
+
+                                                <li>
+                                                    <hr class="dropdown-divider my-0">
+                                                </li>
+                                                <li class="text-center py-1 bg-light">
+                                                    <a href="{{ route('notifications.index') }}"
+                                                        class="dropdown-item text-primary fw-bold">
+                                                        Lihat Semua Notifikasi
+                                                    </a>
+                                                </li>
+                                            </ul>
                                         </li>
-                                        <li class="text-center py-1 bg-light">
-                                            <a href="{{ route('notifications.index') }}"
-                                                class="dropdown-item text-primary fw-bold">
-                                                Lihat Semua Notifikasi
+                                        <li class="nav-item dropdown">
+                                            <a class="nav-link dropdown-toggle" href="#" id="profileDropdown"
+                                                role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                {{ Auth::user()->name }}
                                             </a>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+                                                <li><a class="dropdown-item" href="{{ route('profile.edit') }}">
+                                                        <i class="fas fa-user-circle me-2"></i>Profile
+                                                    </a></li>
+                                                <li>
+                                                    <hr class="dropdown-divider">
+                                                </li>
+                                                <li>
+                                                    <form action="{{ route('logout') }}" method="POST">
+                                                        @csrf
+                                                        <button type="submit" class="dropdown-item">Logout</button>
+                                                    </form>
+                                                </li>
+                                            </ul>
                                         </li>
                                     </ul>
-                                </li>
-                                <li class="nav-item dropdown">
-                                    <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button"
-                                        data-bs-toggle="dropdown" aria-expanded="false">
-                                        {{ Auth::user()->name }}
-                                    </a>
-                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
-                                        <li><a class="dropdown-item" href="{{ route('profile.edit') }}">
-                                                <i class="fas fa-user-circle me-2"></i>Profile
-                                            </a></li>
-                                        <li>
-                                            <hr class="dropdown-divider">
-                                        </li>
-                                        <li>
-                                            <form action="{{ route('logout') }}" method="POST">
-                                                @csrf
-                                                <button type="submit" class="dropdown-item">Logout</button>
-                                            </form>
-                                        </li>
-                                    </ul>
-                                </li>
-                            </ul>
-                        </div>
+                                </div>
+                            </div>
+                        </nav>
                     @endauth
                 </div>
             </nav>
-
             @yield('content')
         </div>
     </div>

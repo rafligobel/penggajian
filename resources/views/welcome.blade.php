@@ -4,11 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Selamat Datang - Penggajian Al-Azhar 43</title>
+    <title> Selamat Datang - Penggajian Al-Azhar 43</title>
+        <link rel="icon" href="{{ asset('logo/logoalazhar.png') }}" type="image/png">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            background-color: #f1f5f9;
+            background-color: #fafcff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             height: 100vh;
             margin: 0;
@@ -66,7 +68,7 @@
                 <div class="card card-menu shadow-sm">
                     <div class="card-body">
                         <h5 class="card-title">Admin / Bendahara</h5>
-                        <p class="card-text text-muted">Login untuk mengelola sistem.</p>
+                        <p class="card-text text-muted">Login pengelola sistem.</p>
                         <a href="{{ route('login') }}" class="btn btn-primary w-100">Login</a>
                     </div>
                 </div>

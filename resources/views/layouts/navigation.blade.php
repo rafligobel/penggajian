@@ -1,15 +1,16 @@
-<nav id="sidebar">
-    <div class="sidebar-header d-flex align-items-center p-3">
+<nav id="sidebar" class="sidebar-light bg-light mb-4 shadow-sm">
+    <div class="sidebar-header d-flex align-items-center p-3 ">
         <img src="{{ asset('logo/logoalazhar.png') }}" alt="Logo" style="height: 40px; margin-right: 15px;">
         <div>
-            <h3 class="fs-5 mb-0">Penggajian</h3>
-            <small class="text-white-50">Al-Azhar 43</small>
+            <h3 class="fs-5 mb-0" style="color:rgb(0, 0, 0)">Penggajian & Kepegawaian</h3>
+            {{-- <small class="text-white-50">Al-Azhar 43</small> --}}
         </div>
     </div>
 
     <ul class="list-unstyled components">
+        {{-- Common Links for All Users --}}
         {{-- Role: Guest / Non-Login --}}
-        @guest
+        {{-- @guest
             <li>
                 <a href="{{ url('/') }}">
                     <i class="fas fa-home"></i> Kembali ke Beranda
@@ -25,7 +26,7 @@
                     <i class="fas fa-user-check"></i> Absensi
                 </a>
             </li>
-        @endguest
+        @endguest --}}
 
         @auth
             @if (auth()->user()->role === 'superadmin')
@@ -96,30 +97,30 @@
 
             {{-- Role Bendahara --}}
             @if (auth()->user()->role === 'bendahara')
-                <li class="{{ Request::routeIs('dashboard') ? '' : '' }}">
+                <li class="{{ Request::routeIs('dashboard') ? 'active' : '' }}">
                     <a href="{{ route('dashboard') }}">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
 
-                <li class="{{ Request::routeIs('gaji.*') ? '' : '' }}">
+                <li class="{{ Request::routeIs('gaji.*') ? 'active' : '' }}">
                     <a href="{{ route('gaji.index') }}">
                         <i class="fas fa-money-check-alt"></i> Kelola Gaji
                     </a>
                 </li>
 
-                <li class="{{ Request::routeIs(['sesi-absensi.*', 'laporan.absensi.index']) ? '' : '' }}">
+                <li class="{{ Request::routeIs(['sesi-absensi.*', 'absensi.rekap']) ? 'active' : '' }}">
                     <a href="#absensiSubmenu" data-bs-toggle="collapse"
-                        aria-expanded="{{ Request::routeIs(['sesi-absensi.*', 'laporan.absensi.index']) ? 'true' : 'false' }}"
+                        aria-expanded="{{ Request::routeIs(['sesi-absensi.*', 'absensi.rekap']) ? '' : 'false' }}"
                         class="dropdown-toggle">
                         <i class="fas fa-calendar-check"></i> Kelola Absensi
                     </a>
-                    <ul class="collapse list-unstyled {{ Request::routeIs(['sesi-absensi.*', 'laporan.absensi.index']) ? 'show' : '' }}"
+                    <ul class="collapse list-unstyled {{ Request::routeIs(['sesi-absensi.*', 'absensi.rekap']) ? 'show' : '' }}"
                         id="absensiSubmenu">
-                        <li class="{{ Request::routeIs('sesi-absensi.*') ? '' : '' }}">
+                        <li class="{{ Request::routeIs('sesi-absensi.*') ? 'active' : '' }}">
                             <a href="{{ route('sesi-absensi.index') }}">Sesi Absensi</a>
                         </li>
-                        <li class="{{ Request::routeIs('absensi.rekap') ? '' : '' }}">
+                        <li class="{{ Request::routeIs('absensi.rekap') ? 'active' : '' }}">
                             <a href="{{ route('absensi.rekap') }}">Rekap Absensi</a>
                         </li>
                     </ul>
@@ -136,28 +137,30 @@
                     </a>
                 </li>
 
-                <li class="{{ Request::routeIs('laporan.*') ? '' : '' }}">
+                <li class="{{ Request::routeIs('laporan.*') ? 'active' : '' }}">
                     <a href="#laporanSubmenu" data-bs-toggle="collapse"
-                        aria-expanded="{{ Request::routeIs('laporan.*') ? 'true' : 'false' }}" class="dropdown-toggle">
+                        aria-expanded="{{ Request::routeIs('laporan.*') ? '' : 'false' }}" class="dropdown-toggle">
                         <i class="fas fa-chart-line"></i> Laporan
                     </a>
                     <ul class="collapse list-unstyled {{ Request::routeIs('laporan.*') ? 'show' : '' }}"
                         id="laporanSubmenu">
-                        <li class="{{ Request::routeIs('laporan.gaji.bulanan') ? '' : '' }}">
+                        <li class="{{ Request::routeIs('laporan.gaji.bulanan') ? 'active' : '' }}">
                             <a href="{{ route('laporan.gaji.bulanan') }}">Laporan Gaji Bulanan</a>
                         </li>
-                        <li class="{{ Request::routeIs('laporan.per.karyawan') ? '' : '' }}">
+                        <li class="{{ Request::routeIs('laporan.per.karyawan') ? 'active' : '' }}">
                             <a href="{{ route('laporan.per.karyawan') }}">Laporan per Karyawan</a>
                         </li>
-                        <li><a href="{{ route('laporan.absensi') }}">Laporan Absensi</a></li>
+                        <li class="{{ Request::routeIs('laporan.absensi') ? 'active' : '' }}">
+                            <a href="{{ route('laporan.absensi') }}">Laporan Absensi</a>
+                        </li>
                     </ul>
                 </li>
-                <li class="{{ Request::routeIs('notifications.*') ? '' : '' }}">
+                <li class="{{ Request::routeIs('notifications.*') ? 'active' : '' }}">
                     <a href="{{ route('notifications.index') }}">
                         <i class="fas fa-bell"></i> Notifikasi
                     </a>
                 </li>
-                <li class="{{ Request::routeIs('tanda_tangan.*') ? '' : '' }}">
+                <li class="{{ Request::routeIs('tanda_tangan.*') ? 'active' : '' }}">
                     <a href="{{ route('tanda_tangan.index') }}">
                         <i class="fas fa-cog"></i> Pengaturan
                     </a>
@@ -165,15 +168,15 @@
             @endif
 
             {{-- Tombol Logout untuk semua user yang sudah login --}}
-            <li>
+            {{-- <li>
                 <form action="{{ route('logout') }}" method="POST" class="d-inline">
                     @csrf
-                    <button class="btn btn-link text-white-50" type="submit"
+                    <button class="btn  " type="submit"
                         style="padding-left: 10px; text-decoration: none;">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </button>
                 </form>
-            </li>
+            </li> --}}
         @endauth
     </ul>
 </nav>
