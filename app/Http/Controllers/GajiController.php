@@ -29,43 +29,36 @@ class GajiController extends Controller
 
     /**
      * Menampilkan halaman utama kelola gaji dengan data yang sudah difilter.
-     *
-     * @param Request $request
-     * @return \Illuminate\View\View
      */
     public function index(Request $request)
     {
-        // 2. Mengambil SEMUA data jabatan dari database untuk ditampilkan di filter
         $jabatans = Jabatan::orderBy('nama_jabatan')->get();
         $tunjanganKehadirans = TunjanganKehadiran::orderBy('jenis_tunjangan')->get();
 
         $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
-        // 3. Menangkap ID jabatan yang dipilih bendahara dari filter
         $selectedJabatanId = $request->input('jabatan_id');
 
         $defaultTunjangan = $tunjanganKehadirans->first();
         $tarifKehadiran = $defaultTunjangan ? (int)$defaultTunjangan->jumlah_tunjangan : 0;
 
-        // 4. Membangun query untuk karyawan
         $karyawanQuery = Karyawan::with('jabatan')->where('status_aktif', true);
 
-        // 5. JIKA bendahara memilih jabatan, filter karyawan berdasarkan jabatan tersebut
         if ($selectedJabatanId) {
             $karyawanQuery->where('jabatan_id', $selectedJabatanId);
         }
 
         $karyawans = $karyawanQuery->orderBy('nama')->get();
 
+        // PENYESUAIAN: Memanggil method yang benar untuk kalkulasi dan penampilan data
         $dataGaji = $karyawans->map(function ($karyawan) use ($selectedMonth, $tarifKehadiran) {
-            return $this->salaryService->calculateSalary($karyawan, $selectedMonth, $tarifKehadiran);
+            return $this->salaryService->calculateAndFetchDetails($karyawan, $selectedMonth, $tarifKehadiran);
         });
 
-        // 6. Mengirim daftar jabatan dan jabatan yang terpilih ke tampilan
         return view('gaji.index', [
             'dataGaji' => $dataGaji,
             'selectedMonth' => $selectedMonth,
-            'jabatans' => $jabatans, // Dikirim untuk mengisi dropdown
-            'selectedJabatanId' => $selectedJabatanId, // Dikirim untuk menandai pilihan
+            'jabatans' => $jabatans,
+            'selectedJabatanId' => $selectedJabatanId,
             'tunjanganKehadirans' => $tunjanganKehadirans,
             'selectedTunjanganId' => $defaultTunjangan ? $defaultTunjangan->id : null,
         ]);
@@ -73,17 +66,13 @@ class GajiController extends Controller
 
     /**
      * Menyimpan atau memperbarui data gaji dari modal edit.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function saveOrUpdate(Request $request)
     {
-        // Validasi data dari form modal edit
         $validatedData = $request->validate([
             'karyawan_id' => 'required|exists:karyawans,id',
             'bulan' => 'required|date_format:Y-m',
-            'jabatan_id' => 'nullable|exists:jabatans,id', // Ambil juga jabatan_id
+            'jabatan_id' => 'nullable|exists:jabatans,id',
             'tunjangan_kehadiran_id' => 'required|exists:tunjangan_kehadirans,id',
             'gaji_pokok' => 'required|numeric|min:0',
             'tunj_jabatan' => 'required|numeric|min:0',
@@ -96,24 +85,15 @@ class GajiController extends Controller
             'potongan' => 'required|numeric|min:0',
         ]);
 
-        // Dapatkan tarif tunjangan berdasarkan ID yang dipilih di modal
-        $tunjangan = TunjanganKehadiran::find($validatedData['tunjangan_kehadiran_id']);
-        $validatedData['tarif_kehadiran_hidden'] = $tunjangan->jumlah_tunjangan;
-
-        // Panggil service untuk menyimpan data
+        // PENYESUAIAN: Memanggil method yang benar untuk menyimpan data
         $karyawan = $this->salaryService->saveSalaryData($validatedData);
 
-        // Redirect kembali ke halaman index dengan membawa parameter filter 'bulan' dan 'jabatan_id'
-        // agar tampilan tidak kembali ke default setelah menyimpan.
         return redirect()->route('gaji.index', $request->only(['bulan', 'jabatan_id']))
             ->with('success', 'Data gaji untuk ' . $karyawan->nama . ' berhasil diperbarui.');
     }
 
     /**
      * Memulai proses download slip gaji sebagai PDF.
-     *
-     * @param Gaji $gaji
-     * @return \Illuminate\Http\JsonResponse
      */
     public function downloadSlip(Gaji $gaji)
     {
@@ -123,9 +103,6 @@ class GajiController extends Controller
 
     /**
      * Memulai proses pengiriman slip gaji ke email karyawan.
-     *
-     * @param Gaji $gaji
-     * @return \Illuminate\Http\JsonResponse
      */
     public function sendEmail(Gaji $gaji)
     {
@@ -138,9 +115,6 @@ class GajiController extends Controller
 
     /**
      * Menghasilkan dan men-stream file PDF slip gaji secara langsung.
-     *
-     * @param int $id
-     * @return \Illuminate\Http\Response
      */
     public function cetakPDF($id)
     {
@@ -161,4 +135,8 @@ class GajiController extends Controller
 
         return $pdf->stream('slip_gaji_' . $gaji->karyawan->nama . '.pdf');
     }
+
+    // CATATAN: Method store() di bawah ini menjadi tidak perlu karena sudah ditangani oleh saveOrUpdate().
+    // Menghapusnya akan membuat kode lebih bersih.
 }
+

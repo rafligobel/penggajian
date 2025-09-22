@@ -60,48 +60,26 @@
                             </tr>
                         </thead>
                         <tbody id="gaji-table-body">
-                            @forelse ($karyawans as $karyawan)
+                            {{-- PERBAIKAN: Looping menggunakan variabel $dataGaji yang dikirim dari controller --}}
+                            @forelse ($dataGaji as $gajiData)
                                 @php
-                                    $gaji = $karyawan->gaji->first();
-                                    // Struktur data JSON disempurnakan agar selalu konsisten
-                                    $gajiJson = [
-                                        'id' => $gaji->id ?? null,
-                                        'karyawan_id' => $karyawan->id,
-                                        'bulan' => $selectedMonth,
-                                        'gaji_pokok' => $gaji->gaji_pokok ?? 0,
-                                        'tunj_kehadiran' => $gaji->tunj_kehadiran ?? 0,
-                                        'tunj_anak' => $gaji->tunj_anak ?? 0,
-                                        'tunj_komunikasi' => $gaji->tunj_komunikasi ?? 0,
-                                        'tunj_pengabdian' => $gaji->tunj_pengabdian ?? 0,
-                                        'tunj_jabatan' =>
-                                            $gaji->tunj_jabatan ?? ($karyawan->jabatan->tunj_jabatan ?? 0),
-                                        'tunj_kinerja' => $gaji->tunj_kinerja ?? 0,
-                                        'lembur' => $gaji->lembur ?? 0,
-                                        'kelebihan_jam' => $gaji->kelebihan_jam ?? 0,
-                                        'potongan' => $gaji->potongan ?? 0,
-                                        'gaji_bersih' => $gaji->gaji_bersih ?? 0,
-                                        'jumlah_kehadiran' => $gaji->jumlah_kehadiran ?? 0,
-                                        'updated_at' => $gaji->updated_at ?? null, // PERBAIKAN: Menambahkan updated_at ke JSON
-                                        'karyawan' => [
-                                            'nama' => $karyawan->nama,
-                                            'jabatan' => $karyawan->jabatan,
-                                            'email' => $karyawan->email,
-                                        ],
-                                    ];
+                                    // Variabel diambil dari hasil kalkulasi service, bukan query baru
+                                    $karyawan = $gajiData['karyawan'];
+                                    $gaji = $gajiData['gaji']; // Ini bisa null jika belum ada data di db
                                 @endphp
-                                <tr data-gaji-json="{{ json_encode($gajiJson) }}">
+                                <tr data-gaji-json="{{ json_encode($gajiData) }}">
                                     <td>{{ $loop->iteration }}</td>
                                     <td>
                                         <strong>{{ $karyawan->nama }}</strong><br>
                                         <small class="text-muted">{{ $karyawan->jabatan->nama_jabatan ?? 'N/A' }}</small>
                                     </td>
-                                    <td class="text-center">{{ $gaji->jumlah_kehadiran ?? 0 }}</td>
-                                    <td class="text-end">Rp {{ number_format($gaji->tunj_kehadiran ?? 0, 0, ',', '.') }}
+                                    {{-- Menggunakan data yang sudah dihitung di service --}}
+                                    <td class="text-center">{{ $gajiData['jumlah_kehadiran'] }}</td>
+                                    <td class="text-end">Rp {{ number_format($gajiData['tunj_kehadiran'], 0, ',', '.') }}
                                     </td>
                                     <td class="text-end">
-                                        {{-- PERBAIKAN: Menampilkan total gaji dan tanggal update --}}
                                         <span class="fw-bold">Rp
-                                            {{ number_format($gaji->gaji_bersih ?? 0, 0, ',', '.') }}</span>
+                                            {{ number_format($gajiData['gaji_bersih'], 0, ',', '.') }}</span>
                                         @if ($gaji)
                                             <br>
                                             <small class="text-muted" style="font-size: 0.8em;">
@@ -231,9 +209,8 @@
                 // PERBAIKAN: Logika untuk menampilkan info update di modal
                 let updateInfo =
                     '<p class="text-muted fst-italic mb-0">Data gaji bulan ini belum pernah disimpan.</p>';
-                if (data.updated_at) {
-                    const updatedAt = new Date(data.updated_at);
-                    // Format tanggal dan waktu sesuai zona waktu lokal pengguna
+                if (data.gaji && data.gaji.updated_at) { // Cek apakah 'gaji' dan 'updated_at' ada
+                    const updatedAt = new Date(data.gaji.updated_at);
                     const formattedDate = updatedAt.toLocaleString('id-ID', {
                         dateStyle: 'long',
                         timeStyle: 'short'
@@ -277,15 +254,17 @@
                     <div class="col-5 text-end"><h5 class="mb-0 fw-bold text-success">${formatRupiah(data.gaji_bersih)}</h5></div>
                 </div>
             </div>
-            <div class="mt-4 border-top pt-2 text-center small">${updateInfo}</div>`; // Menampilkan info update
+            <div class="mt-4 border-top pt-2 text-center small">${updateInfo}</div>`;
 
                 const downloadBtn = modal.querySelector('.btn-download-slip');
                 const emailBtn = modal.querySelector('.btn-send-email');
-                if (data.id) {
+
+                // PERBAIKAN: Tombol aktif jika 'gaji' tidak null (artinya data sudah ada di DB)
+                if (data.gaji) {
                     downloadBtn.disabled = false;
-                    downloadBtn.dataset.url = `/gaji/${data.id}/download`;
+                    downloadBtn.dataset.url = `/gaji/${data.gaji.id}/download`;
                     emailBtn.disabled = !data.karyawan.email;
-                    emailBtn.dataset.url = `/gaji/${data.id}/send-email`;
+                    emailBtn.dataset.url = `/gaji/${data.gaji.id}/send-email`;
                 } else {
                     downloadBtn.disabled = true;
                     emailBtn.disabled = true;
@@ -295,39 +274,47 @@
             function populateEditModal(data) {
                 const modal = editModalEl;
                 modal.querySelector('#editModalLabel').textContent = `Kelola Gaji: ${data.karyawan.nama}`;
-                modal.querySelector('#periode-modal').value = new Date(data.bulan + '-01').toLocaleDateString(
+                modal.querySelector('#periode-modal').value = new Date(data.bulan + '-02').toLocaleDateString(
                     'id-ID', {
                         month: 'long',
                         year: 'numeric'
                     });
-                modal.querySelector('#edit-karyawan-id').value = data.karyawan_id;
+                modal.querySelector('#edit-karyawan-id').value = data.karyawan.id;
 
                 const formContent = modal.querySelector('#edit-form-content');
                 const fields = [{
                         name: 'gaji_pokok',
                         label: 'Gaji Pokok'
-                    }, {
+                    },
+                    {
+                        name: 'tunj_jabatan',
+                        label: 'Tunjangan Jabatan'
+                    },
+                    {
                         name: 'tunj_anak',
                         label: 'Tunjangan Anak'
                     },
                     {
                         name: 'tunj_komunikasi',
                         label: 'Tunj. Komunikasi'
-                    }, {
+                    },
+                    {
                         name: 'tunj_pengabdian',
                         label: 'Tunj. Pengabdian'
                     },
                     {
                         name: 'tunj_kinerja',
                         label: 'Tunj. Kinerja'
-                    }, {
+                    },
+                    {
                         name: 'lembur',
                         label: 'Lembur'
                     },
                     {
                         name: 'kelebihan_jam',
                         label: 'Kelebihan Jam'
-                    }, {
+                    },
+                    {
                         name: 'potongan',
                         label: 'Potongan'
                     },
@@ -338,6 +325,9 @@
                 <label class="form-label">${f.label}</label>
                 <input type="number" name="${f.name}" class="form-control" value="${data[f.name] || 0}" required>
             </div>`).join('');
+
+                // Tambahkan input hidden untuk tunjangan jabatan agar ikut terkirim
+                fieldsHtml += `<input type="hidden" name="tunj_jabatan" value="${data.tunj_jabatan || 0}">`;
 
                 formContent.innerHTML = fieldsHtml;
             }
@@ -383,7 +373,7 @@
                             showResponseMessage('Terjadi kesalahan.', false);
                         }).finally(() => {
                             actionButton.innerHTML = originalHtml;
-                            actionButton.disabled = false;
+                            // Tombol tidak di-enable kembali secara otomatis untuk mencegah double click
                         });
                 }
             });
