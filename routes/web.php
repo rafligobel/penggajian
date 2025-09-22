@@ -82,6 +82,7 @@ Route::middleware(['role:bendahara'])->group(function () {
     Route::post('/sesi-absensi/update-default-time', [SesiAbsensiController::class, 'updateDefaultTime'])->name('sesi-absensi.update-default-time');
     Route::get('/sesi-absensi/calendar-events', [SesiAbsensiController::class, 'getCalendarEvents'])->name('sesi-absensi.calendar-events');
     Route::post('/sesi-absensi/store-exception', [SesiAbsensiController::class, 'storeException'])->name('sesi-absensi.store-exception');
+    Route::post('/sesi-absensi', [SesiAbsensiController::class, 'store'])->name('sesi-absensi.store'); // Ini yang menyebabkan error
 
 
     // Route::post('/sesi-absensi/update-default-time', [SesiAbsensiController::class, 'updateDefaultTime'])->name('sesi-absensi.update-default-time');

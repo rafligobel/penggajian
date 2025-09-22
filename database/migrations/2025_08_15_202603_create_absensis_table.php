@@ -16,8 +16,15 @@ return new class extends Migration
             $table->string('nip');
             $table->string('nama');
             $table->date('tanggal');
-            $table->time('jam');
+
+            // PERBAIKAN: Mengganti satu kolom 'jam' menjadi 'jam_masuk' dan 'jam_pulang'
+            $table->time('jam_masuk')->nullable();
+            $table->time('jam_pulang')->nullable();
+
             $table->timestamps();
+
+            // Kunci unik untuk memastikan satu karyawan hanya bisa punya satu record per hari
+            $table->unique(['nip', 'tanggal']);
         });
     }
 
