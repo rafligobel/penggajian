@@ -4,36 +4,37 @@
     <div class="container py-4">
         <h3 class="mb-4 fw-bold text-primary">Kelola Gaji</h3>
 
-        {{-- FORM FILTER UTAMA --}}
+        {{-- FORM FILTER UTAMA DAN PENCARIAN --}}
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
-                <form method="GET" action="{{ route('gaji.index') }}" id="filter-form">
-                    <div class="row align-items-end">
-                        <div class="col-md-5">
+                <div class="row align-items-end">
+                    {{-- Filter Periode --}}
+                    <div class="col-md-5">
+                        <form method="GET" action="{{ route('gaji.index') }}" id="filter-form">
                             <label for="bulan" class="form-label fw-bold">Pilih Periode Gaji</label>
-                            <input type="month" class="form-control" id="bulan" name="bulan"
-                                value="{{ $selectedMonth }}">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="jabatan_id" class="form-label fw-bold">Filter Jabatan</label>
-                            <select name="jabatan_id" id="jabatan_id" class="form-select">
-                                <option value="">Semua Jabatan</option>
-                                @foreach ($jabatans as $jabatan)
-                                    <option value="{{ $jabatan->id }}" @selected($jabatan->id == $selectedJabatanId)>
-                                        {{ $jabatan->nama_jabatan }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-filter me-1"></i> Tampilkan
-                            </button>
+                            <div class="input-group">
+                                <input type="month" class="form-control" id="bulan" name="bulan"
+                                    value="{{ $selectedMonth }}">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter me-1"></i> Tampilkan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    {{-- Fitur Pencarian --}}
+                    <div class="col-md-7">
+                        <label for="search-input" class="form-label fw-bold">Cari Karyawan</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search"></i></span>
+                            <input type="text" id="search-input" class="form-control border-start-0"
+                                placeholder="Ketik nama karyawan untuk memfilter tabel di bawah...">
                         </div>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
+
 
         @if (session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -67,11 +68,11 @@
                                     $karyawan = $gajiData['karyawan'];
                                     $gaji = $gajiData['gaji']; // Ini bisa null jika belum ada data di db
                                 @endphp
-                                <tr data-gaji-json="{{ json_encode($gajiData) }}">
+                                <tr data-gaji-json="{{ json_encode($gajiData) }}" class="karyawan-row">
                                     <td>{{ $loop->iteration }}</td>
                                     <td>
                                         <strong>{{ $karyawan->nama }}</strong><br>
-                                        <small class="text-muted">{{ $karyawan->jabatan->nama_jabatan ?? 'N/A' }}</small>
+                                        <small class="text-muted">NIP: {{ $karyawan->nip }}</small>
                                     </td>
                                     {{-- Menggunakan data yang sudah dihitung di service --}}
                                     <td class="text-center">{{ $gajiData['jumlah_kehadiran'] }}</td>
@@ -105,6 +106,10 @@
                                         cocok dengan filter.</td>
                                 </tr>
                             @endforelse
+                            {{-- Baris untuk pesan "tidak ditemukan" dari pencarian JS --}}
+                            <tr id="no-search-results" style="display: none;">
+                                <td colspan="6" class="text-center fst-italic py-4">Karyawan tidak ditemukan.</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -142,7 +147,6 @@
                 <form id="editGajiForm" action="{{ route('gaji.save') }}" method="POST">
                     @csrf
                     <input type="hidden" name="bulan" value="{{ $selectedMonth }}">
-                    <input type="hidden" name="jabatan_id" value="{{ $selectedJabatanId }}">
                     <input type="hidden" id="edit-karyawan-id" name="karyawan_id" value="">
 
                     <div class="modal-header">
@@ -186,6 +190,38 @@
             const editModalEl = document.getElementById('editModal');
             const responseMessageEl = document.getElementById('ajax-response-message');
 
+            // ============== SCRIPT UNTUK FITUR PENCARIAN ==============
+            const searchInput = document.getElementById('search-input');
+            const tableBody = document.getElementById('gaji-table-body');
+            const karyawanRows = tableBody.querySelectorAll('tr.karyawan-row');
+            const noResultsRow = document.getElementById('no-search-results');
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase().trim();
+                    let visibleRows = 0;
+
+                    karyawanRows.forEach(row => {
+                        const namaKaryawan = row.querySelector('td:nth-child(2) strong').textContent
+                            .toLowerCase();
+                        if (namaKaryawan.includes(searchTerm)) {
+                            row.style.display = '';
+                            visibleRows++;
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+
+                    // Tampilkan atau sembunyikan pesan "tidak ditemukan"
+                    if (visibleRows === 0 && searchTerm !== '') {
+                        noResultsRow.style.display = '';
+                    } else {
+                        noResultsRow.style.display = 'none';
+                    }
+                });
+            }
+            // ==========================================================
+
             const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', {
                 style: 'currency',
                 currency: 'IDR',
@@ -206,10 +242,9 @@
                 modal.querySelector('#detailModalLabel').textContent = `Detail Gaji: ${data.karyawan.nama}`;
                 const detailContent = modal.querySelector('#detail-content');
 
-                // PERBAIKAN: Logika untuk menampilkan info update di modal
                 let updateInfo =
                     '<p class="text-muted fst-italic mb-0">Data gaji bulan ini belum pernah disimpan.</p>';
-                if (data.gaji && data.gaji.updated_at) { // Cek apakah 'gaji' dan 'updated_at' ada
+                if (data.gaji && data.gaji.updated_at) {
                     const updatedAt = new Date(data.gaji.updated_at);
                     const formattedDate = updatedAt.toLocaleString('id-ID', {
                         dateStyle: 'long',
@@ -223,7 +258,7 @@
                 ).join('');
 
                 detailContent.innerHTML = `
-            <p><strong>Jabatan:</strong> ${data.karyawan.jabatan?.nama_jabatan || 'N/A'}</p><hr>
+            <p><strong>NIP:</strong> ${data.karyawan.nip}</p><hr>
             <div class="row">
                 <div class="col-lg-6 mb-4 mb-lg-0 border-end">
                     <h5 class="mb-3 text-primary">A. Pendapatan</h5>
@@ -259,7 +294,6 @@
                 const downloadBtn = modal.querySelector('.btn-download-slip');
                 const emailBtn = modal.querySelector('.btn-send-email');
 
-                // PERBAIKAN: Tombol aktif jika 'gaji' tidak null (artinya data sudah ada di DB)
                 if (data.gaji) {
                     downloadBtn.disabled = false;
                     downloadBtn.dataset.url = `/gaji/${data.gaji.id}/download`;
@@ -326,9 +360,7 @@
                 <input type="number" name="${f.name}" class="form-control" value="${data[f.name] || 0}" required>
             </div>`).join('');
 
-                // Tambahkan input hidden untuk tunjangan jabatan agar ikut terkirim
                 fieldsHtml += `<input type="hidden" name="tunj_jabatan" value="${data.tunj_jabatan || 0}">`;
-
                 formContent.innerHTML = fieldsHtml;
             }
 
@@ -373,7 +405,6 @@
                             showResponseMessage('Terjadi kesalahan.', false);
                         }).finally(() => {
                             actionButton.innerHTML = originalHtml;
-                            // Tombol tidak di-enable kembali secara otomatis untuk mencegah double click
                         });
                 }
             });

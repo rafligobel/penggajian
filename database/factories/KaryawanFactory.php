@@ -2,14 +2,22 @@
 
 namespace Database\Factories;
 
-use App\Models\Jabatan;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Karyawan;
+use App\Models\Jabatan;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Karyawan>
  */
 class KaryawanFactory extends Factory
 {
+    /**
+     * The name of the factory's corresponding model.
+     *
+     * @var string
+     */
+    protected $model = Karyawan::class;
+
     /**
      * Define the model's default state.
      *
@@ -18,13 +26,14 @@ class KaryawanFactory extends Factory
     public function definition(): array
     {
         return [
+            // Kolom-kolom yang sesuai dengan migrasi create_karyawans_table.php
+            'nip' => $this->faker->unique()->numerify('##########'), // Membuat 10 digit NIP unik
             'nama' => $this->faker->name(),
-            'nip' => $this->faker->unique()->numerify('##################'),
+            'jabatan_id' => Jabatan::factory(),
             'email' => $this->faker->unique()->safeEmail(),
-            'alamat' => $this->faker->address(),
             'telepon' => $this->faker->phoneNumber(),
-            'jabatan_id' => Jabatan::factory(), // Otomatis membuat Jabatan baru untuk karyawan ini
-            'status_aktif' => true,
+            'alamat' => $this->faker->address(),
+            'status_aktif' => $this->faker->boolean(90), // 90
         ];
     }
 }

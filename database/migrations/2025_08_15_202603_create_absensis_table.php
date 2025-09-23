@@ -17,13 +17,13 @@ return new class extends Migration
             $table->string('nama');
             $table->date('tanggal');
 
-            // PERBAIKAN: Mengganti satu kolom 'jam' menjadi 'jam_masuk' dan 'jam_pulang'
-            $table->time('jam_masuk')->nullable();
-            $table->time('jam_pulang')->nullable();
+            // --- PERBAIKAN FINAL ---
+            // Hanya ada satu kolom 'jam' untuk mencatat waktu absensi (satu kali klik)
+            $table->time('jam');
 
             $table->timestamps();
 
-            // Kunci unik untuk memastikan satu karyawan hanya bisa punya satu record per hari
+            // Kunci unik untuk memastikan satu karyawan hanya bisa absen sekali sehari
             $table->unique(['nip', 'tanggal']);
         });
     }

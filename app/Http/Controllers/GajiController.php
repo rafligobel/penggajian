@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Jobs\GenerateIndividualSlip;
 use App\Jobs\SendSlipToEmail;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 
 class GajiController extends Controller
@@ -28,30 +29,52 @@ class GajiController extends Controller
     }
 
     /**
-     * Menampilkan halaman utama kelola gaji dengan data yang sudah difilter.
+     * Menampilkan halaman utama kelola gaji.
+     * Termasuk logika untuk menyalin data gaji secara otomatis dari bulan terakhir yang tersedia.
      */
     public function index(Request $request)
     {
+        $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
+
+        // --- LOGIKA PENYALINAN OTOMATIS YANG DISEMPURNAKAN ---
+        $gajiExists = Gaji::where('bulan', $selectedMonth)->exists();
+
+        // Jika bulan yang dipilih belum ada data gajinya, coba salin dari bulan terakhir yang ada datanya.
+        if (!$gajiExists) {
+            // Cari data gaji terakhir yang ada di database, diurutkan berdasarkan bulan.
+            $gajiTerakhir = Gaji::orderBy('bulan', 'desc')->first();
+
+            if ($gajiTerakhir) {
+                $bulanSumber = $gajiTerakhir->bulan;
+
+                // Panggil metode private untuk menyalin data
+                $isSuccess = $this->salinGajiSecaraOtomatis($bulanSumber, $selectedMonth);
+
+                if ($isSuccess) {
+                    $bulanSumberFormatted = Carbon::createFromFormat('Y-m', $bulanSumber)->locale('id')->translatedFormat('F Y');
+                    // Beri pesan sukses dan muat ulang halaman untuk menampilkan data baru
+                    return redirect()->route('gaji.index', ['bulan' => $selectedMonth])
+                        ->with('success', 'Data gaji telah disiapkan secara otomatis berdasarkan data dari bulan ' . $bulanSumberFormatted . '.');
+                }
+            }
+        }
+        // --- AKHIR LOGIKA OTOMATIS ---
+
         $jabatans = Jabatan::orderBy('nama_jabatan')->get();
         $tunjanganKehadirans = TunjanganKehadiran::orderBy('jenis_tunjangan')->get();
-
-        $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
         $selectedJabatanId = $request->input('jabatan_id');
-
         $defaultTunjangan = $tunjanganKehadirans->first();
-        $tarifKehadiran = $defaultTunjangan ? (int)$defaultTunjangan->jumlah_tunjangan : 0;
 
+        // Eksekusi query untuk mendapatkan data karyawan yang relevan
         $karyawanQuery = Karyawan::with('jabatan')->where('status_aktif', true);
-
         if ($selectedJabatanId) {
             $karyawanQuery->where('jabatan_id', $selectedJabatanId);
         }
-
         $karyawans = $karyawanQuery->orderBy('nama')->get();
 
-        // PENYESUAIAN: Memanggil method yang benar untuk kalkulasi dan penampilan data
-        $dataGaji = $karyawans->map(function ($karyawan) use ($selectedMonth, $tarifKehadiran) {
-            return $this->salaryService->calculateAndFetchDetails($karyawan, $selectedMonth, $tarifKehadiran);
+        // Memanggil service untuk kalkulasi dan penampilan data
+        $dataGaji = $karyawans->map(function ($karyawan) use ($selectedMonth) {
+            return $this->salaryService->calculateDetailsForForm($karyawan, $selectedMonth);
         });
 
         return view('gaji.index', [
@@ -85,11 +108,53 @@ class GajiController extends Controller
             'potongan' => 'required|numeric|min:0',
         ]);
 
-        // PENYESUAIAN: Memanggil method yang benar untuk menyimpan data
-        $karyawan = $this->salaryService->saveSalaryData($validatedData);
+        $this->salaryService->saveOrUpdateSalary($validatedData);
+        $karyawan = Karyawan::find($validatedData['karyawan_id']);
 
         return redirect()->route('gaji.index', $request->only(['bulan', 'jabatan_id']))
             ->with('success', 'Data gaji untuk ' . $karyawan->nama . ' berhasil diperbarui.');
+    }
+
+    /**
+     * Metode private untuk menyalin data gaji secara otomatis.
+     */
+    private function salinGajiSecaraOtomatis(string $bulanSumber, string $bulanTarget): bool
+    {
+        $gajiBulanLalu = Gaji::where('bulan', $bulanSumber)->get();
+        $defaultTunjanganKehadiran = TunjanganKehadiran::first();
+
+        if ($gajiBulanLalu->isEmpty() || !$defaultTunjanganKehadiran) {
+            return false;
+        }
+
+        DB::beginTransaction();
+        try {
+            foreach ($gajiBulanLalu as $gajiLama) {
+                $dataBaru = [
+                    'karyawan_id' => $gajiLama->karyawan_id,
+                    'bulan' => $bulanTarget,
+                    'jabatan_id' => $gajiLama->karyawan->jabatan_id,
+                    'tunjangan_kehadiran_id' => $defaultTunjanganKehadiran->id,
+                    'gaji_pokok' => $gajiLama->gaji_pokok,
+                    'tunj_jabatan' => $gajiLama->tunj_jabatan,
+                    'tunj_anak' => $gajiLama->tunj_anak,
+                    'tunj_komunikasi' => $gajiLama->tunj_komunikasi,
+                    'tunj_pengabdian' => $gajiLama->tunj_pengabdian,
+                    'tunj_kinerja' => $gajiLama->tunj_kinerja,
+                    'lembur' => $gajiLama->lembur,
+                    'kelebihan_jam' => $gajiLama->kelebihan_jam,
+                    'potongan' => $gajiLama->potongan,
+                ];
+
+                $this->salaryService->saveOrUpdateSalary($dataBaru);
+            }
+            DB::commit();
+            return true;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            report($e);
+            return false;
+        }
     }
 
     /**
@@ -118,14 +183,22 @@ class GajiController extends Controller
      */
     public function cetakPDF($id)
     {
-        $gaji = Gaji::findOrFail($id);
+        $gaji = Gaji::with('karyawan')->findOrFail($id);
+
+        $data = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan);
+
+        if (!$data) {
+            abort(404, 'Data gaji tidak ditemukan');
+        }
+
         $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
         $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
         $bendaharaUser = User::where('role', 'bendahara')->first();
         $bendaharaNama = $bendaharaUser ? $bendaharaUser->name : 'Bendahara Umum';
 
         $pdf = Pdf::loadView('gaji.slip_pdf', [
-            'gaji' => $gaji,
+            'data' => $data,
+            'gaji' => $gaji, // Tetap kirimkan objek gaji untuk referensi jika perlu
             'logoAlAzhar' => $logoAlAzhar,
             'logoYayasan' => $logoYayasan,
             'bendaharaNama' => $bendaharaNama
@@ -135,8 +208,4 @@ class GajiController extends Controller
 
         return $pdf->stream('slip_gaji_' . $gaji->karyawan->nama . '.pdf');
     }
-
-    // CATATAN: Method store() di bawah ini menjadi tidak perlu karena sudah ditangani oleh saveOrUpdate().
-    // Menghapusnya akan membuat kode lebih bersih.
 }
-

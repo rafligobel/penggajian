@@ -2,26 +2,25 @@
 
 namespace Database\Factories;
 
+use App\Models\Absensi;
+use App\Models\Karyawan;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Absensi>
- */
 class AbsensiFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
+    protected $model = Absensi::class;
+
     public function definition(): array
     {
+        $karyawan = Karyawan::factory()->create();
+
         return [
-            // Kolom 'nip' dan 'nama' akan kita isi secara manual dari dalam test
-            // agar sesuai dengan data karyawan yang sedang diuji.
-            // Di sini kita hanya mendefinisikan kolom lainnya.
-            'tanggal' => $this->faker->dateTimeThisMonth(),
-            'jam' => $this->faker->time('H:i:s'),
+            'nip' => $karyawan->nip,
+            'nama' => $karyawan->nama,
+            'tanggal' => $this->faker->date(),
+            // --- PERBAIKAN FINAL ---
+            // Mengisi kolom 'jam' sesuai migrasi baru
+            'jam' => $this->faker->dateTimeBetween('07:00:00', '09:00:00')->format('H:i:s'),
         ];
     }
 }

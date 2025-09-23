@@ -7,25 +7,23 @@
     <style>
         body {
             font-family: 'Helvetica', sans-serif;
-            font-size: 8px;
+            /* PERUBAHAN: Ukuran font diperkecil */
+            font-size: 7px;
         }
 
-        /* --- PERBAIKAN KOMPONEN HEADER (KOP SURAT & LOGO) --- */
         .header-table {
             width: 100%;
             border-bottom: 1px solid #000;
-            /* Menambahkan garis bawah kop surat */
-            padding-bottom: 8px;
+            padding-bottom: 5px;
         }
 
         .header-table td {
             vertical-align: middle;
-            /* Memastikan logo dan teks sejajar di tengah */
         }
 
         .header-img {
-            width: 65px;
-            /* Sedikit menyesuaikan ukuran logo */
+            /* PERUBAHAN: Ukuran logo diperkecil */
+            width: 55px;
         }
 
         .header-text {
@@ -33,34 +31,34 @@
         }
 
         .header-text h3 {
-            font-size: 16px;
+            /* PERUBAHAN: Ukuran font header diperkecil */
+            font-size: 14px;
             margin: 0;
         }
 
         .header-text h4 {
-            font-size: 14px;
+            font-size: 12px;
             margin: 0;
             font-weight: normal;
         }
 
         .header-text p {
-            font-size: 10px;
-            margin: 5px 0 0 0;
+            font-size: 9px;
+            margin: 4px 0 0 0;
         }
-
-        /* --- AKHIR PERBAIKAN HEADER --- */
 
         .content-table {
             border-collapse: collapse;
             width: 100%;
-            margin-top: 20px;
+            margin-top: 15px;
             table-layout: auto;
         }
 
         .content-table th,
         .content-table td {
             border: 1px solid #000;
-            padding: 4px;
+            /* PERUBAHAN: Padding diperkecil */
+            padding: 3px;
             text-align: center;
             word-wrap: break-word;
         }
@@ -85,37 +83,32 @@
             font-weight: bold;
         }
 
-        /* --- PERBAIKAN KOMPONEN FOOTER (TANDA TANGAN) --- */
         .footer {
-            width: 300px;
-            /* Memberi lebar tetap agar tidak terlalu ke kanan */
+            width: 250px;
+            /* Lebar dikurangi */
             margin-left: auto;
-            /* Mendorong blok ke kanan */
             margin-right: 0;
-            margin-top: 20px;
+            margin-top: 15px;
+            /* Margin atas dikurangi */
             text-align: center;
-            /* Pusatkan teks di dalam blok footer */
-            font-size: 11px;
+            font-size: 10px;
+            /* Font diperkecil */
         }
 
         .signature-space {
-            height: 55px;
-            /* Ruang untuk tanda tangan */
+            height: 45px;
+            /* Ruang TTD dikurangi */
             position: relative;
-            /* Diperlukan agar gambar TTD bisa diposisikan */
         }
 
         .signature-img {
-            width: 70px;
-            /* Lebar gambar dikurangi agar lebih pas */
+            width: 60px;
+            /* Lebar gambar TTD dikurangi */
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
             top: -5px;
-            /* Posisi disesuaikan agar pas di tengah ruang */
         }
-
-        /* --- AKHIR PERBAIKAN FOOTER --- */
     </style>
 </head>
 
@@ -124,7 +117,7 @@
     <table class="header-table">
         <tr>
             <td style="width: 20%; text-align: center;">
-                <img src="{{ $logoYayasan }}" alt="Logo Yayasan" class="header-img">
+                <img src="{{ $logoAlAzhar }}" alt="Logo Al-Azhar" class="header-img">
             </td>
             <td style="width: 60%;" class="header-text">
                 <h3>YAYASAN AL AZHAR GORONTALO</h3>
@@ -132,7 +125,7 @@
                 <p>Periode: {{ $periode->translatedFormat('F Y') }}</p>
             </td>
             <td style="width: 20%; text-align: center;">
-                <img src="{{ $logoAlAzhar }}" alt="Logo Al-Azhar" class="header-img">
+                <img src="{{ $logoYayasan }}" alt="Logo Yayasan" class="header-img">
             </td>
         </tr>
     </table>
@@ -144,7 +137,7 @@
                 <th rowspan="2" style="width: 3%;">No</th>
                 <th rowspan="2" style="width: 15%;">Nama Karyawan</th>
                 {{-- PENAMBAHAN KOLOM JABATAN --}}
-                <th rowspan="2" style="width: 15%;">Jabatan</th>
+                <th rowspan="2" class="w-nip">NIP</th>
                 <th colspan="{{ $daysInMonth }}">Tanggal</th>
                 <th colspan="2">Total</th>
             </tr>
@@ -162,7 +155,7 @@
                     <td>{{ $index + 1 }}</td>
                     <td class="karyawan-name">{{ $data->nama }}</td>
                     {{-- PENAMBAHAN DATA JABATAN --}}
-                    <td class="karyawan-name">{{ $data->jabatan?->nama_jabatan ?? 'N/A' }}</td>
+                    <td class="karyawan-name">{{ $data->nip ?? '-' }}</td>
                     @for ($day = 1; $day <= $daysInMonth; $day++)
                         <td class="{{ $data->daily_data[$day] === 'H' ? 'text-success' : 'text-danger' }}">
                             {{ $data->daily_data[$day] }}

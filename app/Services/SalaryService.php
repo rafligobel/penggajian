@@ -12,29 +12,22 @@ class SalaryService
 {
     /**
      * Menghitung dan mengambil detail gaji untuk seorang karyawan pada bulan tertentu.
-     * Method ini TIDAK menyimpan ke database, hanya melakukan kalkulasi.
+     * Method ini TIDAK menyimpan ke database, hanya melakukan kalkulasi untuk ditampilkan di form.
      *
      * @param Karyawan $karyawan
      * @param string $bulan Format 'Y-m'
-     * @param int|null $tarifKehadiran Kustom (opsional)
      * @return array
      */
-    public function calculateAndFetchDetails(Karyawan $karyawan, string $bulan, ?int $tarifKehadiran = null): array
+    public function calculateDetailsForForm(Karyawan $karyawan, string $bulan): array
     {
         $tanggal = Carbon::createFromFormat('Y-m', $bulan);
+        $settingTunjangan = TunjanganKehadiran::first();
+        $tarifKehadiran = $settingTunjangan->jumlah_tunjangan ?? 0;
 
-        // Jika tarif tidak diberikan, ambil dari default setting
-        if ($tarifKehadiran === null) {
-            $setting = TunjanganKehadiran::first();
-            $tarifKehadiran = $setting ? $setting->jumlah_tunjangan : 0;
-        }
-
-        // Coba cari data gaji yang sudah ada di database untuk bulan ini
         $gajiTersimpan = Gaji::where('karyawan_id', $karyawan->id)
             ->where('bulan', $bulan)
             ->first();
 
-        // Hitung jumlah kehadiran dari tabel absensi
         $jumlahKehadiran = Absensi::where('nip', $karyawan->nip)
             ->whereMonth('tanggal', $tanggal->month)
             ->whereYear('tanggal', $tanggal->year)
@@ -42,18 +35,16 @@ class SalaryService
 
         $totalTunjanganKehadiran = $jumlahKehadiran * $tarifKehadiran;
 
-        // Prioritaskan data dari database jika ada, jika tidak, gunakan data default dari karyawan/jabatan
-        $gajiPokok = $gajiTersimpan->gaji_pokok ?? $karyawan->jabatan->gaji_pokok ?? 0;
-        $tunjJabatan = $gajiTersimpan->tunj_jabatan ?? $karyawan->jabatan->tunj_jabatan ?? 0;
-
-        // Kumpulkan semua data, baik yang sudah tersimpan maupun yang baru dihitung
+        // --- PERBAIKAN UTAMA DI SINI ---
+        // Selalu siapkan array data yang lengkap dengan nilai default
         $data = [
             'karyawan' => $karyawan,
-            'gaji' => $gajiTersimpan, // Kirim juga data gaji yang ada (bisa null)
+            'gaji' => $gajiTersimpan,
             'bulan' => $bulan,
             'jumlah_kehadiran' => $jumlahKehadiran,
-            'gaji_pokok' => $gajiPokok,
-            'tunj_jabatan' => $tunjJabatan,
+            'tunjangan_kehadiran_id' => $settingTunjangan->id ?? null,
+            'gaji_pokok' => $gajiTersimpan->gaji_pokok ?? $karyawan->gaji_pokok ?? 0,
+            'tunj_jabatan' => $gajiTersimpan->tunj_jabatan ?? $karyawan->jabatan->tunj_jabatan ?? 0,
             'tunj_kehadiran' => $gajiTersimpan->tunj_kehadiran ?? $totalTunjanganKehadiran,
             'tunj_anak' => $gajiTersimpan->tunj_anak ?? 0,
             'tunj_komunikasi' => $gajiTersimpan->tunj_komunikasi ?? 0,
@@ -64,56 +55,77 @@ class SalaryService
             'potongan' => $gajiTersimpan->potongan ?? 0,
         ];
 
-        // Hitung total pendapatan dan gaji bersih
-        $totalTunjangan = $data['tunj_jabatan'] + $data['tunj_kehadiran'] + $data['tunj_anak'] + $data['tunj_komunikasi'] + $data['tunj_pengabdian'] + $data['tunj_kinerja'];
-        $pendapatanLain = $data['lembur'] + $data['kelebihan_jam'];
-        $totalPendapatan = $data['gaji_pokok'] + $totalTunjangan + $pendapatanLain;
+        // Hitung total pendapatan dan gaji bersih berdasarkan data yang ada
+        $totalPendapatan =
+            $data['gaji_pokok'] + $data['tunj_jabatan'] + $data['tunj_kehadiran'] +
+            $data['tunj_anak'] + $data['tunj_komunikasi'] + $data['tunj_pengabdian'] +
+            $data['tunj_kinerja'] + $data['lembur'] + $data['kelebihan_jam'];
+
         $gajiBersih = $totalPendapatan - $data['potongan'];
 
-        $data['total_tunjangan'] = $totalTunjangan;
-        $data['pendapatan_lainnya'] = $pendapatanLain;
-        $data['gaji_bersih'] = $gajiBersih;
+        // Pastikan semua key yang dibutuhkan view ada di dalam array
+        $data['total_tunjangan'] = $totalPendapatan - $data['gaji_pokok'];
+        $data['pendapatan_lainnya'] = $data['lembur'] + $data['kelebihan_jam'];
+        $data['gaji_bersih'] = $gajiTersimpan->gaji_bersih ?? $gajiBersih; // Prioritaskan yg tersimpan
 
         return $data;
     }
 
     /**
      * Menyimpan atau memperbarui data gaji berdasarkan input dari form.
+     * Method ini telah diperbaiki untuk melakukan kalkulasi yang benar dan lengkap.
      */
-    public function saveSalaryData(array $dataGaji): Karyawan
+    public function saveOrUpdateSalary(array $dataForm): Gaji
     {
-        $karyawan = Karyawan::findOrFail($dataGaji['karyawan_id']);
-        $bulan = $dataGaji['bulan'];
+        $karyawan = Karyawan::findOrFail($dataForm['karyawan_id']);
+        $bulan = $dataForm['bulan'];
+        $tanggal = Carbon::createFromFormat('Y-m', $bulan);
 
-        // Ambil pengaturan tunjangan kehadiran yang dipilih
-        $tunjanganKehadiranSetting = TunjanganKehadiran::find($dataGaji['tunjangan_kehadiran_id']);
+        $tunjanganKehadiranSetting = TunjanganKehadiran::find($dataForm['tunjangan_kehadiran_id']);
         $tarifKehadiran = $tunjanganKehadiranSetting->jumlah_tunjangan ?? 0;
 
-        // Hitung ulang detail gaji berdasarkan data yang di-submit
-        $detailGaji = $this->calculateAndFetchDetails($karyawan, $bulan, $tarifKehadiran);
+        $jumlahKehadiran = Absensi::where('nip', $karyawan->nip)
+            ->whereMonth('tanggal', $tanggal->month)
+            ->whereYear('tanggal', $tanggal->year)
+            ->count();
 
-        // Siapkan data untuk disimpan (ambil dari inputan form)
-        $gajiData = [
-            'gaji_pokok' => $dataGaji['gaji_pokok'] ?? 0,
-            'tunj_anak' => $dataGaji['tunj_anak'] ?? 0,
-            'tunj_pengabdian' => $dataGaji['tunj_pengabdian'] ?? 0,
-            'lembur' => $dataGaji['lembur'] ?? 0,
-            'potongan' => $dataGaji['potongan'] ?? 0,
-            'tunj_komunikasi' => $dataGaji['tunj_komunikasi'] ?? 0,
-            'tunj_kinerja' => $dataGaji['tunj_kinerja'] ?? 0,
-            'kelebihan_jam' => $dataGaji['kelebihan_jam'] ?? 0,
-            'tunj_jabatan' => $dataGaji['tunj_jabatan'] ?? 0,
-            'tunj_kehadiran' => $detailGaji['tunj_kehadiran'], // Ambil hasil perhitungan tunjangan kehadiran
-            'jumlah_kehadiran' => $detailGaji['jumlah_kehadiran'],
-            'gaji_bersih' => $detailGaji['gaji_bersih'], // Ambil hasil perhitungan gaji bersih
+        $totalTunjanganKehadiran = $jumlahKehadiran * $tarifKehadiran;
+
+        // Siapkan semua data yang akan disimpan dari form
+        $saveData = [
+            'gaji_pokok' => $dataForm['gaji_pokok'] ?? 0,
+            'tunj_anak' => $dataForm['tunj_anak'] ?? 0,
+            'tunj_pengabdian' => $dataForm['tunj_pengabdian'] ?? 0,
+            'lembur' => $dataForm['lembur'] ?? 0,
+            'potongan' => $dataForm['potongan'] ?? 0,
+            'tunj_komunikasi' => $dataForm['tunj_komunikasi'] ?? 0,
+            'tunj_kinerja' => $dataForm['tunj_kinerja'] ?? 0,
+            'kelebihan_jam' => $dataForm['kelebihan_jam'] ?? 0,
+            'tunj_jabatan' => $dataForm['tunj_jabatan'] ?? 0,
+            'jumlah_kehadiran' => $jumlahKehadiran,
+            'tunj_kehadiran' => $totalTunjanganKehadiran,
         ];
 
-        // Gunakan updateOrCreate untuk membuat atau memperbarui data
-        Gaji::updateOrCreate(
-            ['karyawan_id' => $karyawan->id, 'bulan' => $bulan],
-            $gajiData
-        );
+        // Kalkulasi total pendapatan berdasarkan SEMUA komponen yang ada
+        $totalPendapatan =
+            ($saveData['gaji_pokok']) +
+            ($saveData['tunj_anak']) +
+            ($saveData['tunj_pengabdian']) +
+            ($saveData['lembur']) +
+            ($saveData['tunj_komunikasi']) +
+            ($saveData['tunj_kinerja']) +
+            ($saveData['kelebihan_jam']) +
+            ($saveData['tunj_jabatan']) +
+            ($saveData['tunj_kehadiran']);
 
-        return $karyawan;
+        // Hitung gaji bersih final
+        $gajiBersih = $totalPendapatan - ($saveData['potongan']);
+        $saveData['gaji_bersih'] = $gajiBersih;
+
+        // Gunakan updateOrCreate untuk menyimpan atau memperbarui data gaji
+        return Gaji::updateOrCreate(
+            ['karyawan_id' => $karyawan->id, 'bulan' => $bulan],
+            $saveData
+        );
     }
 }

@@ -212,7 +212,9 @@
                     <td class="text-right">{{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
                 </tr>
                 <tr>
-                    <td>Tunjangan Kehadiran ({{ $absensiSummary['hadir'] ?? 0 }} hari)</td>
+                    <td>Tunjangan Kehadiran
+                        {{-- ({{ $absensiSummary['hadir'] ?? 0 }} hari) --}}
+                    </td>
                     <td class="text-right">{{ number_format($gaji->tunj_kehadiran, 0, ',', '.') }}</td>
                 </tr>
                 <tr>

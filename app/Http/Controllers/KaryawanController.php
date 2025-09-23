@@ -39,7 +39,7 @@ class KaryawanController extends Controller
             'nip' => 'required|string|max:255|unique:karyawans,nip',
             'nama' => 'required|string|max:255',
             'email' => 'nullable|email|max:255|unique:karyawans,email',
-            'jabatan_id' => 'required|exists:jabatans,id',
+            'jabatan_id' => 'nullable|exists:jabatans,id',
             'telepon' => 'nullable|string|max:15',
             'alamat' => 'nullable|string',
         ]);
@@ -67,7 +67,7 @@ class KaryawanController extends Controller
             'nip' => ['required', 'string', 'max:255', Rule::unique('karyawans')->ignore($karyawan->id)],
             'nama' => 'required|string|max:255',
             'email' => ['nullable', 'email', 'max:255', Rule::unique('karyawans')->ignore($karyawan->id)],
-            'jabatan_id' => 'required|exists:jabatans,id',
+            'jabatan_id' => 'nullable|exists:jabatans,id',
             'telepon' => 'nullable|string|max:15',
             'alamat' => 'nullable|string',
         ]);

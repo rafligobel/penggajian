@@ -29,8 +29,9 @@
 {{-- =================== BAGIAN YANG DIUBAH =================== --}}
 <div class="mb-3">
     <label for="jabatan_id">Jabatan</label>
-    <select name="jabatan_id" id="jabatan_id" class="form-control @error('jabatan_id') is-invalid @enderror" required>
-        <option value="" disabled selected>-- Pilih Jabatan --</option>
+    <select name="jabatan_id" id="jabatan_id" class="form-control @error('jabatan_id') is-invalid @enderror">
+        {{-- TAMBAHKAN OPSI INI --}}
+        <option value="">-- Tidak Ada Jabatan --</option>
         @foreach ($jabatans as $jabatan)
             <option value="{{ $jabatan->id }}"
                 {{ old('jabatan_id', $karyawan->jabatan_id ?? '') == $jabatan->id ? 'selected' : '' }}>

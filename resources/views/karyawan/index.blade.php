@@ -144,7 +144,7 @@
 
                         // === PERBAIKAN 1: Ambil nama jabatan dari objek relasi ===
                         const namaJabatan = karyawan.jabatan ? karyawan.jabatan.nama_jabatan :
-                            '<span class="text-muted">Belum Diatur</span>';
+                            '<span class="text-muted">Tidak ada jabatan</span>';
 
                         let actionButtons = `
                             <button type="button" class="btn btn-sm btn-info btn-detail" title="Lihat Detail"
@@ -194,7 +194,7 @@
 
                         // === PERBAIKAN 2: Ambil juga nama jabatan untuk modal detail ===
                         const namaJabatanModal = karyawan.jabatan ? karyawan.jabatan.nama_jabatan :
-                            '<span class="text-muted">Belum Diatur</span>';
+                            '<span class="text-muted">Tidak ada jabatan</span>';
 
                         const formatDate = (dateString) => new Date(dateString).toLocaleDateString('id-ID', {
                             day: 'numeric',
