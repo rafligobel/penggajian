@@ -5,51 +5,43 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Gaji extends Model
 {
     use HasFactory;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
         'karyawan_id',
         'bulan',
         'gaji_pokok',
         'tunj_anak',
+        'tunj_komunikasi',
         'tunj_pengabdian',
+        'tunj_kinerja',
         'lembur',
         'potongan',
-        'tunj_komunikasi',
-        'tunj_kinerja',
-        'kelebihan_jam',
-        'tunj_jabatan',
-        'tunj_kehadiran',
-        'jumlah_kehadiran',
-        'gaji_bersih',
+        // --- INILAH KUNCI PERBAIKANNYA ---
+        'tunjangan_kehadiran_id', 
     ];
 
+    /**
+     * Relasi ke model Karyawan.
+     */
     public function karyawan(): BelongsTo
     {
-        return $this->belongsTo(Karyawan::class, 'karyawan_id');
+        return $this->belongsTo(Karyawan::class);
     }
 
-    protected function totalTunjangan(): Attribute
+    /**
+     * Relasi ke model TunjanganKehadiran.
+     */
+    public function tunjanganKehadiran(): BelongsTo
     {
-        return Attribute::make(
-            get: fn($value, $attributes) => ($attributes['tunj_kehadiran'] ?? 0) +
-                ($attributes['tunj_anak'] ?? 0) +
-                ($attributes['tunj_komunikasi'] ?? 0) +
-                ($attributes['tunj_pengabdian'] ?? 0) +
-                ($attributes['tunj_jabatan'] ?? 0) +
-                ($attributes['tunj_kinerja'] ?? 0)
-        );
-    }
-
-    protected function pendapatanLainnya(): Attribute
-    {
-        return Attribute::make(
-            get: fn($value, $attributes) => ($attributes['lembur'] ?? 0) +
-                ($attributes['kelebihan_jam'] ?? 0)
-        );
+        return $this->belongsTo(TunjanganKehadiran::class);
     }
 }

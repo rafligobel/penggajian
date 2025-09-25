@@ -7,112 +7,79 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Karyawan;
 use App\Models\Gaji;
 use App\Models\Absensi;
-use App\Services\AbsensiService; // Menggunakan service yang sudah ada
+use App\Models\Jabatan;
+use App\Models\TunjanganKehadiran;
 use Carbon\Carbon;
 use Exception;
 
 class ImportGajiCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     * {bulan} bisa diisi nama bulan (e.g., "Juni") atau angka (e.g., "6").
-     * {--update-karyawan} adalah flag untuk memperbarui data karyawan yang sudah ada.
-     */
     protected $signature = 'import:gaji {bulan} {tahun} {--file=} {--update-karyawan}';
+    protected $description = 'Import data karyawan, absensi, dan gaji MENTAH dari file CSV.';
 
-    /**
-     * The console command description.
-     */
-    protected $description = 'Import data karyawan, absensi, dan gaji dari file CSV sesuai struktur sistem';
-
-    /**
-     * Instance dari AbsensiService untuk mengecek hari kerja.
-     */
-    protected AbsensiService $absensiService;
-
-    /**
-     * Create a new command instance.
-     *
-     * @param AbsensiService $absensiService
-     */
-    public function __construct(AbsensiService $absensiService)
-    {
-        parent::__construct();
-        $this->absensiService = $absensiService;
-    }
-
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
+        $this->info('>>> MENJALANKAN SCRIPT VERSI AKHIR (MODEL FIXED) <<<');
+
+        // ... (kode lainnya tetap sama persis seperti sebelumnya) ...
         $bulanInput = $this->argument('bulan');
         $tahun = $this->argument('tahun');
         $filePath = $this->option('file');
         $shouldUpdateKaryawan = $this->option('update-karyawan');
 
         if (!$filePath || !file_exists($filePath)) {
-            $this->error('File tidak ditemukan! Mohon sertakan path yang benar menggunakan --file=<path_ke_file>');
+            $this->error('File tidak ditemukan! Sertakan path yang benar: --file=<path_ke_file>');
             return 1;
         }
 
-        // --- PERBAIKAN FINAL: Menggunakan pemetaan manual untuk bulan ---
         $bulanAngka = $this->getBulanAngka($bulanInput);
-
         if (is_null($bulanAngka)) {
             $this->error("Nama atau nomor bulan '{$bulanInput}' tidak valid.");
             return 1;
         }
 
-        $bulanString = Carbon::createFromDate($tahun, $bulanAngka, 1)->format('Y-m');
+        $bulanString = Carbon::create($tahun, $bulanAngka, 1)->format('Y-m');
+        $this->info("Memulai proses import untuk bulan: {$bulanString} dari file: {$filePath}");
 
-        $this->info("Memulai proses import untuk data bulan: {$bulanString} dari file: {$filePath}");
+        $dataCsv = $this->readCsv($filePath);
+        if (empty($dataCsv)) {
+            $this->error('File CSV kosong atau tidak bisa dibaca.');
+            return 1;
+        }
+
+        $defaultTunjangan = TunjanganKehadiran::firstOrCreate(
+            ['id' => 1],
+            [
+                'jenis_tunjangan' => 'Standar (Otomatis)',
+                'jumlah_tunjangan' => 25000
+            ]
+        );
+        $defaultTunjanganId = $defaultTunjangan->id;
+        $this->info("-> Menggunakan Tunjangan Kehadiran Default (ID: {$defaultTunjanganId})");
 
         DB::beginTransaction();
         try {
-            $file = fopen($filePath, 'r');
+            foreach ($dataCsv as $row) {
+                $tunjanganJabatanValue = (int) $this->cleanNumeric($row['TJ. Jabatan'] ?? 0);
+                $jabatan = Jabatan::firstOrCreate(
+                    ['tunj_jabatan' => $tunjanganJabatanValue],
+                    ['nama_jabatan' => 'Jabatan Otomatis ' . number_format($tunjanganJabatanValue)]
+                );
 
-            $header = array_map('trim', fgetcsv($file, 0, ';'));
+                $karyawan = $this->prosesKaryawan($row, $jabatan->id, $shouldUpdateKaryawan);
+                $this->info("Memproses: '{$karyawan->nama}' (NIP: {$karyawan->nip})");
 
-            $rowIndex = 1;
+                $this->prosesAbsensi($karyawan, $row['Jumlah Kehadiran'] ?? 0, $bulanAngka, $tahun);
 
-            while (($row = fgetcsv($file, 0, ';')) !== false) {
-                $rowIndex++;
-                if (count($row) !== count($header)) {
-                    continue;
-                }
-                $data = array_combine($header, $row);
+                $gajiData = $this->prepareGajiData($row, $defaultTunjanganId);
 
-                if (empty($data['NIP'])) {
-                    $this->warn("PERINGATAN: NIP kosong di baris {$rowIndex}. Baris ini dilewati.");
-                    continue;
-                }
-                $karyawan = $this->prosesKaryawan($data, $shouldUpdateKaryawan);
-                $this->line("Karyawan '{$karyawan->nama}' (NIP: {$karyawan->nip}) diproses.");
-
-                $jumlahKehadiran = isset($data['Jumlah Kehadiran']) ? (int)$data['Jumlah Kehadiran'] : 0;
-                if ($jumlahKehadiran > 0) {
-                    $this->generateAbsensi($karyawan, $bulanAngka, $tahun, $jumlahKehadiran);
-                    $this->info("-> {$jumlahKehadiran} data absensi untuk '{$karyawan->nama}' telah dibuat.");
-                }
-
-                $gajiExists = Gaji::where('karyawan_id', $karyawan->id)
-                    ->where('bulan', $bulanString)
-                    ->exists();
-
-                if ($gajiExists) {
-                    $this->warn("-> INFO: Data gaji untuk '{$karyawan->nama}' bulan {$bulanString} sudah ada. Dilewati.");
-                    continue;
-                }
-                $gajiData = $this->prepareGajiData($karyawan, $bulanString, $data);
-                Gaji::create($gajiData);
-                $this->info("-> Data gaji untuk '{$karyawan->nama}' berhasil disimpan.");
+                Gaji::updateOrCreate(
+                    ['karyawan_id' => $karyawan->id, 'bulan' => $bulanString],
+                    $gajiData
+                );
             }
-
-            fclose($file);
             DB::commit();
-            $this->info('================================================');
-            $this->info('Proses import data telah selesai dengan sukses!');
+            $this->info('Proses import berhasil diselesaikan dengan sukses!');
         } catch (Exception $e) {
             DB::rollBack();
             $this->error('Terjadi kesalahan fatal: ' . $e->getMessage() . ' di file ' . $e->getFile() . ' baris ' . $e->getLine());
@@ -122,109 +89,38 @@ class ImportGajiCommand extends Command
         return 0;
     }
 
-    /**
-     * Fungsi baru untuk konversi nama bulan Indonesia ke angka.
-     */
-    private function getBulanAngka(string $bulanInput): ?int
-    {
-        $bulanMap = [
-            'januari'   => 1,
-            'jan' => 1,
-            '1' => 1,
-            '01' => 1,
-            'februari'  => 2,
-            'feb' => 2,
-            '2' => 2,
-            '02' => 2,
-            'maret'     => 3,
-            'mar' => 3,
-            '3' => 3,
-            '03' => 3,
-            'april'     => 4,
-            'apr' => 4,
-            '4' => 4,
-            '04' => 4,
-            'mei'       => 5,
-            'mei' => 5,
-            '5' => 5,
-            '05' => 5,
-            'juni'      => 6,
-            'jun' => 6,
-            '6' => 6,
-            '06' => 6,
-            'juli'      => 7,
-            'jul' => 7,
-            '7' => 7,
-            '07' => 7,
-            'agustus'   => 8,
-            'agu' => 8,
-            '8' => 8,
-            '08' => 8,
-            'september' => 9,
-            'sep' => 9,
-            '9' => 9,
-            '09' => 9,
-            'oktober'   => 10,
-            'okt' => 10,
-            '10' => 10,
-            'november'  => 11,
-            'nov' => 11,
-            '11' => 11,
-            'desember'  => 12,
-            'des' => 12,
-            '12' => 12,
-        ];
-        $bulanInputLower = strtolower(trim($bulanInput));
-        return $bulanMap[$bulanInputLower] ?? null;
-    }
-
-    private function prosesKaryawan(array $data, bool $shouldUpdate): Karyawan
+    private function prosesKaryawan(array $data, int $jabatanId, bool $shouldUpdate): Karyawan
     {
         $karyawanData = [
             'nama' => trim($data['Nama']),
-            'email' => isset($data['Email']) ? trim($data['Email']) : null,
-            'telepon' => isset($data['Telepon']) ? trim($data['Telepon']) : null,
-            'alamat' => isset($data['Alamat']) ? trim($data['Alamat']) : null,
+            'email' => trim($data['Email'] ?? null),
+            'telepon' => trim($data['Telepon'] ?? null),
+            'alamat' => trim($data['Alamat'] ?? null),
+            'jabatan_id' => $jabatanId,
+            'status_aktif' => true,
         ];
-
-        return Karyawan::updateOrCreate(
-            ['nip' => trim($data['NIP'])],
-            $shouldUpdate ? $karyawanData : array_merge(['nama' => $karyawanData['nama']], [])
-        );
+        return Karyawan::updateOrCreate(['nip' => trim($data['NIP'])], $karyawanData);
     }
 
-    private function generateAbsensi(Karyawan $karyawan, int $bulan, int $tahun, int $jumlahHari)
+    private function prosesAbsensi(Karyawan $karyawan, int $jumlahHari, int $bulan, int $tahun)
     {
-        $startDate = Carbon::createFromDate($tahun, $bulan, 1)->startOfMonth();
-        $endDate = $startDate->copy()->endOfMonth();
-        $hariAbsen = 0;
-
-        for ($date = $startDate; $date->lte($endDate) && $hariAbsen < $jumlahHari; $date->addDay()) {
-            $sessionStatus = $this->absensiService->getSessionStatus($date);
-
-            if ($sessionStatus['is_active']) {
+        $tanggalAwal = Carbon::create($tahun, $bulan, 1);
+        $hariAbsenDibuat = 0;
+        for ($i = 0; $i < $tanggalAwal->daysInMonth && $hariAbsenDibuat < $jumlahHari; $i++) {
+            $tanggalCek = $tanggalAwal->copy()->addDays($i);
+            if ($tanggalCek->isWeekday() || $tanggalCek->isSaturday()) {
                 Absensi::firstOrCreate(
-                    [
-                        'nip' => $karyawan->nip,
-                        'tanggal' => $date->toDateString(),
-                    ],
-                    [
-                        'nama' => $karyawan->nama,
-                        'jam' => $sessionStatus['waktu_mulai'] ?? '07:00:00',
-                    ]
+                    ['nip' => $karyawan->nip, 'tanggal' => $tanggalCek->toDateString()],
+                    ['nama' => $karyawan->nama, 'jam' => '07:30:00']
                 );
-                $hariAbsen++;
+                $hariAbsenDibuat++;
             }
         }
+        $this->line("-> Absensi ({$hariAbsenDibuat} hari) dibuat.");
     }
 
-    private function prepareGajiData(Karyawan $karyawan, string $bulanString, array $data): array
+    private function prepareGajiData(array $data, int $defaultTunjanganId): array
     {
-        $gajiData = [
-            'karyawan_id' => $karyawan->id,
-            'bulan' => $bulanString,
-        ];
-
         $columnMap = [
             'Gaji Pokok' => 'gaji_pokok',
             'TJ. Anak' => 'tunj_anak',
@@ -233,19 +129,42 @@ class ImportGajiCommand extends Command
             'Potongan' => 'potongan',
             'TJ.Komunikasi' => 'tunj_komunikasi',
             'TJ. Kinerja' => 'tunj_kinerja',
-            'TJ. Jabatan' => 'tunj_jabatan',
-            'Kehadiran' => 'tunj_kehadiran',
-            'Jumlah Kehadiran' => 'jumlah_kehadiran',
-            'Total' => 'gaji_bersih',
         ];
 
+        $gajiData = [];
         foreach ($columnMap as $csvHeader => $dbColumn) {
-            if (isset($data[$csvHeader])) {
-                $cleanedValue = preg_replace('/[^0-9]/', '', trim($data[$csvHeader]));
-                $gajiData[$dbColumn] = is_numeric($cleanedValue) ? (int)$cleanedValue : 0;
-            }
+            $gajiData[$dbColumn] = $this->cleanNumeric($data[$csvHeader] ?? 0);
         }
 
+        $gajiData['tunjangan_kehadiran_id'] = $defaultTunjanganId;
+
         return $gajiData;
+    }
+
+    private function readCsv(string $filePath): array
+    {
+        $data = [];
+        if (($handle = fopen($filePath, "r")) !== FALSE) {
+            $header = fgetcsv($handle, 2000, ";");
+            while (($row = fgetcsv($handle, 2000, ";")) !== FALSE) {
+                if (count($header) == count($row)) {
+                    $data[] = array_combine($header, $row);
+                }
+            }
+            fclose($handle);
+        }
+        return $data;
+    }
+
+    private function cleanNumeric($value)
+    {
+        return preg_replace('/[^0-9]/', '', $value);
+    }
+
+    private function getBulanAngka($bulanInput)
+    {
+        if (is_numeric($bulanInput) && $bulanInput >= 1 && $bulanInput <= 12) return (int)$bulanInput;
+        $daftarBulan = ["januari" => 1, "februari" => 2, "maret" => 3, "april" => 4, "mei" => 5, "juni" => 6, "juli" => 7, "agustus" => 8, "september" => 9, "oktober" => 10, "november" => 11, "desember" => 12];
+        return $daftarBulan[strtolower($bulanInput)] ?? null;
     }
 }

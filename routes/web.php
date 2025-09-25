@@ -53,7 +53,7 @@ Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
 Route::middleware(['role:bendahara'])->group(function () {
     Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
     Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save');
-    
+
 
 
     // RUTE BARU UNTUK PROSES BACKGROUND

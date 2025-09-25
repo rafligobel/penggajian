@@ -6,38 +6,38 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('gajis', function (Blueprint $table) {
             $table->id();
             $table->foreignId('karyawan_id')->constrained('karyawans')->onDelete('cascade');
-            $table->string('bulan'); // Format 'YYYY-MM'
+            $table->string('bulan', 7); // Format YYYY-MM
 
-            // --- Kolom Komponen Gaji (Input Bendahara) ---
+            // Kolom-kolom ini adalah INPUT MANUAL atau TEMPLATE
             $table->unsignedInteger('gaji_pokok')->default(0);
             $table->unsignedInteger('tunj_anak')->default(0);
+            $table->unsignedInteger('tunj_komunikasi')->default(0);
             $table->unsignedInteger('tunj_pengabdian')->default(0);
+            $table->unsignedInteger('tunj_kinerja')->default(0);
             $table->unsignedInteger('lembur')->default(0);
             $table->unsignedInteger('potongan')->default(0);
-            $table->unsignedInteger('tunj_komunikasi')->default(0);
-            $table->unsignedInteger('tunj_kinerja')->default(0);
-            $table->unsignedInteger('kelebihan_jam')->default(0);
 
-            // --- Kolom Komponen Gaji (Otomatis) ---
-            $table->unsignedInteger('tunj_jabatan')->default(0);
-            $table->unsignedInteger('tunj_kehadiran')->default(0);
-            $table->unsignedTinyInteger('jumlah_kehadiran')->default(0);
-
-            // --- Total ---
-            $table->bigInteger('gaji_bersih')->default(0);
+            // Relasi ke pengaturan tunjangan kehadiran yang digunakan. INI WAJIB ADA.
+            $table->foreignId('tunjangan_kehadiran_id')->constrained('tunjangan_kehadirans');
 
             $table->timestamps();
 
-            // Kunci unik untuk memastikan satu karyawan hanya punya satu data gaji per bulan
+            // Karyawan hanya bisa punya 1 record gaji per bulan
             $table->unique(['karyawan_id', 'bulan']);
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('gajis');
