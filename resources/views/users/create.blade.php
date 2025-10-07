@@ -44,7 +44,7 @@
                             <label for="role">Role</label>
                             <select name="role" id="role" class="form-control" required>
                                 <option value="">Pilih Role</option>
-                                <option value="superadmin">Super Admin</option>
+                                {{-- <option value="superadmin">Super Admin</option> --}}
                                 <option value="admin">Admin</option>
                                 <option value="bendahara">Bendahara</option>
                             </select>

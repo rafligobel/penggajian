@@ -78,7 +78,7 @@
                 </li>
                 <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">
                     <a href="{{ route('karyawan.index') }}">
-                        <i class="fas fa-users"></i> Kelola Karyawan
+                        <i class="fas fa-users"></i> Kelola Pegawai
                     </a>
                 </li>
 
@@ -133,7 +133,7 @@
                 </li> --}}
                 <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">
                     <a href="{{ route('karyawan.index') }}">
-                        <i class="fas fa-users"></i> Daftar Karyawan
+                        <i class="fas fa-users"></i> Daftar Pegawai
                     </a>
                 </li>
 
@@ -148,7 +148,7 @@
                             <a href="{{ route('laporan.gaji.bulanan') }}">Laporan Gaji Bulanan</a>
                         </li>
                         <li class="{{ Request::routeIs('laporan.per.karyawan') ? 'active' : '' }}">
-                            <a href="{{ route('laporan.per.karyawan') }}">Laporan per Karyawan</a>
+                            <a href="{{ route('laporan.per.karyawan') }}">Laporan per Pegawai</a>
                         </li>
                         <li class="{{ Request::routeIs('laporan.absensi') ? 'active' : '' }}">
                             <a href="{{ route('laporan.absensi') }}">Laporan Absensi</a>

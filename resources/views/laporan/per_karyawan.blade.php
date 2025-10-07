@@ -115,22 +115,13 @@
                             </thead>
                             <tbody>
                                 @forelse ($laporanData['gajis'] as $gaji)
-                                    @php
-                                        $totalTunjangan =
-                                            $gaji->tunj_kehadiran +
-                                            $gaji->tunj_anak +
-                                            $gaji->tunj_komunikasi +
-                                            $gaji->tunj_pengabdian +
-                                            $gaji->tunj_jabatan +
-                                            $gaji->tunj_kinerja +
-                                            $gaji->lembur +
-                                            $gaji->kelebihan_jam;
-                                    @endphp
                                     <tr>
                                         <td class="text-center">
                                             {{ \Carbon\Carbon::parse($gaji->bulan)->translatedFormat('F Y') }}</td>
                                         <td class="text-end">Rp {{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
-                                        <td class="text-end">Rp {{ number_format($totalTunjangan, 0, ',', '.') }}</td>
+                                        {{-- [PERBAIKAN SEMPURNA] Menggunakan accessor yang sudah benar --}}
+                                        <td class="text-end">Rp {{ number_format($gaji->total_tunjangan, 0, ',', '.') }}
+                                        </td>
                                         <td class="text-end text-danger">(Rp
                                             {{ number_format($gaji->potongan, 0, ',', '.') }})</td>
                                         <td class="text-end fw-bold">Rp

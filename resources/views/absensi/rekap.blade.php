@@ -40,11 +40,8 @@
             border: none;
         }
 
-        /* --- PERUBAHAN DI SINI --- */
-        /* Kelas baru untuk mengatur jarak pada sel nama karyawan */
         .cell-nama-karyawan {
             padding: 12px 20px !important;
-            /* Atur jarak vertikal dan horizontal */
             text-align: left;
         }
 
@@ -153,8 +150,6 @@
                         <th class="text-left">Nama Karyawan</th>
                         <th style="width: 15%;">NIP</th>
                         <th style="width: 8%;">Hadir</th>
-                        {{-- <th style="width: 8%;">Sakit</th>
-                        <th style="width: 8%;">Izin</th> --}}
                         <th style="width: 8%;">Alpha</th>
                     </tr>
                 </thead>
@@ -162,21 +157,17 @@
             </table>
         </div>
     </div>
-
-    {{-- <td class="text-center align-middle">${k.ringkasan.sakit}</td>
-    <td class="text-center align-middle">${k.ringkasan.izin}</td> --}}
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const filterForm = document.getElementById('filter-form');
             const bulanInput = document.getElementById('bulan');
-            const searchInput = document.getElementById('search-input'); // New search input
+            const searchInput = document.getElementById('search-input');
             const rekapTbody = document.getElementById('rekap-tbody');
             const judulBulan = document.getElementById('judul-bulan');
             const loadingMessage = document.getElementById('loading-message');
             const noDataMessage = document.getElementById('no-data-message');
 
-            let allRekapData = []; // To store the master list of data for the selected month
+            let allRekapData = [];
 
             // Renders the table with the provided data
             function renderTable(dataToRender) {
@@ -184,7 +175,6 @@
 
                 if (!dataToRender || dataToRender.length === 0) {
                     noDataMessage.style.display = 'block';
-                    // Jika tidak ada hasil pencarian, tampilkan pesan yang sesuai
                     if (searchInput.value) {
                         noDataMessage.textContent = 'Karyawan tidak ditemukan.';
                     } else {
@@ -199,16 +189,17 @@
                     summaryRow.className = 'summary-row';
                     summaryRow.dataset.target = `detail-row-${k.nip}`;
 
+                    // === [FOKUS PERUBAHAN DI SINI] ===
                     summaryRow.innerHTML = `
-                <td class="text-center align-middle">${index + 1}</td>
-                <td class="cell-nama-karyawan">
-                    <b>${k.nama}</b>
-                    <small class="d-block text-muted">  </small>
-                </td>
-                <td class="text-center align-middle">${k.nip}</td>
-                <td class="text-center align-middle">${k.ringkasan.hadir}</td>
-                <td class="text-center align-middle">${k.ringkasan.alpha}</td>
-            `;
+                        <td class="text-center align-middle">${index + 1}</td>
+                        <td class="cell-nama-karyawan">
+                            <b>${k.nama}</b>
+                            <small class="d-block text-muted"> </small>
+                        </td>
+                        <td class="text-center align-middle">${k.nip}</td>
+                        <td class="text-center align-middle text-success fw-bold">${k.ringkasan.hadir}</td>
+                        <td class="text-center align-middle text-danger fw-bold">${k.ringkasan.alpha}</td>
+                    `;
 
                     const detailRow = document.createElement('tr');
                     detailRow.id = `detail-row-${k.nip}`;
@@ -220,11 +211,11 @@
                             'status-absen';
                         const jam = k.detail[day].jam;
                         detailGridHtml += `
-                    <div class="attendance-day ${statusClass}" title="Jam: ${jam}">
-                        <span class="day-number">${day}</span>
-                        <span>${k.detail[day].status}</span>
-                    </div>
-                `;
+                        <div class="attendance-day ${statusClass}" title="Jam: ${jam}">
+                            <span class="day-number">${day}</span>
+                            <span>${k.detail[day].status}</span>
+                        </div>
+                    `;
                     }
                     detailGridHtml += '</div>';
 
@@ -235,7 +226,6 @@
                 });
             }
 
-            // Filters and then renders the table
             function filterAndRender() {
                 const searchTerm = searchInput.value.toLowerCase().trim();
                 const filteredData = allRekapData.filter(k => {
@@ -245,7 +235,6 @@
                 renderTable(filteredData);
             }
 
-            // Fetches data from the server
             function fetchData() {
                 const bulan = bulanInput.value;
                 if (!bulan) return;
@@ -254,7 +243,7 @@
                 rekapTbody.innerHTML = '';
                 noDataMessage.style.display = 'none';
                 judulBulan.style.display = 'none';
-                searchInput.value = ''; // Clear search on new month fetch
+                searchInput.value = '';
 
                 fetch(`{{ route('laporan.absensi.data') }}?bulan=${bulan}`)
                     .then(response => response.json())
@@ -262,8 +251,8 @@
                         loadingMessage.style.display = 'none';
                         judulBulan.textContent = `Rekapitulasi Bulan: ${data.nama_bulan}`;
                         judulBulan.style.display = 'block';
-                        allRekapData = data.rekap || []; // Store the master list
-                        renderTable(allRekapData); // Initial render with all data
+                        allRekapData = data.rekap || [];
+                        renderTable(allRekapData);
                     })
                     .catch(error => {
                         console.error('Error fetching data:', error);
@@ -287,16 +276,13 @@
                 }
             });
 
-            // Event listener for month change
             filterForm.addEventListener('submit', e => {
                 e.preventDefault();
                 fetchData();
             });
 
-            // Event listener for real-time search
             searchInput.addEventListener('input', filterAndRender);
 
-            // Initial data fetch on page load
             fetchData();
         });
     </script>

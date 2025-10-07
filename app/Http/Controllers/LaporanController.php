@@ -11,17 +11,25 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Traits\ManagesImageEncoding;
 use App\Jobs\GenerateMonthlySalaryReport;
-use App\Jobs\SendSlipToEmail; // Pastikan use statement ini ada
+use App\Jobs\SendSlipToEmail;
 use App\Jobs\GenerateIndividualReport;
 use App\Jobs\SendIndividualReportToEmail;
 use App\Jobs\GenerateIndividualSlip;
 use App\Models\SesiAbsensi;
 use App\Jobs\GenerateAttendanceReport;
 use App\Jobs\SendAttendanceReportToEmail;
+use App\Services\AbsensiService; // Import AbsensiService
 
 class LaporanController extends Controller
 {
     use ManagesImageEncoding;
+
+    protected $absensiService;
+
+    public function __construct(AbsensiService $absensiService)
+    {
+        $this->absensiService = $absensiService;
+    }
 
     public function index()
     {
@@ -31,7 +39,8 @@ class LaporanController extends Controller
     public function gajiBulanan(Request $request)
     {
         $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
-        $gajis = Gaji::with('karyawan')->where('bulan', $selectedMonth)->get();
+        // [PERBAIKAN] Eager load relasi karyawan beserta jabatan
+        $gajis = Gaji::with('karyawan.jabatan')->where('bulan', $selectedMonth)->get();
         $statistik = [
             'total_pengeluaran' => $gajis->sum('gaji_bersih'),
             'gaji_tertinggi' => $gajis->max('gaji_bersih'),
@@ -77,12 +86,20 @@ class LaporanController extends Controller
             $absensi = Absensi::where('nip', $selectedKaryawan->nip)
                 ->whereBetween('tanggal', [$startOfMonth, $endOfMonth])
                 ->get();
-            $totalHariKerja = $startOfMonth->diffInWeekdays($endOfMonth);
+
+            // [PERBAIKAN] Hitung hari kerja efektif
+            $jumlahHariKerjaEfektif = 0;
+            for ($date = $startOfMonth->copy(); $date->lte($endOfMonth); $date->addDay()) {
+                if ($this->absensiService->getSessionStatus($date)['is_active']) {
+                    $jumlahHariKerjaEfektif++;
+                }
+            }
+
             $laporanData = [
                 'gajis' => $gajis,
                 'absensi_summary' => [
                     'hadir' => $absensi->count(),
-                    'alpha' => $totalHariKerja - $absensi->count(),
+                    'alpha' => $jumlahHariKerjaEfektif - $absensi->count(),
                 ],
             ];
         }
@@ -106,9 +123,6 @@ class LaporanController extends Controller
         return redirect()->back()->with('success', 'Permintaan cetak PDF untuk laporan karyawan sedang diproses. Anda akan dinotifikasi jika sudah siap.');
     }
 
-    /**
-     * Menangani permintaan untuk mengirim laporan per karyawan ke email di latar belakang.
-     */
     public function kirimEmailLaporanPerKaryawan(Request $request)
     {
         $validated = $request->validate([
@@ -133,10 +147,6 @@ class LaporanController extends Controller
         return redirect()->back()->with('success', "Permintaan pengiriman email untuk {$karyawan->nama} sedang diproses. Anda akan dinotifikasi jika sudah siap.");
     }
 
-    /**
-     * METODE YANG HILANG, SEKARANG DITAMBAHKAN KEMBALI
-     * Menangani permintaan untuk mengirim slip gaji terpilih ke email masing-masing karyawan.
-     */
     public function kirimEmailGajiTerpilih(Request $request)
     {
         $validated = $request->validate([
@@ -154,7 +164,6 @@ class LaporanController extends Controller
         $daftarGaji = Gaji::with('karyawan')->whereIn('id', $gajiIds)->get();
 
         foreach ($daftarGaji as $gaji) {
-            // Hanya kirim jika karyawan punya email
             if (!empty($gaji->karyawan->email)) {
                 SendSlipToEmail::dispatch($gaji->id, $user->id);
                 $karyawanDikirimi++;
@@ -168,44 +177,72 @@ class LaporanController extends Controller
         }
     }
 
+    // app/Http/Controllers/LaporanController.php
 
-    //laporan absensi
     public function rekapAbsensi(Request $request)
     {
         $periode = $request->input('periode', date('Y-m'));
-        $date = Carbon::createFromFormat('Y-m', $periode);
-        $bulan = $date->format('m');
-        $tahun = $date->format('Y');
+        $selectedMonth = Carbon::createFromFormat('Y-m', $periode);
+        $daysInMonth = $selectedMonth->daysInMonth;
 
-        $karyawanData = Karyawan::where('status_aktif', true)
-            ->with(['absensi' => function ($query) use ($bulan, $tahun) {
-                $query->whereMonth('tanggal', $bulan)->whereYear('tanggal', $tahun);
-            }])
-            ->get();
+        // Menghitung hari kerja efektif dalam sebulan menggunakan AbsensiService
+        $workingDaysCount = 0;
+        $workingDaysMap = [];
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $currentDate = $selectedMonth->copy()->setDay($day);
+            if ($this->absensiService->getSessionStatus($currentDate)['is_active']) {
+                $workingDaysCount++;
+                $workingDaysMap[$day] = true;
+            } else {
+                $workingDaysMap[$day] = false;
+            }
+        }
 
-        $sesiAbsensi = SesiAbsensi::all()->keyBy('id');
-        $jumlahHariKerja = $date->daysInMonth;
+        $karyawans = Karyawan::where('status_aktif', true)->orderBy('nama')->get();
+        $absensiBulanIniGrouped = Absensi::whereYear('tanggal', $selectedMonth->year)
+            ->whereMonth('tanggal', $selectedMonth->month)
+            ->get()
+            ->groupBy('nip');
 
-        $rekapData = $karyawanData->map(function ($karyawan) use ($sesiAbsensi, $jumlahHariKerja) {
-            $summary = [
-                'total_hadir' => $karyawan->absensi->count(),
-                'total_alpha' => $jumlahHariKerja - $karyawan->absensi->count(),
-                'sesi' => []
-            ];
+        $rekapData = [];
+        foreach ($karyawans as $karyawan) {
+            $karyawanAbsensi = $absensiBulanIniGrouped->get($karyawan->nip, collect());
+            $totalHadir = $karyawanAbsensi->count();
+            $totalAlpha = $workingDaysCount - $totalHadir;
 
-            foreach ($sesiAbsensi as $sesi) {
-                $summary['sesi'][$sesi->id] = ['nama' => $sesi->nama, 'hadir' => $karyawan->absensi->where('sesi_absensi_id', $sesi->id)->count()];
+            // Membuat detail absensi harian untuk kalender
+            $harian = [];
+            for ($day = 1; $day <= $daysInMonth; $day++) {
+                $absenPadaHariIni = $karyawanAbsensi->firstWhere(fn($item) => Carbon::parse($item->tanggal)->day == $day);
+                $status = '-'; // Default untuk hari libur atau non-aktif
+
+                if ($workingDaysMap[$day]) { // Jika ini adalah hari kerja
+                    $status = $absenPadaHariIni ? 'H' : 'A';
+                }
+
+                $harian[$day] = [
+                    'status' => $status,
+                    'jam' => $absenPadaHariIni ? Carbon::parse($absenPadaHariIni->jam)->format('H:i') : '-',
+                ];
             }
 
-            return (object)['id' => $karyawan->id, 'nip' => $karyawan->nip, 'nama' => $karyawan->nama, 'email' => $karyawan->email, 'summary' => $summary];
-        });
+            $rekapData[] = (object)[
+                'id' => $karyawan->id,
+                'nip' => $karyawan->nip,
+                'nama' => $karyawan->nama,
+                'email' => $karyawan->email,
+                'summary' => [
+                    'total_hadir' => $totalHadir,
+                    'total_alpha' => $totalAlpha < 0 ? 0 : $totalAlpha,
+                ],
+                'detail' => $harian, // Mengirim data harian ke view
+            ];
+        }
 
-        return view('laporan.laporan_absensi', compact('rekapData', 'bulan', 'tahun', 'sesiAbsensi'));
+        // Mengirim variabel yang dibutuhkan oleh view baru
+        return view('laporan.laporan_absensi', compact('rekapData', 'selectedMonth', 'daysInMonth'));
     }
 
-    /**
-     * Menangani permintaan cetak PDF untuk rekap absensi terpilih.
-     */
     public function cetakRekapAbsensi(Request $request)
     {
         $validated = $request->validate([
@@ -225,9 +262,6 @@ class LaporanController extends Controller
         return redirect()->back()->with('success', 'Permintaan cetak PDF rekap absensi sedang diproses. Anda akan dinotifikasi jika sudah siap.');
     }
 
-    /**
-     * Menangani permintaan kirim email untuk rekap absensi terpilih.
-     */
     public function kirimEmailRekapAbsensi(Request $request)
     {
         $validated = $request->validate([
@@ -237,9 +271,6 @@ class LaporanController extends Controller
 
         $date = Carbon::createFromFormat('Y-m', $validated['periode']);
 
-        // ======================================================
-        // FUNGSI SEKARANG BERJALAN: Memanggil Job untuk setiap karyawan
-        // ======================================================
         foreach ($validated['karyawan_ids'] as $karyawanId) {
             SendAttendanceReportToEmail::dispatch(
                 $karyawanId,

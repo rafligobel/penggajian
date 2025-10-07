@@ -38,7 +38,7 @@ class AbsensiTest extends TestCase
 
         $this->assertDatabaseHas('absensis', [
             'nip' => $this->karyawan->nip,
-            'tanggal' => Carbon::today(),
+            'tanggal' => Carbon::today()->toDateString(),
         ]);
     }
 

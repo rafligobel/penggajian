@@ -105,50 +105,56 @@
         <table class="main-table">
             <thead>
                 <tr>
+                    {{-- [PERUBAIKAN] colspan diubah --}}
                     <th rowspan="2" style="width: 3%;">No</th>
                     <th rowspan="2" class="text-left" style="width: 15%;">Nama Karyawan</th>
-                    {{-- KOLOM JABATAN BARU --}}
-                    <th rowspan="2" class="text-left" style="width: 12%;">Jabatan</th>
+                    <th rowspan="2" class="text-left" style="width: 10%;">NIP</th>
                     <th rowspan="2">Kehadiran</th>
                     <th rowspan="2">Gaji Pokok</th>
-                    <th colspan="5">Tunjangan</th>
-                    <th rowspan="2">Lainnya</th>
+                    <th colspan="7">Tunjangan</th>
                     <th rowspan="2">Potongan</th>
                     <th rowspan="2">Gaji Bersih</th>
                 </tr>
                 <tr>
                     <th>Jabatan</th>
+                    <th>Kehadiran</th>
                     <th>Anak</th>
                     <th>Komunikasi</th>
                     <th>Pengabdian</th>
                     <th>Kinerja</th>
+                    <th style="font-weight: bold; background-color: #d1ecf1;">Total Tunjangan</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($gajis as $gaji)
+                    @php
+                        // Hitung total tunjangan per karyawan
+                        $tunjanganJabatan = $gaji->karyawan->jabatan->tunj_jabatan ?? 0;
+                        $tunjanganKehadiran = ($kehadiranData[$gaji->id] ?? 0) * ($gaji->tunjanganKehadiran->jumlah_tunjangan ?? 0);
+                        $totalTunjangan = $tunjanganJabatan + $tunjanganKehadiran + $gaji->tunj_anak + $gaji->tunj_komunikasi + $gaji->tunj_pengabdian + $gaji->tunj_kinerja + $gaji->lembur;
+                    @endphp
                     <tr>
                         <td class="text-center">{{ $loop->iteration }}</td>
                         <td class="text-left">{{ $gaji->karyawan->nama }}</td>
-                        {{-- DATA JABATAN BARU --}}
-                        <td class="text-left">{{ $gaji->karyawan->jabatan->nama_jabatan ?? '-' }}</td>
-                        <td class="text-center">
-                            {{ $kehadiranData[$gaji->karyawan_id]->total_hadir ?? 0 }} Hari
-                        </td>
+                        {{-- [PERUBAIKAN] Menampilkan NIP --}}
+                        <td class="text-left">{{ $gaji->karyawan->nip ?? '-' }}</td>
+                        <td class="text-center">{{ $kehadiranData[$gaji->id] ?? 0 }} Hari</td>
                         <td>{{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
-                        <td>{{ number_format($gaji->tunj_jabatan, 0, ',', '.') }}</td>
+                        <td>{{ number_format($tunjanganJabatan, 0, ',', '.') }}</td>
+                        <td>{{ number_format($tunjanganKehadiran, 0, ',', '.') }}</td>
                         <td>{{ number_format($gaji->tunj_anak, 0, ',', '.') }}</td>
                         <td>{{ number_format($gaji->tunj_komunikasi, 0, ',', '.') }}</td>
                         <td>{{ number_format($gaji->tunj_pengabdian, 0, ',', '.') }}</td>
                         <td>{{ number_format($gaji->tunj_kinerja, 0, ',', '.') }}</td>
-                        <td>{{ number_format($gaji->pendapatan_lainnya, 0, ',', '.') }}</td>
+                        {{-- [PERUBAIKAN] Menampilkan Total Tunjangan per karyawan --}}
+                        <td style="font-weight: bold; background-color: #f8f9fa;">{{ number_format($totalTunjangan, 0, ',', '.') }}</td>
                         <td>({{ number_format($gaji->potongan, 0, ',', '.') }})</td>
                         <td style="font-weight: bold;">{{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
                     </tr>
                 @empty
                     <tr>
-                        {{-- Colspan disesuaikan menjadi 13 --}}
-                        <td colspan="13" class="text-center" style="padding: 20px;">Tidak ada data gaji untuk periode
-                            ini.</td>
+                        <td colspan="14" class="text-center" style="padding: 20px;">Tidak ada data gaji untuk
+                            dipilih.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -156,17 +162,18 @@
             @if ($gajis->isNotEmpty())
                 <tfoot>
                     <tr class="footer-row">
-                        {{-- Colspan disesuaikan menjadi 4 --}}
                         <td colspan="4" class="text-center">TOTAL (Rp)</td>
-                        <td>{{ number_format($totals->total_gaji_pokok, 0, ',', '.') }}</td>
-                        <td>{{ number_format($totals->total_tunj_jabatan, 0, ',', '.') }}</td>
-                        <td>{{ number_format($totals->total_tunj_anak, 0, ',', '.') }}</td>
-                        <td>{{ number_format($totals->total_tunj_komunikasi, 0, ',', '.') }}</td>
-                        <td>{{ number_format($totals->total_tunj_pengabdian, 0, ',', '.') }}</td>
-                        <td>{{ number_format($totals->total_tunj_kinerja, 0, ',', '.') }}</td>
-                        <td>{{ number_format($totals->total_pendapatan_lainnya, 0, ',', '.') }}</td>
-                        <td>({{ number_format($totals->total_potongan, 0, ',', '.') }})</td>
-                        <td>{{ number_format($totals->total_gaji_bersih, 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals['gaji_pokok'], 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals['tunj_jabatan'], 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals['tunj_kehadiran'], 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals['tunj_anak'], 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals['tunj_komunikasi'], 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals['tunj_pengabdian'], 0, ',', '.') }}</td>
+                        <td>{{ number_format($totals['tunj_kinerja'], 0, ',', '.') }}</td>
+                        {{-- [PERUBAIKAN] Menampilkan Grand Total Tunjangan --}}
+                        <td style="background-color: #d1ecf1;">{{ number_format($totals['total_tunjangan'], 0, ',', '.') }}</td>
+                        <td>({{ number_format($totals['potongan'], 0, ',', '.') }})</td>
+                        <td>{{ number_format($totals['gaji_bersih'], 0, ',', '.') }}</td>
                     </tr>
                 </tfoot>
             @endif

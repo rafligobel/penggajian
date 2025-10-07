@@ -41,7 +41,8 @@
                             <select name="role" id="role" class="form-control" required>
                                 <option value="admin" {{ old('role', $user->role) == 'admin' ? 'selected' : '' }}>Admin
                                 </option>
-                                <option value="user" {{ old('role', $user->role) == 'user' ? 'selected' : '' }}>User
+                                <option value="bendahara" {{ old('role', $user->role) == 'Bendahara' ? 'selected' : '' }}>
+                                    Bendahara
                                 </option>
                                 {{-- Tambahkan role lain jika ada --}}
                             </select>

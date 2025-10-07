@@ -153,7 +153,7 @@
             @foreach ($detailAbsensi as $index => $data)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td class="karyawan-name">{{ $data->nama }}</td>
+                    <td class="karyawan-name">{{ $data->nip ?? '-' }}</td>
                     {{-- PENAMBAHAN DATA JABATAN --}}
                     <td class="karyawan-name">{{ $data->nip ?? '-' }}</td>
                     @for ($day = 1; $day <= $daysInMonth; $day++)

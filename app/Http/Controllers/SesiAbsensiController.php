@@ -24,11 +24,11 @@ class SesiAbsensiController extends Controller
     {
         $defaultDate = '1970-01-01';
 
+        // Menggunakan firstOrCreate untuk membuat data default jika belum ada
         $defaultSetting = SesiAbsensi::firstOrCreate(
-            ['tanggal' => $defaultDate],
+            ['tanggal' => $defaultDate, 'is_default' => true],
             [
                 'tipe' => 'default',
-                'is_default' => true,
                 'waktu_mulai' => '07:00',
                 'waktu_selesai' => '17:00',
                 'hari_kerja' => [1, 2, 3, 4, 5], // Default: Senin-Jumat
@@ -42,8 +42,8 @@ class SesiAbsensiController extends Controller
             'hari_kerja' => $defaultSetting->hari_kerja ?? [],
         ];
 
+        // Menyiapkan data untuk 7 hari ke depan
         $upcoming_days = [];
-        // Pastikan variabel $i menggunakan tanda dolar
         for ($i = 0; $i < 7; $i++) {
             $date = today()->addDays($i);
             $upcoming_days[] = [
@@ -56,48 +56,64 @@ class SesiAbsensiController extends Controller
     }
 
     /**
-     * Memperbarui satu-satunya record pengaturan waktu default.
+     * [FUNGSI BARU] Memperbarui pengaturan default dan menangani pengecualian dalam satu fungsi.
+     * Ini akan menyederhanakan route dan logika form.
      */
-    public function updateDefaultTime(Request $request)
+    public function storeOrUpdate(Request $request)
     {
-        // PENYEDERHANAAN DAN PERBAIKAN:
-        // Aturan validasi dikembalikan ke format standar 'H:i' (Jam:Menit)
-        // karena input type="time" pada HTML secara default mengirimkan format ini.
-        // Ini adalah cara yang paling sederhana dan benar untuk mengatasi error format.
-        $request->validate([
-            'waktu_mulai' => 'required',
-            'waktu_selesai' => 'required|after:waktu_mulai',
-            'hari_kerja' => 'nullable|array',
-            'hari_kerja.*' => 'integer|between:1,7',
+        // 1. Logika untuk Update Waktu Default
+        if ($request->has('update_default')) {
+            $validated = $request->validate([
+                'waktu_mulai' => 'required|date_format:H:i',
+                'waktu_selesai' => 'required|date_format:H:i|after:waktu_mulai',
+                'hari_kerja' => 'nullable|array',
+                'hari_kerja.*' => 'integer|between:1,7',
+            ]);
+
+            SesiAbsensi::updateOrCreate(
+                ['tanggal' => '1970-01-01', 'is_default' => true],
+                [
+                    'tipe' => 'default',
+                    'waktu_mulai' => $validated['waktu_mulai'],
+                    'waktu_selesai' => $validated['waktu_selesai'],
+                    'keterangan' => 'Pengaturan Waktu Default',
+                    'hari_kerja' => $validated['hari_kerja'] ?? [],
+                ]
+            );
+
+            Cache::forget('default_session_times');
+            return redirect()->route('sesi-absensi.index')->with('success', 'Pengaturan waktu default berhasil diperbarui.');
+        }
+
+        // 2. Logika untuk Pengecualian Harian
+        $validated = $request->validate([
+            'tanggal' => 'required|date',
+            'tipe' => 'required|in:aktif,nonaktif,reset',
+            'waktu_mulai' => 'nullable|required_if:tipe,aktif|date_format:H:i',
+            'waktu_selesai' => 'nullable|required_if:tipe,aktif|date_format:H:i|after:waktu_mulai',
+            'keterangan' => 'nullable|string|max:255',
         ]);
 
-        $data = SesiAbsensi::where('is_default', true)->first();
+        if ($validated['tipe'] === 'reset') {
+            SesiAbsensi::where('tanggal', $validated['tanggal'])->where('is_default', false)->delete();
+            $message = 'Sesi untuk tanggal ' . $validated['tanggal'] . ' berhasil di-reset ke pengaturan default.';
+        } else {
+            SesiAbsensi::updateOrCreate(
+                ['tanggal' => $validated['tanggal'], 'is_default' => false],
+                [
+                    'tipe' => $validated['tipe'],
+                    'waktu_mulai' => $validated['waktu_mulai'],
+                    'waktu_selesai' => $validated['waktu_selesai'],
+                    'keterangan' => $validated['keterangan'],
+                    'hari_kerja' => null, // Pengecualian tidak memerlukan hari kerja
+                ]
+            );
+            $message = 'Pengecualian sesi untuk tanggal ' . $validated['tanggal'] . ' berhasil disimpan.';
+        }
 
-        $defaultDate = '1970-01-01';
-
-        $waktu_mulai = $request->waktu_mulai ?? $data->waktu_mulai;
-        $waktu_selesai = $request->waktu_selesai ?? $data->waktu_selesai;
-
-
-        // $waktu_mulai = Carbon::createFromFormat('H.i', $request->waktu_mulai)->format('H:i');
-        // $waktu_selesai = Carbon::createFromFormat('H.i', $request->waktu_selesai)->format('H:i');
-
-        SesiAbsensi::updateOrCreate(
-            ['tanggal' => $defaultDate],
-            [
-                'tipe' => 'default',
-                'is_default' => true,
-                'waktu_mulai' => $waktu_mulai,
-                'waktu_selesai' => $waktu_selesai,
-                'keterangan' => 'Pengaturan Waktu Default',
-                'hari_kerja' => $request->input('hari_kerja', []),
-            ]
-        );
-
-        Cache::forget('default_session_times');
-
-        return redirect()->route('sesi-absensi.index')->with('success', 'Pengaturan waktu default berhasil diperbarui.');
+        return redirect()->route('sesi-absensi.index')->with('success', $message);
     }
+
 
     /**
      * Menyediakan data event untuk kalender modal.
@@ -119,38 +135,5 @@ class SesiAbsensiController extends Controller
             ];
         }
         return response()->json($events);
-    }
-
-    /**
-     * Menyimpan atau mereset pengecualian sesi untuk tanggal tertentu.
-     */
-    public function storeException(Request $request)
-    {
-        // PENYEDERHANAAN DAN PERBAIKAN:
-        // Aturan validasi disesuaikan juga ke format standar 'H:i' untuk konsistensi.
-        $request->validate([
-            'tanggal' => 'required|date',
-            'tipe' => 'required|in:aktif,nonaktif,reset',
-            'waktu_mulai' => 'nullable|required_if:tipe,aktif|date_format:H:i',
-            'waktu_selesai' => 'nullable|required_if:tipe,aktif|date_format:H:i|after:waktu_mulai',
-            'keterangan' => 'nullable|string|max:255',
-        ]);
-
-        if ($request->tipe === 'reset') {
-            SesiAbsensi::where('tanggal', $request->tanggal)->where('is_default', false)->delete();
-            return back()->with('success', 'Sesi untuk tanggal ' . $request->tanggal . ' berhasil direset.');
-        }
-
-        SesiAbsensi::updateOrCreate(
-            ['tanggal' => $request->tanggal],
-            [
-                'tipe' => $request->tipe,
-                'waktu_mulai' => $request->waktu_mulai,
-                'waktu_selesai' => $request->waktu_selesai,
-                'keterangan' => $request->keterangan,
-                'is_default' => false,
-            ]
-        );
-        return back()->with('success', 'Pengecualian sesi untuk tanggal ' . $request->tanggal . ' berhasil disimpan.');
     }
 }

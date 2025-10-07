@@ -13,17 +13,13 @@ return new class extends Migration
     {
         Schema::create('absensis', function (Blueprint $table) {
             $table->id();
+            // Menambahkan foreign key ke tabel sesi_absensis
+            $table->foreignId('sesi_absensi_id')->constrained('sesi_absensis')->onDelete('cascade');
             $table->string('nip');
             $table->string('nama');
             $table->date('tanggal');
-
-            // --- PERBAIKAN FINAL ---
-            // Hanya ada satu kolom 'jam' untuk mencatat waktu absensi (satu kali klik)
             $table->time('jam');
-
             $table->timestamps();
-
-            // Kunci unik untuk memastikan satu karyawan hanya bisa absen sekali sehari
             $table->unique(['nip', 'tanggal']);
         });
     }

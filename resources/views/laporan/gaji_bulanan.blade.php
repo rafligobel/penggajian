@@ -56,8 +56,8 @@
                                                 class="gaji-checkbox"></td>
                                         <td>{{ $loop->iteration }}</td>
                                         <td>{{ $gaji->karyawan->nama }}</td>
-                                        {{-- PERUBAHAN DI SINI --}}
-                                        <td>{{ $gaji->karyawan->jabatan->nama_jabatan ?? 'Jabatan Belum Diatur' }}</td>
+                                        {{-- [PERBAIKAN] Menggunakan optional operator --}}
+                                        <td>{{ $gaji->karyawan?->jabatan?->nama_jabatan ?? '-' }}</td>
                                         <td class="text-end fw-bold">Rp {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}
                                         </td>
                                     </tr>

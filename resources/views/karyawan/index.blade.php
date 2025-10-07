@@ -38,11 +38,11 @@
     <div class="container py-4">
         {{-- Header Halaman --}}
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3 class="fw-bold text-primary">Daftar Karyawan</h3>
-            {{-- Tombol Tambah Karyawan --}}
+            <h3 class="fw-bold text-primary">Daftar Pegawai</h3>
+            {{-- Tombol Tambah Pegawai --}}
             @if (in_array(auth()->user()->role, ['superadmin', 'admin']))
                 <a href="{{ route('karyawan.create') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>Tambah Karyawan Baru
+                    <i class="fas fa-plus me-2"></i>Tambah Pegawai Baru
                 </a>
             @endif
         </div>
@@ -53,7 +53,7 @@
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-search"></i></span>
                     <input type="text" id="search-input" class="form-control border-start-0"
-                        placeholder="Cari berdasarkan Nama atau NIP karyawan...">
+                        placeholder="Cari berdasarkan Nama atau NP Pegawai...">
                 </div>
             </div>
         </div>
@@ -66,14 +66,14 @@
             </div>
         @endif
 
-        {{-- Tabel Data Karyawan --}}
+        {{-- Tabel Data Pegawai --}}
         <div class="table-responsive">
             <table class="table table-borderless table-minimalis">
                 <thead class="text-center">
                     <tr>
                         <th>No.</th>
                         <th class="text-start">Nama</th>
-                        <th>NIP</th>
+                        <th>NP</th>
                         <th class="text-start">Email</th>
                         <th class="text-start">Jabatan</th>
                         {{-- <th>Status</th> --}}
@@ -84,17 +84,17 @@
                     {{-- Data akan di-render oleh JavaScript --}}
                 </tbody>
             </table>
-            <p id="no-data-message" class="text-center text-muted mt-4" style="display:none;">Karyawan tidak ditemukan.</p>
+            <p id="no-data-message" class="text-center text-muted mt-4" style="display:none;">Pegawai tidak ditemukan.</p>
         </div>
     </div>
 
-    {{-- Modal untuk Detail Karyawan --}}
+    {{-- Modal untuk Detail Pegawai --}}
     <div class="modal fade" id="detailKaryawanModal" tabindex="-1" aria-labelledby="detailKaryawanModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-xl"> {{-- Menggunakan modal besar untuk menampung banyak info --}}
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="detailKaryawanModalLabel">Detail Karyawan</h5>
+                    <h5 class="modal-title" id="detailKaryawanModalLabel">Detail Pegawai</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
                 </div>
                 <div class="modal-body" id="detailKaryawanModalBody">
@@ -108,7 +108,7 @@
     </div>
 
     {{-- Modal Konfirmasi Hapus (Reusable Component) --}}
-    <x-delete-confirmation-modal title="Konfirmasi Hapus Karyawan"
+    <x-delete-confirmation-modal title="Konfirmasi Hapus Pegawai"
         body="Apakah Anda yakin ingin menghapus data karyawan ini secara permanen? Tindakan ini tidak dapat dibatalkan." />
 
 

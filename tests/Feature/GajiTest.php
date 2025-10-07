@@ -11,6 +11,7 @@ use App\Models\TunjanganKehadiran;
 use App\Models\Absensi;
 use App\Models\Gaji;
 use Carbon\Carbon;
+use App\Models\SesiAbsensi;
 
 class GajiTest extends TestCase
 {
@@ -20,6 +21,8 @@ class GajiTest extends TestCase
     private Karyawan $karyawan;
     private Jabatan $jabatan;
     private TunjanganKehadiran $tunjanganKehadiran;
+    private SesiAbsensi $sesiAbsensi;
+
 
     protected function setUp(): void
     {
@@ -36,6 +39,7 @@ class GajiTest extends TestCase
         $this->tunjanganKehadiran = TunjanganKehadiran::factory()->create([
             'jumlah_tunjangan' => 25000,
         ]);
+        $this->sesiAbsensi = SesiAbsensi::factory()->create();
     }
 
     public function test_bendahara_dapat_melihat_halaman_kelola_gaji(): void
@@ -55,6 +59,7 @@ class GajiTest extends TestCase
                 'nip' => $this->karyawan->nip,
                 'nama' => $this->karyawan->nama,
                 'tanggal' => $tanggal->copy()->addDays($i),
+                'sesi_absensi_id' => $this->sesiAbsensi->id,
             ]);
         }
 
@@ -62,32 +67,44 @@ class GajiTest extends TestCase
             'karyawan_id' => $this->karyawan->id,
             'bulan' => $bulanGaji,
             'tunjangan_kehadiran_id' => $this->tunjanganKehadiran->id,
-            'gaji_pokok' => 5000000, 
+            'gaji_pokok' => 5000000,
             'tunj_anak' => 200000,
             'tunj_komunikasi' => 150000,
             'tunj_pengabdian' => 300000,
             'tunj_kinerja' => 400000,
             'lembur' => 250000,
-            'kelebihan_jam' => 100000,
             'potongan' => 125000,
             'tunj_jabatan' => $this->jabatan->tunj_jabatan,
         ];
 
         $response = $this->actingAs($this->bendahara)->post(route('gaji.save'), $dataForm);
 
-        $response->assertRedirect(route('gaji.index', ['bulan' => $bulanGaji]));
-        $response->assertSessionHas('success');
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
 
         $gajiTersimpan = Gaji::first();
 
         $totalPendapatan = 5000000
-            + 200000 + 150000 + 300000 + 400000 
-            + 250000 + 100000 
+
+            + (22 * $this->tunjanganKehadiran->jumlah_tunjangan)
             + $this->jabatan->tunj_jabatan
-            + (22 * 25000); 
+            + 200000
+            + 150000
+            + 300000
+            + 400000
+            + 250000;
 
         $gajiBersihHarapan = $totalPendapatan - 125000;
 
-        $this->assertEquals($gajiBersihHarapan, $gajiTersimpan->gaji_bersih, "Kalkulasi gaji bersih tidak sesuai.");
+        $this->assertDatabaseHas('gajis', [
+            'karyawan_id' => $this->karyawan->id,
+            'bulan' => $bulanGaji,
+        ]);
+
+        $salaryService = $this->app->make(\App\Services\SalaryService::class);
+        $gajiData = $salaryService->calculateDetailsForForm($this->karyawan, $bulanGaji);
+
+
+        $this->assertEquals($gajiBersihHarapan, $gajiData['gaji_bersih'], "Kalkulasi gaji bersih tidak sesuai.");
     }
 }

@@ -5,151 +5,143 @@
     <meta charset="UTF-8">
     <title>Laporan Rincian - {{ $selectedKaryawan->nama }}</title>
     <style>
-        @page {
-            margin: 0.8cm;
-        }
-
+        /* ... CSS tidak ada perubahan ... */
         body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
-            font-size: 9.5pt;
+            font-family: 'Helvetica', sans-serif;
             color: #333;
+            font-size: 12px;
         }
 
         .container {
             width: 100%;
+            margin: 0 auto;
         }
 
-        table {
+        .header-table,
+        .info-table {
             width: 100%;
             border-collapse: collapse;
         }
 
-        /* KOP SURAT */
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #0056b3;
-            padding-bottom: 10px;
-        }
-
-        .header .logo {
-            width: 60px;
+        .header-table td {
             vertical-align: middle;
         }
 
-        .header h3,
-        .header h4 {
+        .header-text {
+            text-align: center;
+        }
+
+        .header-text h3,
+        .header-text h4 {
             margin: 0;
-            padding: 0;
-            color: #0056b3;
         }
 
-        .header h3 {
-            font-size: 16pt;
+        .header-text p {
+            margin: 5px 0;
+            font-size: 10px;
         }
 
-        .header h4 {
-            font-size: 14pt;
-            color: #333;
+        .logo {
+            width: 60px;
+            height: auto;
         }
 
-        /* INFO KARYAWAN */
-        .employee-details td {
-            padding: 3px 0;
+        .text-right {
+            text-align: right;
         }
 
-        /* TABEL GAJI (GAYA SLIP) */
         .salary-details {
-            margin-top: 20px;
+            width: 100%;
+            margin-top: 15px;
+            border-collapse: collapse;
         }
 
         .salary-details th,
         .salary-details td {
+            border: 1px solid #ddd;
             padding: 8px;
-            border-bottom: 1px solid #e9e9e9;
         }
 
         .salary-details th {
             background-color: #f8f9fa;
             text-align: left;
+        }
+
+        .section-header td {
+            background-color: #e9ecef;
             font-weight: bold;
         }
 
-        .salary-details .text-right {
-            text-align: right;
-        }
-
-        .salary-details .section-header td {
-            background-color: #e9f5ff;
-            font-weight: bold;
-            padding: 6px 8px;
-        }
-
-        .total-row td {
-            font-weight: bold;
-            font-size: 10pt;
-            background-color: #f8f9fa;
-        }
-
+        .total-row td,
         .grand-total-row td {
             font-weight: bold;
-            font-size: 11pt;
-            background-color: #d1e7dd;
-            color: #0a3622;
         }
 
-        /* TANDA TANGAN */
+        .grand-total-row {
+            background-color: #d1ecf1;
+        }
+
+        .footer {
+            margin-top: 40px;
+            width: 100%;
+        }
+
         .signature-section {
-            margin-top: 35px;
+            float: right;
+            width: 250px;
+            text-align: center;
         }
 
-        .signature-section td {
-            padding: 5px;
-            text-align: center;
-            border: none;
+        .signature-section .signature-space {
+            height: 60px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 5px;
+        }
+
+        .clearfix::after {
+            content: "";
+            clear: both;
+            display: table;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        {{-- KOP SURAT --}}
-        <table class="header">
+        {{-- KOP SURAT (Tidak ada perubahan) --}}
+        <table class="header-table">
             <tr>
-                <td style="width: 20%; text-align: left;"><img src="{{ $logoAlAzhar }}" alt="Logo" class="logo"></td>
-                <td>
-                    <h3>YAYASAN ISLAM AL-AZHAR 43 GORONTALO</h3>
-                    <h4>LAPORAN RINCIAN KARYAWAN</h4>
+                <td style="width: 15%; text-align: center;"><img src="{{ $logoYayasan }}" alt="Logo Yayasan"
+                        class="logo"></td>
+                <td style="width: 70%;" class="header-text">
+                    <h3>YAYASAN PENDIDIKAN AL-AZHAR GORONTALO</h3>
+                    <h4>LAPORAN RINCIAN GAJI KARYAWAN</h4>
+                    <p>Jl. Dr. H. Zainal Umar Sidiki, S.H, Kota Gorontalo</p>
                 </td>
-                <td style="width: 20%; text-align: right;"><img src="{{ $logoYayasan }}" alt="Logo" class="logo">
-                </td>
+                <td style="width: 15%; text-align: center;"><img src="{{ $logoAlAzhar }}" alt="Logo Al-Azhar"
+                        class="logo"></td>
             </tr>
         </table>
+        <hr style="border: 0; border-top: 2px solid #333; margin-top: 10px;">
 
-        {{-- INFO KARYAWAN --}}
-        <table class="employee-details">
+        {{-- INFO KARYAWAN (Tidak ada perubahan) --}}
+        <table class="info-table" style="margin-top: 20px;">
             <tr>
-                <td width="20%"><strong>NAMA KARYAWAN</strong></td>
-                <td>: {{ $selectedKaryawan->nama }}</td>
+                <td style="width: 15%;"><strong>Nama Karyawan</strong></td>
+                <td style="width: 35%;">: {{ $selectedKaryawan->nama }}</td>
+                <td style="width: 15%;"><strong>Periode Laporan</strong></td>
+                <td style="width: 35%;">: {{ $tanggalMulai }} s/d {{ $tanggalSelesai }}</td>
             </tr>
             <tr>
                 <td><strong>NIP</strong></td>
                 <td>: {{ $selectedKaryawan->nip }}</td>
-            </tr>
-            <tr>
-                <td><strong>JABATAN</strong></td>
-                <td>: {{ $selectedKaryawan->jabatan?->nama_jabatan ?? 'Jabatan Belum Diatur' }}</td>
-            </tr>
-            <tr>
-                <td><strong>PERIODE LAPORAN</strong></td>
-                <td>: {{ \Carbon\Carbon::parse($tanggalMulai)->translatedFormat('F Y') }} s.d.
-                    {{ \Carbon\Carbon::parse($tanggalSelesai)->translatedFormat('F Y') }}</td>
+                <td><strong>Jabatan</strong></td>
+                <td>: {{ $selectedKaryawan->jabatan->nama_jabatan ?? 'N/A' }}</td>
             </tr>
         </table>
 
         <hr style="margin-top: 20px; border: 0; border-top: 1px solid #ccc;">
 
-        {{-- TABEL REKAP GAJI DENGAN GAYA SLIP --}}
         @if ($gajis->isNotEmpty())
             <h4 style="margin-top: 20px; margin-bottom: 10px; text-align:center;">Rekapitulasi Gaji Selama Periode</h4>
             <table class="salary-details">
@@ -164,89 +156,62 @@
                         <td colspan="2">A. PENDAPATAN</td>
                     </tr>
                     <tr>
-                        <td>Gaji Pokok</td>
-                        <td class="text-right">{{ number_format($gajis->sum('gaji_pokok'), 0, ',', '.') }}</td>
+                        <td>Total Gaji Pokok</td>
+                        <td class="text-right">{{ number_format($totalGajiPokok, 0, ',', '.') }}</td>
                     </tr>
-                    <tr>
-                        <td>Tunjangan Kehadiran ({{ $absensiSummary['hadir'] ?? 0 }} hari)</td>
-                        <td class="text-right">{{ number_format($gajis->sum('tunj_kehadiran'), 0, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <td>Tunjangan Jabatan</td>
-                        <td class="text-right">{{ number_format($gajis->sum('tunj_jabatan'), 0, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <td>Tunjangan Kinerja</td>
-                        <td class="text-right">{{ number_format($gajis->sum('tunj_kinerja'), 0, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <td>Tunjangan Anak</td>
-                        <td class="text-right">{{ number_format($gajis->sum('tunj_anak'), 0, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <td>Tunjangan Komunikasi</td>
-                        <td class="text-right">{{ number_format($gajis->sum('tunj_komunikasi'), 0, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <td>Tunjangan Pengabdian</td>
-                        <td class="text-right">{{ number_format($gajis->sum('tunj_pengabdian'), 0, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <td>Lembur</td>
-                        <td class="text-right">{{ number_format($gajis->sum('lembur'), 0, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <td>Kelebihan Jam</td>
-                        <td class="text-right">{{ number_format($gajis->sum('kelebihan_jam'), 0, ',', '.') }}</td>
-                    </tr>
+
+                    {{-- === [PERBAIKAN DIMULAI DI SINI] === --}}
+                    {{-- Loop untuk menampilkan setiap jenis tunjangan, termasuk yang bernilai 0 --}}
+                    @foreach ($totalPerTunjangan as $namaTunjangan => $total)
+                        <tr>
+                            <td style="padding-left: 20px;">{{ $namaTunjangan }}</td>
+                            <td class="text-right">{{ number_format($total, 0, ',', '.') }}</td>
+                        </tr>
+                    @endforeach
+                    {{-- === [PERBAIKAN SELESAI] === --}}
+
                     <tr class="total-row">
                         <td class="text-right">TOTAL PENDAPATAN</td>
-                        <td class="text-right">{{ number_format($gajis->sum('total_pendapatan'), 0, ',', '.') }}</td>
+                        <td class="text-right">{{ number_format($totalGajiPokok + $totalSemuaTunjangan, 0, ',', '.') }}
+                        </td>
                     </tr>
 
                     <tr class="section-header">
                         <td colspan="2">B. POTONGAN</td>
                     </tr>
                     <tr>
-                        <td>Potongan Lain-lain</td>
-                        <td class="text-right">{{ number_format($gajis->sum('potongan'), 0, ',', '.') }}</td>
+                        <td>Total Potongan Lain-lain</td>
+                        <td class="text-right">({{ number_format($totalPotongan, 0, ',', '.') }})</td>
                     </tr>
                     <tr class="total-row">
                         <td class="text-right">TOTAL POTONGAN</td>
-                        <td class="text-right">{{ number_format($gajis->sum('potongan'), 0, ',', '.') }}</td>
+                        <td class="text-right">({{ number_format($totalPotongan, 0, ',', '.') }})</td>
                     </tr>
 
                     <tr class="grand-total-row">
                         <td class="text-right">TOTAL GAJI BERSIH DITERIMA</td>
-                        <td class="text-right">Rp {{ number_format($gajis->sum('gaji_bersih'), 0, ',', '.') }}</td>
+                        <td class="text-right">Rp {{ number_format($totalGajiBersih, 0, ',', '.') }}</td>
                     </tr>
                 </tbody>
             </table>
         @else
-            <div style="text-align: center; padding: 20px; border: 1px dashed #ccc; margin-top: 20px;">
-                Tidak ada data riwayat gaji pada periode yang dipilih.
-            </div>
+            <p style="text-align:center; margin-top: 30px; font-style: italic;">Tidak ada data gaji untuk ditampilkan
+                pada periode ini.</p>
         @endif
 
-
-        {{-- TANDA TANGAN --}}
-        <table class="signature-section">
-            <tr>
-                <td style="width: 65%;"></td>
-                <td style="width: 35%;">
-                    Gorontalo, {{ now()->translatedFormat('d F Y') }}<br>
-                    Bendahara
-                    <div style="height: 60px; margin-top: 5px; margin-bottom: 5px;">
-                        @if (!empty($tandaTanganBendahara))
-                            <img src="{{ $tandaTanganBendahara }}" alt="Tanda Tangan"
-                                style="height: 100%; width: auto;">
-                        @endif
-                    </div>
-                    <b>( {{ $bendaharaNama ?? '.....................' }} )</b>
-                </td>
-            </tr>
-        </table>
-
+        {{-- TANDA TANGAN (Tidak ada perubahan) --}}
+        <div class="footer clearfix">
+            <div class="signature-section">
+                <p>Gorontalo, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}</p>
+                <p>Bendahara Yayasan</p>
+                @if ($tandaTanganBendahara)
+                    <img src="{{ $tandaTanganBendahara }}" alt="Tanda Tangan" style="height: 60px; width: auto;">
+                @else
+                    <div class="signature-space"></div>
+                @endif
+                <p style="font-weight: bold; text-decoration: underline;">{{ $bendaharaNama }}</p>
+            </div>
+        </div>
     </div>
 </body>
 

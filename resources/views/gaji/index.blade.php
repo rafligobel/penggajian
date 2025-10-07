@@ -72,7 +72,7 @@
                                         @if ($gaji)
                                             <span class="badge bg-primary">Sudah Diproses</span>
                                         @else
-                                            <span class="badge bg-secondary">Template</span>
+                                            <span class="badge bg-secondary">Belum Diproses</span>
                                         @endif
                                     </td>
                                     <td class="text-center">
@@ -171,13 +171,14 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Inisialisasi Modal
             const detailModalEl = document.getElementById('detailModal');
             const editModalEl = document.getElementById('editModal');
-            const editGajiForm = document.getElementById('editGajiForm');
-            const responseMessageEl = document.getElementById('ajax-response-message');
-
             const detailModal = new bootstrap.Modal(detailModalEl);
             const editModal = new bootstrap.Modal(editModalEl);
+
+            const editGajiForm = document.getElementById('editGajiForm');
+            const responseMessageEl = document.getElementById('ajax-response-message');
 
             // --- FUNGSI-FUNGSI HELPER ---
             const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', {
@@ -285,6 +286,7 @@
 
             // --- FUNGSI UNTUK MENGISI MODAL ---
             function populateEditModal(data) {
+                // (Fungsi ini tidak diubah, sudah benar)
                 const modal = editModalEl;
                 modal.querySelector('#editModalLabel').textContent = `Kelola Gaji: ${data.karyawan.nama}`;
                 modal.querySelector('#periode-modal').value = new Date(data.bulan + '-02').toLocaleDateString(
@@ -293,40 +295,30 @@
                         year: 'numeric'
                     });
                 modal.querySelector('#edit-karyawan-id').value = data.karyawan.id;
-
-                // KUNCI PERBAIKAN: Set value dropdown sesuai data
                 modal.querySelector('#tunjangan_kehadiran_id_modal').value = data.tunjangan_kehadiran_id;
-
                 const formContent = modal.querySelector('#edit-form-content');
                 const fields = [{
-                        name: 'gaji_pokok',
-                        label: 'Gaji Pokok'
-                    }, {
-                        name: 'tunj_anak',
-                        label: 'Tunjangan Anak'
-                    },
-                    {
-                        name: 'tunj_komunikasi',
-                        label: 'Tunj. Komunikasi'
-                    }, {
-                        name: 'tunj_pengabdian',
-                        label: 'Tunj. Pengabdian'
-                    },
-                    {
-                        name: 'tunj_kinerja',
-                        label: 'Tunj. Kinerja'
-                    }, {
-                        name: 'lembur',
-                        label: 'Lembur'
-                    },
-                    {
-                        name: 'kelebihan_jam',
-                        label: 'Kelebihan Jam'
-                    }, {
-                        name: 'potongan',
-                        label: 'Potongan'
-                    }
-                ];
+                    name: 'gaji_pokok',
+                    label: 'Gaji Pokok'
+                }, {
+                    name: 'tunj_anak',
+                    label: 'Tunjangan Anak'
+                }, {
+                    name: 'tunj_komunikasi',
+                    label: 'Tunj. Komunikasi'
+                }, {
+                    name: 'tunj_pengabdian',
+                    label: 'Tunj. Pengabdian'
+                }, {
+                    name: 'tunj_kinerja',
+                    label: 'Tunj. Kinerja'
+                }, {
+                    name: 'lembur',
+                    label: 'Lembur'
+                }, {
+                    name: 'potongan',
+                    label: 'Potongan'
+                }];
 
                 let fieldsHtml =
                     `<div class="col-md-6 mb-3"><label class="form-label">Tunjangan Jabatan (Otomatis)</label><input type="text" class="form-control" value="${formatRupiah(data.tunj_jabatan || 0)}" readonly></div>`;
@@ -340,81 +332,121 @@
                 const modal = detailModalEl;
                 modal.querySelector('#detailModalLabel').textContent = `Detail Gaji: ${data.karyawan.nama}`;
                 const detailContent = modal.querySelector('#detail-content');
-
                 const rincianHtml = (items) => items.map(item =>
                     `<div class="row mb-2"><div class="col-7">${item.label}</div><div class="col-5 text-end">${item.value}</div></div>`
                 ).join('');
 
                 const pendapatanItems = [{
-                        label: 'Gaji Pokok',
-                        value: formatRupiah(data.gaji_pokok)
-                    },
-                    {
-                        label: 'Tunjangan Jabatan',
-                        value: formatRupiah(data.tunj_jabatan)
-                    },
-                    {
-                        label: 'Tunjangan Anak',
-                        value: formatRupiah(data.tunj_anak)
-                    },
-                    {
-                        label: 'Tunjangan Komunikasi',
-                        value: formatRupiah(data.tunj_komunikasi)
-                    },
-                    {
-                        label: 'Tunjangan Pengabdian',
-                        value: formatRupiah(data.tunj_pengabdian)
-                    },
-                    {
-                        label: 'Tunjangan Kinerja',
-                        value: formatRupiah(data.tunj_kinerja)
-                    },
-                    {
-                        label: `Tunj. Kehadiran (${data.jumlah_kehadiran} hari)`,
-                        value: formatRupiah(data.tunj_kehadiran)
-                    },
-                    {
-                        label: 'Lembur',
-                        value: formatRupiah(data.lembur)
-                    },
-                    {
-                        label: 'Kelebihan Jam',
-                        value: formatRupiah(data.kelebihan_jam)
-                    }
-                ];
+                    label: 'Gaji Pokok',
+                    value: formatRupiah(data.gaji_pokok)
+                }, {
+                    label: 'Tunjangan Jabatan',
+                    value: formatRupiah(data.tunj_jabatan)
+                }, {
+                    label: 'Tunjangan Anak',
+                    value: formatRupiah(data.tunj_anak)
+                }, {
+                    label: 'Tunjangan Komunikasi',
+                    value: formatRupiah(data.tunj_komunikasi)
+                }, {
+                    label: 'Tunjangan Pengabdian',
+                    value: formatRupiah(data.tunj_pengabdian)
+                }, {
+                    label: 'Tunjangan Kinerja',
+                    value: formatRupiah(data.tunj_kinerja)
+                }, {
+                    label: `Tunj. Kehadiran (${data.jumlah_kehadiran} hari)`,
+                    value: formatRupiah(data.tunj_kehadiran)
+                }, {
+                    label: 'Lembur',
+                    value: formatRupiah(data.lembur)
+                }, ];
 
                 detailContent.innerHTML = `
-            <p><strong>NIP:</strong> ${data.karyawan.nip}</p><hr>
-            <div class="row">
-                <div class="col-lg-6 mb-4 mb-lg-0 border-end">
-                    <h5 class="mb-3 text-primary">A. Pendapatan</h5>
-                    ${rincianHtml(pendapatanItems)}
+                <p><strong>NIP:</strong> ${data.karyawan.nip}</p><hr>
+                <div class="row">
+                    <div class="col-lg-6 mb-4 mb-lg-0 border-end">
+                        <h5 class="mb-3 text-primary">A. Pendapatan</h5>
+                        ${rincianHtml(pendapatanItems)}
+                    </div>
+                    <div class="col-lg-6">
+                        <h5 class="mb-3 text-danger">B. Potongan</h5>
+                        ${rincianHtml([{ label: 'Potongan Lain-lain', value: `<span class="text-danger">(${formatRupiah(data.potongan)})</span>` }])}
+                    </div>
                 </div>
-                <div class="col-lg-6">
-                    <h5 class="mb-3 text-danger">B. Potongan</h5>
-                    ${rincianHtml([{ label: 'Potongan Lain-lain', value: `<span class="text-danger">(${formatRupiah(data.potongan)})</span>` }])}
+                <hr class="my-4">
+                <div class="bg-light p-3 rounded">
+                    <div class="row align-items-center">
+                        <div class="col-7"><h5 class="mb-0">GAJI BERSIH (A - B)</h5></div>
+                        <div class="col-5 text-end"><h5 class="mb-0 fw-bold text-success">${formatRupiah(data.gaji_bersih)}</h5></div>
+                    </div>
                 </div>
-            </div>
-            <hr class="my-4">
-            <div class="bg-light p-3 rounded">
-                <div class="row align-items-center">
-                    <div class="col-7"><h5 class="mb-0">GAJI BERSIH (A - B)</h5></div>
-                    <div class="col-5 text-end"><h5 class="mb-0 fw-bold text-success">${formatRupiah(data.gaji_bersih)}</h5></div>
-                </div>
-            </div>
-        `;
+            `;
 
                 const downloadBtn = modal.querySelector('.btn-download-slip');
                 const emailBtn = modal.querySelector('.btn-send-email');
+
+                // ================== PERBAIKAN DIMULAI DI SINI ==================
+
+                // Hapus event listener lama agar tidak menumpuk setiap kali modal dibuka
+                const newDownloadBtn = downloadBtn.cloneNode(true);
+                downloadBtn.parentNode.replaceChild(newDownloadBtn, downloadBtn);
+
+                const newEmailBtn = emailBtn.cloneNode(true);
+                emailBtn.parentNode.replaceChild(newEmailBtn, emailBtn);
+
                 if (data.gaji) {
-                    downloadBtn.disabled = false;
-                    downloadBtn.dataset.url = `/gaji/${data.gaji.id}/download`;
-                    emailBtn.disabled = !data.karyawan.email;
-                    emailBtn.dataset.url = `/gaji/${data.gaji.id}/send-email`;
+                    newDownloadBtn.disabled = false;
+                    newEmailBtn.disabled = !data.karyawan.email;
+
+                    const downloadUrl = `/gaji/${data.gaji.id}/download-slip`;
+                    const emailUrl = `/gaji/${data.gaji.id}/send-email`;
+
+                    function handleJobDispatch(button, url, processName, event) {
+                        event.preventDefault(); // Mencegah aksi default browser
+
+                        const originalButtonHtml = button.innerHTML;
+                        button.disabled = true;
+                        button.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Memproses...`;
+
+                        fetch(url, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Accept': 'application/json'
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(apiData => {
+                                if (apiData.message) {
+                                    showResponseMessage(apiData.message, true);
+                                    detailModal.hide();
+                                } else {
+                                    showResponseMessage('Terjadi kesalahan.', false);
+                                }
+                            })
+                            .catch(error => {
+                                console.error(`Error ${processName}:`, error);
+                                showResponseMessage(`Gagal memulai proses ${processName}.`, false);
+                            })
+                            .finally(() => {
+                                button.disabled = false;
+                                button.innerHTML = originalButtonHtml;
+                            });
+                    }
+
+                    newDownloadBtn.addEventListener('click', function(e) {
+                        handleJobDispatch(this, downloadUrl, 'unduh slip', e);
+                    });
+
+                    newEmailBtn.addEventListener('click', function(e) {
+                        handleJobDispatch(this, emailUrl, 'kirim email', e);
+                    });
                 } else {
-                    downloadBtn.disabled = true;
-                    emailBtn.disabled = true;
+                    newDownloadBtn.disabled = true;
+                    newEmailBtn.disabled = true;
                 }
+                // ================== PERBAIKAN SELESAI DI SINI ==================
             }
         });
     </script>

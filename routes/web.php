@@ -57,7 +57,7 @@ Route::middleware(['role:bendahara'])->group(function () {
 
 
     // RUTE BARU UNTUK PROSES BACKGROUND
-    Route::post('/gaji/{gaji}/download', [GajiController::class, 'downloadSlip'])->name('gaji.download');
+    Route::post('/gaji/{gaji}/download-slip', [GajiController::class, 'downloadSlip'])->name('gaji.download-slip');
     Route::post('/gaji/{gaji}/send-email', [GajiController::class, 'sendEmail'])->name('gaji.send-email');
 
     Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
@@ -79,10 +79,12 @@ Route::middleware(['role:bendahara'])->group(function () {
     // Route::resource('sesi-absensi', SesiAbsensiController::class)->except(['show']);
 
     Route::get('/sesi-absensi', [SesiAbsensiController::class, 'index'])->name('sesi-absensi.index');
-    Route::post('/sesi-absensi/update-default-time', [SesiAbsensiController::class, 'updateDefaultTime'])->name('sesi-absensi.update-default-time');
-    Route::get('/sesi-absensi/calendar-events', [SesiAbsensiController::class, 'getCalendarEvents'])->name('sesi-absensi.calendar-events');
-    Route::post('/sesi-absensi/store-exception', [SesiAbsensiController::class, 'storeException'])->name('sesi-absensi.store-exception');
-    Route::post('/sesi-absensi', [SesiAbsensiController::class, 'store'])->name('sesi-absensi.store'); // Ini yang menyebabkan error
+    Route::post('sesi-absensi', [SesiAbsensiController::class, 'storeOrUpdate'])->name('sesi-absensi.storeOrUpdate');
+
+    Route::get('sesi-absensi/calendar-events', [SesiAbsensiController::class, 'getCalendarEvents'])->name('sesi-absensi.calendar-events');
+    // Route::get('/sesi-absensi/calendar-events', [SesiAbsensiController::class, 'getCalendarEvents'])->name('sesi-absensi.calendar-events');
+    // Route::post('/sesi-absensi/store-exception', [SesiAbsensiController::class, 'storeException'])->name('sesi-absensi.store-exception');
+    // Route::post('/sesi-absensi', [SesiAbsensiController::class, 'store'])->name('sesi-absensi.store'); // Ini yang menyebabkan error
 
 
     // Route::post('/sesi-absensi/update-default-time', [SesiAbsensiController::class, 'updateDefaultTime'])->name('sesi-absensi.update-default-time');

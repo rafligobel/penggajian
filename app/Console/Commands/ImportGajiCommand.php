@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Karyawan;
 use App\Models\Gaji;
 use App\Models\Absensi;
+use App\Models\SesiAbsensi;
 use App\Models\Jabatan;
 use App\Models\TunjanganKehadiran;
 use Carbon\Carbon;
@@ -21,7 +22,6 @@ class ImportGajiCommand extends Command
     {
         $this->info('>>> MENJALANKAN SCRIPT VERSI AKHIR (MODEL FIXED) <<<');
 
-        // ... (kode lainnya tetap sama persis seperti sebelumnya) ...
         $bulanInput = $this->argument('bulan');
         $tahun = $this->argument('tahun');
         $filePath = $this->option('file');
@@ -49,10 +49,7 @@ class ImportGajiCommand extends Command
 
         $defaultTunjangan = TunjanganKehadiran::firstOrCreate(
             ['id' => 1],
-            [
-                'jenis_tunjangan' => 'Standar (Otomatis)',
-                'jumlah_tunjangan' => 25000
-            ]
+            ['jenis_tunjangan' => 'Standar (Otomatis)', 'jumlah_tunjangan' => 25000]
         );
         $defaultTunjanganId = $defaultTunjangan->id;
         $this->info("-> Menggunakan Tunjangan Kehadiran Default (ID: {$defaultTunjanganId})");
@@ -69,7 +66,7 @@ class ImportGajiCommand extends Command
                 $karyawan = $this->prosesKaryawan($row, $jabatan->id, $shouldUpdateKaryawan);
                 $this->info("Memproses: '{$karyawan->nama}' (NIP: {$karyawan->nip})");
 
-                $this->prosesAbsensi($karyawan, $row['Jumlah Kehadiran'] ?? 0, $bulanAngka, $tahun);
+                $this->prosesAbsensi($karyawan, (int)($row['Jumlah Kehadiran'] ?? 0), $bulanAngka, $tahun);
 
                 $gajiData = $this->prepareGajiData($row, $defaultTunjanganId);
 
@@ -96,27 +93,63 @@ class ImportGajiCommand extends Command
             'email' => trim($data['Email'] ?? null),
             'telepon' => trim($data['Telepon'] ?? null),
             'alamat' => trim($data['Alamat'] ?? null),
-            'jabatan_id' => $jabatanId,
+            'jabatan_id' => trim($jabatanId ?? null),
             'status_aktif' => true,
         ];
         return Karyawan::updateOrCreate(['nip' => trim($data['NIP'])], $karyawanData);
     }
 
+    /**
+     * @param Karyawan $karyawan
+     * @param int $jumlahHari
+     * @param int $bulan
+     * @param int $tahun
+     */
     private function prosesAbsensi(Karyawan $karyawan, int $jumlahHari, int $bulan, int $tahun)
     {
         $tanggalAwal = Carbon::create($tahun, $bulan, 1);
         $hariAbsenDibuat = 0;
+
         for ($i = 0; $i < $tanggalAwal->daysInMonth && $hariAbsenDibuat < $jumlahHari; $i++) {
             $tanggalCek = $tanggalAwal->copy()->addDays($i);
+
             if ($tanggalCek->isWeekday() || $tanggalCek->isSaturday()) {
-                Absensi::firstOrCreate(
-                    ['nip' => $karyawan->nip, 'tanggal' => $tanggalCek->toDateString()],
-                    ['nama' => $karyawan->nama, 'jam' => '07:30:00']
+
+                // **KUNCI PERBAIKAN ADA DI SINI**
+                // Langkah 1: Buat sesi absensi 'masuk' jika belum ada.
+                $sesi = SesiAbsensi::firstOrCreate(
+                    [
+                        'tanggal' => $tanggalCek->toDateString(),
+                        'tipe'    => 'masuk',
+                    ],
+                    [
+                        'jam_buka' => '07:00:00',
+                        'jam_tutup' => '17:00:00',
+                    ]
                 );
+
+                // Langkah 2: Buat array data untuk absensi secara eksplisit.
+                $dataAbsensi = [
+                    'nip'             => $karyawan->nip,
+                    'nama'            => $karyawan->nama,
+                    'tanggal'         => $tanggalCek->toDateString(),
+                    'jam'             => '07:30:00',
+                    'sesi_absensi_id' => $sesi->id,
+                ];
+
+                // Langkah 3: Gunakan 'firstOrCreate' dengan data yang sudah lengkap.
+                Absensi::firstOrCreate(
+                    [
+                        'nip'     => $karyawan->nip,
+                        'tanggal' => $tanggalCek->toDateString(),
+                    ],
+                    $dataAbsensi // Gunakan array data yang sudah lengkap di sini
+                );
+
                 $hariAbsenDibuat++;
             }
         }
-        $this->line("-> Absensi ({$hariAbsenDibuat} hari) dibuat.");
+        $this->line("-> Absensi ({$hariAbsenDibuat} hari) berhasil diproses untuk {$karyawan->nama}.");
     }
 
     private function prepareGajiData(array $data, int $defaultTunjanganId): array
@@ -130,14 +163,11 @@ class ImportGajiCommand extends Command
             'TJ.Komunikasi' => 'tunj_komunikasi',
             'TJ. Kinerja' => 'tunj_kinerja',
         ];
-
         $gajiData = [];
         foreach ($columnMap as $csvHeader => $dbColumn) {
             $gajiData[$dbColumn] = $this->cleanNumeric($data[$csvHeader] ?? 0);
         }
-
         $gajiData['tunjangan_kehadiran_id'] = $defaultTunjanganId;
-
         return $gajiData;
     }
 

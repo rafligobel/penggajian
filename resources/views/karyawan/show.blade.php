@@ -4,7 +4,7 @@
     <div class="container">
         <div class="card shadow-sm">
             <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">Detail Karyawan: {{ $karyawan->nama }}</h4>
+                <h4 class="mb-0">Detail Pegawai: {{ $karyawan->nama }}</h4>
             </div>
             <div class="card-body">
                 <div class="row">
@@ -61,7 +61,7 @@
                 {{-- Tombol Edit hanya untuk Admin --}}
                 @if (Auth::check() && Auth::user()->role == 'admin')
                     <a href="{{ route('karyawan.edit', $karyawan->id) }}" class="btn btn-warning">
-                        <i class="fas fa-edit"></i> Edit Karyawan
+                        <i class="fas fa-edit"></i> Edit Pegawai
                     </a>
                 @endif
             </div>

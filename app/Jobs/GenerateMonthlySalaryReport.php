@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use App\Services\SalaryService;
 
 class GenerateMonthlySalaryReport implements ShouldQueue
 {
@@ -34,64 +34,49 @@ class GenerateMonthlySalaryReport implements ShouldQueue
         $this->gajiIds = $gajiIds;
     }
 
-    public function handle(): void
+    public function handle(SalaryService $salaryService): void
     {
         try {
-            // Eager load relasi karyawan untuk efisiensi
-            $query = Gaji::with('karyawan')->where('bulan', $this->selectedMonth);
+            $query = Gaji::with(['karyawan.jabatan', 'tunjanganKehadiran'])->where('bulan', $this->selectedMonth);
 
-            if (!empty($this->gajiIds)) {
+            if ($this->gajiIds) {
                 $query->whereIn('id', $this->gajiIds);
             }
 
-            $gajis = $query->get();
+            $gajis = $query->get()->sortBy('karyawan.nama');
 
-            if ($gajis->isEmpty()) {
-                throw new \Exception('Tidak ada data gaji yang valid untuk diproses.');
-            }
-
-            // ====================================================================
-            // PERBAIKAN: Menggunakan Relasi Eloquent untuk mengambil total kehadiran
-            // ====================================================================
-            $periode = Carbon::createFromFormat('Y-m', $this->selectedMonth);
             $kehadiranData = [];
-
             foreach ($gajis as $gaji) {
-                if ($gaji->karyawan) {
-                    // Menggunakan relasi 'absensi' yang ada di model Karyawan
-                    $totalHadir = $gaji->karyawan->absensi()
-                        ->whereYear('tanggal', $periode->year)
-                        ->whereMonth('tanggal', $periode->month)
-                        ->count();
-
-                    // Membuat objek sederhana untuk konsistensi dengan view
-                    $kehadiranData[$gaji->karyawan_id] = (object)['total_hadir' => $totalHadir];
-                }
+                $detailGaji = $salaryService->calculateDetailsForForm($gaji->karyawan, $this->selectedMonth);
+                $kehadiranData[$gaji->id] = $detailGaji['jumlah_kehadiran'];
             }
-            // ====================================================================
-            // AKHIR DARI PERBAIKAN
-            // ====================================================================
 
-            $bendahara = User::where('role', 'bendahara')->first();
-            $bendaharaNama = $bendahara ? $bendahara->name : 'Bendahara Umum';
-
-            $totals = (object)[
-                'total_gaji_pokok' => $gajis->sum('gaji_pokok'),
-                'total_tunj_jabatan' => $gajis->sum('tunj_jabatan'),
-                'total_tunj_anak' => $gajis->sum('tunj_anak'),
-                'total_tunj_komunikasi' => $gajis->sum('tunj_komunikasi'),
-                'total_tunj_pengabdian' => $gajis->sum('tunj_pengabdian'),
-                'total_tunj_kinerja' => $gajis->sum('tunj_kinerja'),
-                'total_pendapatan_lainnya' => $gajis->sum('pendapatan_lainnya'),
-                'total_potongan' => $gajis->sum('potongan'),
-                'total_gaji_bersih' => $gajis->sum('gaji_bersih'),
+            $totals = [
+                'gaji_pokok' => $gajis->sum('gaji_pokok'),
+                'tunj_jabatan' => $gajis->sum(fn($g) => $g->karyawan->jabatan->tunj_jabatan ?? 0),
+                'tunj_kehadiran' => $gajis->sum(fn($g) => ($kehadiranData[$g->id] ?? 0) * ($g->tunjanganKehadiran->jumlah_tunjangan ?? 0)),
+                'tunj_anak' => $gajis->sum('tunj_anak'),
+                'tunj_komunikasi' => $gajis->sum('tunj_komunikasi'),
+                'tunj_pengabdian' => $gajis->sum('tunj_pengabdian'),
+                'tunj_kinerja' => $gajis->sum('tunj_kinerja'),
+                'lembur' => $gajis->sum('lembur'),
+                'potongan' => $gajis->sum('potongan'),
             ];
 
+            // Kalkulasi total tunjangan dan pendapatan
+            $total_semua_tunjangan = $totals['tunj_jabatan'] + $totals['tunj_kehadiran'] + $totals['tunj_anak'] + $totals['tunj_komunikasi'] + $totals['tunj_pengabdian'] + $totals['tunj_kinerja'] + $totals['lembur'];
+            $totals['total_tunjangan'] = $total_semua_tunjangan;
+            $totals['gaji_bersih'] = ($totals['gaji_pokok'] + $total_semua_tunjangan) - $totals['potongan'];
+
+
+            // [PERBAIKAN] Mengganti 'is_active' menjadi pencarian berdasarkan 'key'
             $tandaTanganBendahara = '';
             $pengaturanTtd = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
             if ($pengaturanTtd && Storage::disk('public')->exists($pengaturanTtd->value)) {
                 $tandaTanganBendahara = $this->getImageAsBase64DataUri(storage_path('app/public/' . $pengaturanTtd->value));
             }
+            $bendahara = User::where('role', 'bendahara')->first();
+            $bendaharaNama = $bendahara ? $bendahara->name : 'Bendahara Umum';
 
             $data = [
                 'gajis' => $gajis,
@@ -108,20 +93,25 @@ class GenerateMonthlySalaryReport implements ShouldQueue
             $pdf->setPaper('A4', 'landscape');
 
             $safeMonth = str_replace('-', '', $this->selectedMonth);
-            $filename = 'laporan_gaji_' . $safeMonth . '_' . uniqid() . '.pdf';
-            $path = 'reports/' . $filename;
+            $filename = 'reports/laporan_gaji_' . $safeMonth . '_' . uniqid() . '.pdf';
 
-            Storage::disk('public')->put($path, $pdf->output());
+            Storage::disk('public')->put($filename, $pdf->output());
 
             $this->user->notify(new ReportGenerated(
-                $path,
+                $filename,
                 'Laporan Gaji ' . $safeMonth . '.pdf',
                 $this->selectedMonth,
                 'Laporan Gaji Bulanan telah selesai dibuat.'
             ));
         } catch (Throwable $e) {
             Log::error('Gagal membuat Laporan Gaji Bulanan: ' . $e->getMessage(), ['exception' => $e]);
-            $this->user->notify(new ReportGenerated('', '', $this->selectedMonth, 'Gagal membuat Laporan Gaji Bulanan: ' . $e->getMessage(), true));
+            $this->user->notify(new ReportGenerated(
+                '',
+                'Gagal Membuat Laporan Gaji',
+                $this->selectedMonth,
+                'Terjadi kesalahan teknis saat membuat Laporan Gaji Bulanan. Error: ' . $e->getMessage(),
+                true
+            ));
         }
     }
 }

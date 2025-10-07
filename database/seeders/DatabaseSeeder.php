@@ -29,11 +29,11 @@ class DatabaseSeeder extends Seeder
             'role' => 'bendahara'
         ]);
 
-        User::create([
-            'name' => 'Karyawan',
-            'email' => 'karyawan@example.com',
-            'password' => Hash::make('password'), // <-- Gunakan Hash::make()
-            'role' => 'karyawan'
-        ]);
+        // User::create([
+        //     'name' => 'Karyawan',
+        //     'email' => 'karyawan@example.com',
+        //     'password' => Hash::make('password'), // <-- Gunakan Hash::make()
+        //     'role' => 'karyawan'
+        // ]);
     }
 }

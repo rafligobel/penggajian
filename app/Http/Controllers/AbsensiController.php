@@ -4,7 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Absensi;
 use App\Models\Karyawan;
-use App\Services\AbsensiService; // Ganti SesiAbsensi dengan service kita
+use App\Models\SesiAbsensi; // Ditambahkan untuk mendapatkan ID Sesi
+use App\Services\AbsensiService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Exception;
@@ -13,22 +14,18 @@ class AbsensiController extends Controller
 {
     protected $absensiService;
 
-    // 1. Inject AbsensiService melalui constructor
     public function __construct(AbsensiService $absensiService)
     {
         $this->absensiService = $absensiService;
     }
 
-    /**
-     * 2. Menampilkan halaman absensi utama dengan logika baru.
-     */
     public function index()
     {
         $today = today();
         $statusInfo = $this->absensiService->getSessionStatus($today);
         $isSesiDibuka = false;
         $sesiHariIni = null;
-        $pesanSesi = $statusInfo['status']; // Pesan default dari service
+        $pesanSesi = $statusInfo['status'];
 
         if ($statusInfo['is_active']) {
             $now = now();
@@ -42,7 +39,6 @@ class AbsensiController extends Controller
                 $pesanSesi = 'Sesi absensi hari ini sudah ditutup.';
             }
 
-            // Buat objek sementara agar view tidak perlu diubah banyak
             $sesiHariIni = (object) [
                 'waktu_mulai' => $waktuMulai->format('H:i'),
                 'waktu_selesai' => $waktuSelesai->format('H:i'),
@@ -52,13 +48,8 @@ class AbsensiController extends Controller
         return view('absensi.index', compact('sesiHariIni', 'isSesiDibuka', 'pesanSesi'));
     }
 
-    public function showAbsensiForm()
-    {
-        return $this->index();
-    }
-
     /**
-     * 3. Menyimpan absensi dengan validasi sesi dari service.
+     * Menyimpan absensi dengan menyertakan sesi_absensi_id.
      */
     public function store(Request $request)
     {
@@ -89,6 +80,20 @@ class AbsensiController extends Controller
             return redirect()->back()->with('info', 'Sesi absensi sedang ditutup. Sesi berlaku dari jam ' . $waktuMulai->format('H:i') . ' hingga ' . $waktuSelesai->format('H:i') . '.');
         }
 
+        // --- [PERBAIKAN UTAMA] ---
+        // 1. Ambil ID Sesi Absensi yang sedang berjalan
+        $sesiAbsensi = SesiAbsensi::where('tanggal', $today->format('Y-m-d'))->first();
+        if (!$sesiAbsensi) {
+            // Jika tidak ada sesi khusus hari ini, cari sesi default
+            $sesiAbsensi = SesiAbsensi::where('is_default', true)->first();
+        }
+
+        // Jika sesi tetap tidak ditemukan, berikan error
+        if (!$sesiAbsensi) {
+            return redirect()->back()->with('info', 'Sistem tidak dapat menemukan sesi absensi yang aktif saat ini.');
+        }
+        // --- [AKHIR PERBAIKAN UTAMA] ---
+
         $sudahAbsen = Absensi::where('nip', $karyawan->nip)
             ->whereDate('tanggal', $today)
             ->exists();
@@ -98,6 +103,7 @@ class AbsensiController extends Controller
         }
 
         Absensi::create([
+            'sesi_absensi_id' => $sesiAbsensi->id, // 2. Sertakan ID Sesi saat create
             'nip' => $karyawan->nip,
             'nama' => $karyawan->nama,
             'tanggal' => $now->toDateString(),
@@ -113,9 +119,6 @@ class AbsensiController extends Controller
         return view('absensi.rekap', compact('selectedMonth'));
     }
 
-    /**
-     * 4. Mengambil data rekap yang sudah disesuaikan dengan hari kerja efektif.
-     */
     public function fetchRekapData(Request $request)
     {
         try {
@@ -123,7 +126,6 @@ class AbsensiController extends Controller
             $selectedMonth = Carbon::createFromFormat('Y-m', $request->bulan);
             $daysInMonth = $selectedMonth->daysInMonth;
 
-            // Hitung hari kerja efektif dalam sebulan
             $workingDaysCount = 0;
             $workingDaysMap = [];
             for ($day = 1; $day <= $daysInMonth; $day++) {
@@ -147,14 +149,14 @@ class AbsensiController extends Controller
             foreach ($karyawans as $karyawan) {
                 $karyawanAbsensi = $absensiBulanIniGrouped->get($karyawan->nip, collect());
                 $totalHadir = $karyawanAbsensi->count();
-                $totalAlpha = $workingDaysCount - $totalHadir; // Alpha dihitung dari hari kerja efektif
+                $totalAlpha = $workingDaysCount - $totalHadir;
 
                 $harian = [];
                 for ($day = 1; $day <= $daysInMonth; $day++) {
                     $absenPadaHariIni = $karyawanAbsensi->firstWhere(fn($item) => Carbon::parse($item->tanggal)->day == $day);
-                    $status = '-'; // Default untuk hari libur
+                    $status = '-';
 
-                    if ($workingDaysMap[$day]) { // Jika ini adalah hari kerja
+                    if ($workingDaysMap[$day]) {
                         $status = $absenPadaHariIni ? 'H' : 'A';
                     }
 
@@ -169,8 +171,8 @@ class AbsensiController extends Controller
                     'nama' => $karyawan->nama,
                     'ringkasan' => [
                         'hadir' => $totalHadir,
-                        'sakit' => 0, // Placeholder
-                        'izin' => 0, // Placeholder
+                        'sakit' => 0,
+                        'izin' => 0,
                         'alpha' => $totalAlpha < 0 ? 0 : $totalAlpha,
                     ],
                     'detail' => $harian,
@@ -180,7 +182,7 @@ class AbsensiController extends Controller
             return response()->json([
                 'rekap' => $rekapData,
                 'nama_bulan' => $selectedMonth->translatedFormat('F Y'),
-                'total_hari_kerja' => $workingDaysCount, // Kirim info ini ke frontend
+                'total_hari_kerja' => $workingDaysCount,
             ]);
         } catch (Exception $e) {
             return response()->json([
