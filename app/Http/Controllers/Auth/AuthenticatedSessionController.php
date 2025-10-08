@@ -28,7 +28,17 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // --- AWAL PERBAIKAN ---
+        $user = $request->user();
+        // Cek jika role adalah 'tenaga_kerja'
+        if ($user->role === 'tenaga_kerja') {
+            // Arahkan ke dashboard tenaga kerja
+            return redirect()->intended(route('tenaga_kerja.dashboard', absolute: false));
+        }
+
+        // Jika bukan, arahkan ke dashboard utama (admin/bendahara)
         return redirect()->intended(route('dashboard', absolute: false));
+        // --- AKHIR PERBAIKAN ---
     }
 
     /**

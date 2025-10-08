@@ -24,10 +24,11 @@
         <div class="mb-3">
             <label for="role" class="form-label">Peran (Role)</label>
             <select name="role" id="role" class="form-select" required>
+                {{-- Opsi "Tenaga Kerja" dihilangkan dari sini --}}
                 <option value="admin" @selected(old('role', $user->role) == 'admin')>Admin</option>
                 <option value="bendahara" @selected(old('role', $user->role) == 'bendahara')>Bendahara</option>
-                <option value="karyawan" @selected(old('role', $user->role) == 'karyawan')>Karyawan</option>
             </select>
+            <small class="text-muted">Untuk membuat akun Tenaga Kerja, silakan melalui menu "Data Karyawan".</small>
         </div>
         <div class="mb-3">
             <label for="password" class="form-label">Password</label>

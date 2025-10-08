@@ -19,9 +19,15 @@ class Karyawan extends Model
         'telepon',
         'jabatan_id',
         'status_aktif',
+        'user_id',
     ];
 
     protected $casts = ['status_aktif' => 'boolean'];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function absensi(): HasMany
     {
@@ -33,8 +39,8 @@ class Karyawan extends Model
         return $this->belongsTo(Jabatan::class);
     }
 
-    public function gaji(): HasMany
+    public function gajis()
     {
-        return $this->hasMany(Gaji::class, 'karyawan_id');
+        return $this->hasMany(Gaji::class);
     }
 }

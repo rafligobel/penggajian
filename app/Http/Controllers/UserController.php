@@ -11,49 +11,50 @@ use Illuminate\Support\Facades\Auth;
 class UserController extends Controller
 {
     /**
-     * Menampilkan daftar semua pengguna (khusus admin).
+     * Menampilkan daftar semua pengguna.
      */
     public function index()
     {
-        // Ambil semua user KECUALI superadmin
         $users = User::where('role', '!=', 'superadmin')->latest()->paginate(10);
         return view('users.index', compact('users'));
     }
 
-
+    /**
+     * Menampilkan form untuk membuat pengguna baru.
+     */
     public function create()
     {
-        return view('users.create'); // Arahkan ke view create.blade.php
+        // --- AWAL PERBAIKAN ---
+        // Kirim instance User baru ke view agar variabel $user terdefinisi
+        $user = new User();
+        return view('users.create', compact('user'));
+        // --- AKHIR PERBAIKAN ---
     }
 
     /**
-     * BARU: Menyimpan pengguna baru ke database.
+     * Menyimpan pengguna baru ke database.
      */
     public function store(Request $request)
     {
-        // 1. Validasi Input
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users', // Pastikan email unik
-            'password' => 'required|string|min:8', // Password minimal 8 karakter
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
             'role' => 'required|string',
         ]);
 
-        // 2. Buat Pengguna Baru
         User::create([
             'name' => $request->name,
             'email' => $request->email,
             'role' => $request->role,
-            'password' => Hash::make($request->password), // Enkripsi password sebelum disimpan
+            'password' => Hash::make($request->password),
         ]);
 
-        // 3. Arahkan kembali ke halaman index dengan pesan sukses
         return redirect()->route('users.index')->with('success', 'Pengguna baru berhasil ditambahkan.');
     }
 
-
     /**
-     * Menampilkan form untuk mengedit pengguna (khusus admin).
+     * Menampilkan form untuk mengedit pengguna.
      */
     public function edit(User $user)
     {
@@ -61,14 +62,14 @@ class UserController extends Controller
     }
 
     /**
-     * Menyimpan perubahan data pengguna ke database (khusus admin).
+     * Menyimpan perubahan data pengguna ke database.
      */
     public function update(Request $request, User $user)
     {
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)],
-            'role' => 'required|string', // Validasi untuk role
+            'role' => 'required|string',
         ]);
 
         $user->update($request->only(['name', 'email', 'role']));
@@ -77,16 +78,14 @@ class UserController extends Controller
     }
 
     /**
-     * Menghapus pengguna (khusus admin).
+     * Menghapus pengguna.
      */
     public function destroy(User $user)
     {
-        // Cek jika pengguna yang akan dihapus adalah superadmin
         if ($user->role === 'superadmin') {
             return redirect()->route('users.index')->with('error', 'Super Admin tidak dapat dihapus.');
         }
 
-        // Cek agar pengguna tidak bisa menghapus dirinya sendiri
         if ($user->id === Auth::id()) {
             return redirect()->route('users.index')->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
         }

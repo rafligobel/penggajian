@@ -3,63 +3,59 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Karyawan;
-use App\Models\Gaji;
-use App\Services\SalaryService; // <-- Import Service
+use App\Services\SalaryService;
+use Illuminate\Support\Facades\Auth;
 
 class SimulasiGajiController extends Controller
 {
     protected $salaryService;
 
-    // Suntikkan service melalui constructor
     public function __construct(SalaryService $salaryService)
     {
         $this->salaryService = $salaryService;
     }
 
-    public function index()
-    {
-        return view('simulasi.index');
-    }
-
+    /**
+     * Menangani perhitungan simulasi gaji.
+     * Didesain untuk merespons permintaan AJAX dari modal.
+     */
     public function hitung(Request $request)
     {
         $validated = $request->validate([
-            'karyawan_query' => 'required|string|min:3',
             'jumlah_hari_masuk' => 'required|integer|min:0|max:31',
             'lembur' => 'nullable|numeric|min:0',
             'potongan' => 'nullable|numeric|min:0',
         ]);
 
-        // ... (Logika pencarian karyawan tidak berubah) ...
-        $karyawan = Karyawan::where('nip', $validated['karyawan_query'])
-            ->orWhere('nama', 'LIKE', "%{$validated['karyawan_query']}%")
-            ->first();
+        $karyawan = Auth::user()->karyawan;
 
+        // Jika karyawan tidak ditemukan, kirim respons error
         if (!$karyawan) {
-            return redirect()->back()->withInput()->with('error', "Karyawan tidak ditemukan.");
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Data karyawan Anda tidak ditemukan.'], 404);
+            }
+            return back()->with('error', "Data karyawan Anda tidak ditemukan.");
         }
 
-        $templateGaji = Gaji::where('karyawan_id', $karyawan->id)->orderBy('bulan', 'desc')->first();
-        if (!$templateGaji) {
-            return redirect()->back()->withInput()->with('error', 'Data gaji sebelumnya untuk karyawan ini tidak ditemukan.');
-        }
+        // Gunakan service untuk menghitung simulasi
+        $hasilSimulasi = $this->salaryService->calculateSimulation($karyawan, $validated);
 
-        // Gunakan service untuk menghitung gaji
-        $gajiHasilSimulasi = $this->salaryService->calculateSalary(
-            $karyawan,
-            now()->format('Y-m'), // Periode tidak relevan untuk simulasi, hanya untuk struktur
-            10000, // Tarif default tunjangan kehadiran
-            $validated // Kirim input dari form simulasi
-        );
-
+        // Siapkan data untuk dikirim ke view
         $hasil = [
             'karyawan' => $karyawan,
             'jumlah_hari_masuk' => $validated['jumlah_hari_masuk'],
-            'rincian' => $gajiHasilSimulasi->toArray(),
-            'gaji_bersih' => $gajiHasilSimulasi->gaji_bersih,
+            'rincian' => $hasilSimulasi, // Langsung gunakan hasil dari service
+            'gaji_bersih' => $hasilSimulasi['gaji_bersih'],
         ];
 
-        return view('simulasi.hasil', compact('hasil'));
+        // **BAGIAN TERPENTING:** Cek apakah ini request AJAX
+        if ($request->ajax()) {
+            // Jika ya, kembalikan HANYA view untuk konten modal
+            return view('tenaga_kerja.modals.hasil', compact('hasil'))->render();
+        }
+
+        // Fallback jika diakses secara langsung (seharusnya tidak terjadi dalam alur normal)
+        // Anda perlu membuat view 'simulasi.hasil_penuh' jika ingin fallback ini berfungsi
+        return view('simulasi.hasil_penuh', compact('hasil'));
     }
 }

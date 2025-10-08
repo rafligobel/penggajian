@@ -24,7 +24,7 @@ class GajiController extends Controller
     public function index(Request $request)
     {
         $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
-        $karyawans = Karyawan::with('jabatan')->where('status_aktif', true)->orderBy('nama')->get();
+        $karyawans = Karyawan::with('jabatan')->get();
 
         $dataGaji = [];
         foreach ($karyawans as $karyawan) {

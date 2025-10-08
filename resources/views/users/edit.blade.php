@@ -38,13 +38,9 @@
                         </div>
                         <div class="form-group">
                             <label for="role">Role</label>
-                            <select name="role" id="role" class="form-control" required>
-                                <option value="admin" {{ old('role', $user->role) == 'admin' ? 'selected' : '' }}>Admin
-                                </option>
-                                <option value="bendahara" {{ old('role', $user->role) == 'Bendahara' ? 'selected' : '' }}>
-                                    Bendahara
-                                </option>
-                                {{-- Tambahkan role lain jika ada --}}
+                            <select name="role" id="role" class="form-select" required>
+                                <option value="admin" @selected(old('role', $user->role) == 'admin')>Admin</option>
+                                <option value="bendahara" @selected(old('role', $user->role) == 'bendahara')>Bendahara</option>
                             </select>
                         </div>
                     </div>

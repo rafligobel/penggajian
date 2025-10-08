@@ -42,11 +42,9 @@
                         </div>
                         <div class="form-group">
                             <label for="role">Role</label>
-                            <select name="role" id="role" class="form-control" required>
-                                <option value="">Pilih Role</option>
-                                {{-- <option value="superadmin">Super Admin</option> --}}
-                                <option value="admin">Admin</option>
-                                <option value="bendahara">Bendahara</option>
+                            <select name="role" id="role" class="form-select" required>
+                                <option value="admin" @selected(old('role', $user->role) == 'admin')>Admin</option>
+                                <option value="bendahara" @selected(old('role', $user->role) == 'bendahara')>Bendahara</option>
                             </select>
                         </div>
                     </div>

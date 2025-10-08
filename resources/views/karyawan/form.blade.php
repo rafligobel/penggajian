@@ -8,14 +8,15 @@
     @enderror
 </div>
 
-<div class="mb-3">
+{{-- EMAIL DI TABEL KARYAWAN TIDAK DIPERLUKAN LAGI, KARENA AKAN DIAMBIL DARI AKUN USER --}}
+{{-- <div class="mb-3">
     <label for="email">Email (Untuk Pengiriman Slip Gaji)</label>
     <input type="email" name="email" id="email" class="form-control @error('email') is-invalid @enderror"
         value="{{ old('email', $karyawan->email ?? '') }}">
     @error('email')
         <div class="invalid-feedback">{{ $message }}</div>
     @enderror
-</div>
+</div> --}}
 
 <div class="mb-3">
     <label for="nip">NIP</label>
@@ -26,11 +27,9 @@
     @enderror
 </div>
 
-{{-- =================== BAGIAN YANG DIUBAH =================== --}}
 <div class="mb-3">
     <label for="jabatan_id">Jabatan</label>
     <select name="jabatan_id" id="jabatan_id" class="form-control @error('jabatan_id') is-invalid @enderror">
-        {{-- TAMBAHKAN OPSI INI --}}
         <option value="">-- Tidak Ada Jabatan --</option>
         @foreach ($jabatans as $jabatan)
             <option value="{{ $jabatan->id }}"
@@ -43,12 +42,11 @@
         <div class="invalid-feedback">{{ $message }}</div>
     @enderror
 </div>
-{{-- ========================================================== --}}
 
 <div class="mb-3">
     <label for="telepon">Telepon</label>
     <input type="text" name="telepon" id="telepon" class="form-control @error('telepon') is-invalid @enderror"
-        value="{{ old('telepon', $karyawan->telepon ?? '') }}" required>
+        value="{{ old('telepon', $karyawan->telepon ?? '') }}">
     @error('telepon')
         <div class="invalid-feedback">{{ $message }}</div>
     @enderror
@@ -56,13 +54,50 @@
 
 <div class="mb-3">
     <label for="alamat">Alamat</label>
-    <textarea name="alamat" id="alamat" class="form-control @error('alamat') is-invalid @enderror" required>{{ old('alamat', $karyawan->alamat ?? '') }}</textarea>
+    <textarea name="alamat" id="alamat" class="form-control @error('alamat') is-invalid @enderror">{{ old('alamat', $karyawan->alamat ?? '') }}</textarea>
     @error('alamat')
         <div class="invalid-feedback">{{ $message }}</div>
     @enderror
 </div>
 
+{{-- --- AWAL PERUBAHAN --- --}}
+<hr>
+<h5 class="mt-4 mb-3 fw-bold text-primary">Akun Login Tenaga Kerja</h5>
+<div class="row">
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label for="user_email" class="form-label">Email Login</label>
+            <input type="email" class="form-control @error('user_email') is-invalid @enderror" id="user_email"
+                name="user_email" value="{{ old('user_email', optional($karyawan->user)->email) }}" required>
+            @error('user_email')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
+            <small class="text-muted">Email ini akan digunakan oleh tenaga kerja untuk login ke sistem.</small>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control @error('password') is-invalid @enderror" id="password"
+                name="password"
+                @if ($karyawan->exists) placeholder="Isi hanya jika ingin mengubah" @else required @endif>
+            @error('password')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
+            <small class="text-muted">
+                @if ($karyawan->exists)
+                    Kosongkan jika tidak ingin mengubah password.
+                @else
+                    Password minimal 8 karakter.
+                @endif
+            </small>
+        </div>
+    </div>
+</div>
+{{-- --- AKHIR PERUBAHAN --- --}}
+
+
 <button class="btn btn-success">
-    <i class="fas fa-save"></i> {{ isset($karyawan) ? 'Update' : 'Simpan' }}
+    <i class="fas fa-save"></i> {{ $tombol }}
 </button>
 <a href="{{ route('karyawan.index') }}" class="btn btn-secondary">Batal</a>

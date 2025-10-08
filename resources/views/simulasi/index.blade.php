@@ -11,7 +11,7 @@
                     <p class="text-muted text-center mb-4">Masukkan Nama atau NIP karyawan dan jumlah kehadiran untuk
                         mendapatkan estimasi gaji.</p>
 
-                    <form action="{{ route('simulasi.hitung') }}" method="POST">
+                    <form action="{{ route('tenaga_kerja.simulasi.hitung') }}" method="POST" id="form-simulasi">
                         @csrf
 
                         @if (session('error'))

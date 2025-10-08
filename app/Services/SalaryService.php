@@ -17,7 +17,7 @@ class SalaryService
     public function calculateDetailsForForm(Karyawan $karyawan, string $bulan): array
     {
         $karyawan->loadMissing('jabatan');
-        $tanggal = Carbon::createFromFormat('Y-m', $bulan);
+        $tanggal = Carbon::createFromFormat('Y-m-d', $bulan);
 
         $gajiTersimpan = Gaji::where('karyawan_id', $karyawan->id)
             ->where('bulan', $bulan)
@@ -71,6 +71,55 @@ class SalaryService
             'tunjangan_kehadiran_id' => $tunjanganKehadiranId,
             'tunj_kehadiran' => $tunjKehadiran,
             'gaji_bersih' => $gajiBersih,
+        ];
+    }
+
+    public function calculateSimulation(Karyawan $karyawan, array $input): array
+    {
+        $karyawan->loadMissing('jabatan');
+
+        // 1. Gunakan gaji terakhir sebagai template untuk komponen tetap
+        $templateGaji = Gaji::where('karyawan_id', $karyawan->id)
+            ->orderBy('bulan', 'desc')
+            ->first();
+
+        // Ambil tarif tunjangan kehadiran dari gaji terakhir atau default pertama
+        $tunjanganKehadiranId = optional($templateGaji)->tunjangan_kehadiran_id ?? optional(TunjanganKehadiran::first())->id;
+        $settingTunjangan = TunjanganKehadiran::find($tunjanganKehadiranId);
+        $tarifKehadiran = $settingTunjangan->jumlah_tunjangan ?? 0; // Default ke 0 jika tidak ada
+
+        // 2. Ambil komponen gaji tetap dari template
+        $gajiPokok = $templateGaji->gaji_pokok ?? 0;
+        $tunjJabatan = $karyawan->jabatan->tunj_jabatan ?? 0;
+        $tunjAnak = $templateGaji->tunj_anak ?? 0;
+        $tunjKomunikasi = $templateGaji->tunj_komunikasi ?? 0;
+        $tunjPengabdian = $templateGaji->tunj_pengabdian ?? 0;
+        $tunjKinerja = $templateGaji->tunj_kinerja ?? 0;
+
+        // 3. Ambil komponen tidak tetap dari input form simulasi
+        $jumlahHariMasuk = $input['jumlah_hari_masuk'];
+        $lembur = $input['lembur'] ?? 0;
+        $potongan = $input['potongan'] ?? 0;
+
+        // 4. Hitung tunjangan kehadiran berdasarkan input
+        $tunjKehadiran = $jumlahHariMasuk * $tarifKehadiran;
+
+        // 5. Hitung total gaji bersih simulasi
+        $gajiBersih = ($gajiPokok + $tunjJabatan + $tunjAnak + $tunjKomunikasi +
+            $tunjPengabdian + $tunjKinerja + $tunjKehadiran + $lembur) - $potongan;
+
+        // 6. Kembalikan dalam format yang dibutuhkan oleh view 'hasil.blade.php'
+        return [
+            'gaji_pokok' => $gajiPokok,
+            'tunj_jabatan' => $tunjJabatan,
+            'tunj_anak' => $tunjAnak,
+            'tunj_komunikasi' => $tunjKomunikasi,
+            'tunj_pengabdian' => $tunjPengabdian,
+            'tunj_kinerja' => $tunjKinerja,
+            'tunj_kehadiran' => $tunjKehadiran,
+            'lembur' => $lembur,
+            'potongan' => $potongan,
+            'gaji_bersih' => $gajiBersih, // Tambahkan ini untuk kemudahan
         ];
     }
 
