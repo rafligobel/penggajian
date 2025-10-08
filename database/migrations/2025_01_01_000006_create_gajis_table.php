@@ -14,8 +14,7 @@ return new class extends Migration
         Schema::create('gajis', function (Blueprint $table) {
             $table->id();
             $table->foreignId('karyawan_id')->constrained('karyawans')->onDelete('cascade');
-            $table->string('bulan', 7); // Format YYYY-MM
-
+            $table->date('bulan');
             // Kolom-kolom ini adalah INPUT MANUAL atau TEMPLATE
             $table->unsignedInteger('gaji_pokok')->default(0);
             $table->unsignedInteger('tunj_anak')->default(0);

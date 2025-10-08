@@ -45,18 +45,30 @@ class TenagaKerjaController extends Controller
 
         // --- Logika Absensi (Sudah baik, tidak ada perubahan) ---
         $today = today();
-        $statusInfo = $this->absensiService->getSessionStatus($today);
+        $sesiAbsensiHariIni = SesiAbsensi::where('tanggal', $today->format('Y-m-d'))->first();
+
         $isSesiDibuka = false;
-        $pesanSesi = $statusInfo['status'];
-        if ($statusInfo['is_active']) {
-            $now = now();
-            $waktuMulai = Carbon::parse($statusInfo['waktu_mulai']);
-            $waktuSelesai = Carbon::parse($statusInfo['waktu_selesai']);
-            if ($now->between($waktuMulai, $waktuSelesai)) {
-                $isSesiDibuka = true;
-                $pesanSesi = 'Sesi absensi sedang dibuka (' . $waktuMulai->format('H:i') . ' - ' . $waktuSelesai->format('H:i') . ').';
+        $pesanSesi = 'Sesi absensi untuk hari ini belum dibuka oleh administrator.'; // Pesan default baru
+
+        // 2. Jika ada record sesi, baru periksa waktunya
+        if ($sesiAbsensiHariIni) {
+            $statusInfo = $this->absensiService->getSessionStatus($today);
+
+            if ($statusInfo['is_active']) {
+                $now = now();
+                $waktuMulai = Carbon::parse($statusInfo['waktu_mulai']);
+                $waktuSelesai = Carbon::parse($statusInfo['waktu_selesai']);
+
+                if ($now->between($waktuMulai, $waktuSelesai)) {
+                    $isSesiDibuka = true; // Sesi HANYA dianggap buka jika record ada DAN waktu sesuai
+                    $pesanSesi = 'Sesi absensi sedang dibuka (' . $waktuMulai->format('H:i') . ' - ' . $waktuSelesai->format('H:i') . ').';
+                } else {
+                    $pesanSesi = 'Sesi absensi hari ini sudah ditutup.';
+                }
             } else {
-                $pesanSesi = 'Sesi absensi hari ini sudah ditutup.';
+                // Ini terjadi jika ada record sesi, tapi is_default=false dan tanggalnya bukan hari ini
+                // atau jika service menyatakan tidak aktif karena alasan lain (misal: hari libur manual)
+                $pesanSesi = $statusInfo['status'];
             }
         }
         $sudahAbsen = Absensi::where('nip', $karyawan->nip)->whereDate('tanggal', $today)->exists();
@@ -197,28 +209,28 @@ class TenagaKerjaController extends Controller
     }
 
 
+
     public function downloadSlipGaji(Request $request)
     {
-        // 1. Validasi input dari form
-        $request->validate([
+        // 1. Validasi input dari form tetap Y-m
+        $validated = $request->validate([
             'bulan' => 'required|date_format:Y-m',
         ]);
 
         try {
             $user = Auth::user();
             $karyawan = $user->karyawan;
-            $bulan = $request->input('bulan');
+            $tanggal = Carbon::createFromFormat('Y-m', $validated['bulan']);
 
-            // 2. Cari data Gaji berdasarkan karyawan yang login dan bulan yang dipilih
+            // 2. [PERBAIKAN] Cari data Gaji menggunakan whereYear dan whereMonth
             $gaji = Gaji::where('karyawan_id', $karyawan->id)
-                ->where('bulan', $bulan)
-                ->firstOrFail(); // Gunakan firstOrFail untuk error handling jika tidak ada
+                ->whereYear('bulan', $tanggal->year)
+                ->whereMonth('bulan', $tanggal->month)
+                ->firstOrFail();
 
-            // 3. LOGIKA PEMBUATAN PDF (diambil dari Job GenerateIndividualSlip)
-            //======================================================================
-
-            // Kalkulasi rincian gaji menggunakan service
-            $data = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan);
+            // 3. LOGIKA PEMBUATAN PDF
+            // Karena $gaji->bulan sekarang adalah objek Carbon, kita format ke Y-m-d
+            $data = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan->format('Y-m-d'));
 
             // Siapkan gambar (logo & tanda tangan)
             $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
@@ -249,7 +261,7 @@ class TenagaKerjaController extends Controller
             // 4. GENERATE NAMA FILE & RETURN SEBAGAI UNDUHAN LANGSUNG
             //======================================================================
             $safeFilename = str_replace(' ', '_', strtolower($gaji->karyawan->nama));
-            $filename = 'slip-gaji-' . $safeFilename . '-' . $gaji->bulan . '.pdf';
+            $filename = 'slip-gaji-' . $safeFilename . '-' . $gaji->bulan->format('Y-m') . '.pdf';
 
             // Hentikan eksekusi Job, dan langsung kembalikan sebagai file download
             return $pdf->download($filename);

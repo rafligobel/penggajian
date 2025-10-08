@@ -17,12 +17,23 @@ class SalaryService
     public function calculateDetailsForForm(Karyawan $karyawan, string $bulan): array
     {
         $karyawan->loadMissing('jabatan');
-        $tanggal = Carbon::createFromFormat('Y-m-d', $bulan);
 
+        $tanggal = null;
+        try {
+            // 1. Coba parsing dengan format BARU ('Y-m-d') terlebih dahulu
+            $tanggal = Carbon::createFromFormat('Y-m-d', $bulan);
+        } catch (\Carbon\Exceptions\InvalidFormatException $e) {
+            // 2. Jika gagal, coba parsing dengan format LAMA ('Y-m')
+            $tanggal = Carbon::createFromFormat('Y-m', $bulan);
+        }
+
+        // Sekarang kita menggunakan whereYear dan whereMonth agar lebih fleksibel
         $gajiTersimpan = Gaji::where('karyawan_id', $karyawan->id)
-            ->where('bulan', $bulan)
+            ->whereYear('bulan', $tanggal->year)
+            ->whereMonth('bulan', $tanggal->month)
             ->first();
 
+        // ... Sisa kode method ini sama persis seperti sebelumnya ...
         $gajiBulanLalu = null;
         if (!$gajiTersimpan) {
             $gajiBulanLalu = Gaji::where('karyawan_id', $karyawan->id)->orderBy('bulan', 'desc')->first();
@@ -40,17 +51,15 @@ class SalaryService
         $settingTunjangan = TunjanganKehadiran::find($tunjanganKehadiranId);
         $tarifKehadiran = $settingTunjangan->jumlah_tunjangan ?? 0;
 
-        // Mengambil data mentah sesuai kolom di tabel 'gajis'
-        $gajiPokok = $gajiTersimpan->gaji_pokok ?? $gajiBulanLalu->gaji_pokok ?? 0;
+        $gajiPokok = optional($gajiTersimpan)->gaji_pokok ?? optional($gajiBulanLalu)->gaji_pokok ?? 0;
         $tunjJabatan = $karyawan->jabatan->tunj_jabatan ?? 0;
-        $tunjAnak = $gajiTersimpan->tunj_anak ?? $gajiBulanLalu->tunj_anak ?? 0;
-        $tunjKomunikasi = $gajiTersimpan->tunj_komunikasi ?? $gajiBulanLalu->tunj_komunikasi ?? 0;
-        $tunjPengabdian = $gajiTersimpan->tunj_pengabdian ?? $gajiBulanLalu->tunj_pengabdian ?? 0;
-        $tunjKinerja = $gajiTersimpan->tunj_kinerja ?? $gajiBulanLalu->tunj_kinerja ?? 0;
-        $lembur = $gajiTersimpan->lembur ?? 0;
-        $potongan = $gajiTersimpan->potongan ?? 0;
+        $tunjAnak = optional($gajiTersimpan)->tunj_anak ?? optional($gajiBulanLalu)->tunj_anak ?? 0;
+        $tunjKomunikasi = optional($gajiTersimpan)->tunj_komunikasi ?? optional($gajiBulanLalu)->tunj_komunikasi ?? 0;
+        $tunjPengabdian = optional($gajiTersimpan)->tunj_pengabdian ?? optional($gajiBulanLalu)->tunj_pengabdian ?? 0;
+        $tunjKinerja = optional($gajiTersimpan)->tunj_kinerja ?? optional($gajiBulanLalu)->tunj_kinerja ?? 0;
+        $lembur = optional($gajiTersimpan)->lembur ?? 0;
+        $potongan = optional($gajiTersimpan)->potongan ?? 0;
 
-        // Kalkulasi berdasarkan data yang ada
         $tunjKehadiran = $jumlahKehadiran * $tarifKehadiran;
         $gajiBersih = ($gajiPokok + $tunjJabatan + $tunjKehadiran + $tunjAnak + $tunjKomunikasi +
             $tunjPengabdian + $tunjKinerja + $lembur) - $potongan;

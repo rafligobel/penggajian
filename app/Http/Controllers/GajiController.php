@@ -39,6 +39,7 @@ class GajiController extends Controller
     {
         $validatedData = $request->validate([
             'karyawan_id' => 'required|exists:karyawans,id',
+            // Validasi tetap Y-m karena input dari form kemungkinan besar hanya bulan dan tahun
             'bulan' => 'required|date_format:Y-m',
             'gaji_pokok' => 'required|numeric|min:0',
             'tunj_anak' => 'required|numeric|min:0',
@@ -50,8 +51,14 @@ class GajiController extends Controller
             'tunjangan_kehadiran_id' => 'required|exists:tunjangan_kehadirans,id',
         ]);
 
+        // [PERBAIKAN] Ubah format 'Y-m' menjadi 'Y-m-d' sebelum disimpan
+        // Kita asumsikan semua gaji dicatat pada tanggal 1 setiap bulannya.
+        $validatedData['bulan'] = Carbon::createFromFormat('Y-m', $validatedData['bulan'])->startOfMonth()->format('Y-m-d');
+
         $this->salaryService->saveGaji($validatedData);
+
         $karyawan = Karyawan::find($validatedData['karyawan_id']);
+        // Kirim format Y-m-d ke service untuk kalkulasi ulang
         $newData = $this->salaryService->calculateDetailsForForm($karyawan, $validatedData['bulan']);
 
         return response()->json([
