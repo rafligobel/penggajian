@@ -30,7 +30,6 @@
                     <th class="text-end">Total Tunjangan</th>
                     <th class="text-end">Total Potongan</th>
                     <th class="text-end">Gaji Bersih</th>
-                    {{-- [PERUBAHAN] Tambah kolom Aksi --}}
                     <th class="text-center">Aksi</th>
                 </tr>
             </thead>
@@ -43,20 +42,16 @@
                         <td class="text-end text-danger">(Rp {{ number_format($gaji->total_potongan, 0, ',', '.') }})
                         </td>
                         <td class="text-end fw-bold">Rp {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
-                        {{-- [PERUBAHAN] Tambah tombol Cetak PDF per baris di dalam form --}}
                         <td class="text-center">
-                            <form method="POST" action="{{ route('tenaga_kerja.laporan_gaji.cetak', $gaji->id) }}"
-                                target="_blank">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-success" title="Cetak Slip Gaji">
-                                    <i class="fas fa-print"></i> Cetak
-                                </button>
-                            </form>
+                            {{-- [PERBAIKAN] Mengubah dari <form> menjadi <a> untuk metode GET --}}
+                            <a href="{{ route('tenaga_kerja.laporan_gaji.cetak', $gaji->id) }}"
+                                class="btn btn-sm btn-success" title="Cetak Slip Gaji">
+                                <i class="fas fa-print"></i> Cetak
+                            </a>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        {{-- [PERUBAHAN] Sesuaikan colspan menjadi 6 --}}
                         <td colspan="6" class="text-center">Tidak ada data gaji untuk tahun {{ $tahun }}.
                         </td>
                     </tr>

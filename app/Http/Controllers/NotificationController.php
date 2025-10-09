@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
@@ -35,20 +36,19 @@ class NotificationController extends Controller
      */
     public function markAsRead($id)
     {
-        $notification = Auth::user()->notifications->find($id);
-
-        if (!$notification) {
-            abort(404);
-        }
+        // Gunakan findOrFail untuk keamanan
+        $notification = Auth::user()->notifications()->findOrFail($id);
         $notification->markAsRead();
 
         if (isset($notification->data['path']) && !empty($notification->data['path'])) {
             if (Storage::disk('public')->exists($notification->data['path'])) {
-                return redirect(Storage::url($notification->data['path']));
+                // Gunakan helper `response()->file()` untuk keamanan lebih
+                return response()->file(storage_path('app/public/' . $notification->data['path']));
             }
         }
 
-        return redirect()->route('notifications.index');
+        // Redirect dengan pesan jika file tidak ditemukan
+        return redirect()->route('notifications.index')->with('error', 'File tidak ditemukan atau telah dihapus.');
     }
 
     /**

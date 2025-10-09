@@ -7,16 +7,16 @@
             <div class="col-md-4">
 
                 <!-- Logo diperkecil -->
-                <div class="text-center mb-3">
+                <div class="text-center mb-1">
                     <a href="/">
                         <x-application-logo style="width: 70px; height: 70px; margin: auto;" />
                     </a>
                 </div>
 
-                <div class="card border-0 shadow-sm">
+                <div class="card border-0 shadow-sm row justify-content-center">
                     {{-- Padding diperkecil dari p-4 menjadi p-3 --}}
-                    <div class="card-body p-4">
-                        <div class="text-center mb-4">
+                    <div class="card-body p-1">
+                        <div class="text-center mb-1">
                             <h3 class="fw-bold">Selamat Datang</h3>
                             <p class="text-muted small">Silakan login untuk melanjutkan</p>
                         </div>

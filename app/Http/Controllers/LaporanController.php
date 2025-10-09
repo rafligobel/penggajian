@@ -183,63 +183,13 @@ class LaporanController extends Controller
     {
         $periode = $request->input('periode', date('Y-m'));
         $selectedMonth = Carbon::createFromFormat('Y-m', $periode);
-        $daysInMonth = $selectedMonth->daysInMonth;
 
-        // Menghitung hari kerja efektif dalam sebulan menggunakan AbsensiService
-        $workingDaysCount = 0;
-        $workingDaysMap = [];
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $currentDate = $selectedMonth->copy()->setDay($day);
-            if ($this->absensiService->getSessionStatus($currentDate)['is_active']) {
-                $workingDaysCount++;
-                $workingDaysMap[$day] = true;
-            } else {
-                $workingDaysMap[$day] = false;
-            }
-        }
+        // [PERBAIKAN] Panggil logika terpusat dari service
+        $rekap = $this->absensiService->getAttendanceRecap($selectedMonth);
 
-        $karyawans = Karyawan::where('status_aktif', true)->orderBy('nama')->get();
-        $absensiBulanIniGrouped = Absensi::whereYear('tanggal', $selectedMonth->year)
-            ->whereMonth('tanggal', $selectedMonth->month)
-            ->get()
-            ->groupBy('nip');
+        $rekapData = $rekap['rekapData'];
+        $daysInMonth = $rekap['daysInMonth'];
 
-        $rekapData = [];
-        foreach ($karyawans as $karyawan) {
-            $karyawanAbsensi = $absensiBulanIniGrouped->get($karyawan->nip, collect());
-            $totalHadir = $karyawanAbsensi->count();
-            $totalAlpha = $workingDaysCount - $totalHadir;
-
-            // Membuat detail absensi harian untuk kalender
-            $harian = [];
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $absenPadaHariIni = $karyawanAbsensi->firstWhere(fn($item) => Carbon::parse($item->tanggal)->day == $day);
-                $status = '-'; // Default untuk hari libur atau non-aktif
-
-                if ($workingDaysMap[$day]) { // Jika ini adalah hari kerja
-                    $status = $absenPadaHariIni ? 'H' : 'A';
-                }
-
-                $harian[$day] = [
-                    'status' => $status,
-                    'jam' => $absenPadaHariIni ? Carbon::parse($absenPadaHariIni->jam)->format('H:i') : '-',
-                ];
-            }
-
-            $rekapData[] = (object)[
-                'id' => $karyawan->id,
-                'nip' => $karyawan->nip,
-                'nama' => $karyawan->nama,
-                'email' => $karyawan->email,
-                'summary' => [
-                    'total_hadir' => $totalHadir,
-                    'total_alpha' => $totalAlpha < 0 ? 0 : $totalAlpha,
-                ],
-                'detail' => $harian, // Mengirim data harian ke view
-            ];
-        }
-
-        // Mengirim variabel yang dibutuhkan oleh view baru
         return view('laporan.laporan_absensi', compact('rekapData', 'selectedMonth', 'daysInMonth'));
     }
 

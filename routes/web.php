@@ -38,8 +38,18 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-    Route::post('/notifications/delete-selected', [NotificationController::class, 'deleteSelected'])->name('notifications.deleteSelected');
+
+    // Menghapus notifikasi yang dipilih (checkbox)
+    // Diubah dari POST menjadi DELETE sesuai dengan @method('DELETE') di form Anda
+    Route::delete('/notifications/delete-selected', [NotificationController::class, 'deleteSelected'])->name('notifications.deleteSelected');
+
+    // [BARU] Menghapus semua notifikasi milik user yang sedang login
+    Route::delete('/notifications/delete-all', [NotificationController::class, 'deleteAll'])->name('notifications.deleteAll');
+
+    // Menandai semua notifikasi sebagai sudah dibaca
     Route::get('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+
+    // Menandai notifikasi spesifik sebagai sudah dibaca (saat klik link)
     Route::get('/notifications/mark-as-read/{id}', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
 });
 
@@ -106,7 +116,7 @@ Route::middleware(['auth', 'role:tenaga_kerja'])->prefix('tenaga-kerja')->name('
 
     Route::post('/slip-gaji/download', [TenagaKerjaController::class, 'downloadSlipGaji'])
         ->name('slip_gaji.download'); // <-- Nama route yang benar: 'tenaga_kerja.slip_gaji.download'
-    Route::post('/laporan-gaji/{gaji}/cetak', [TenagaKerjaController::class, 'cetakLaporanGaji'])
+    Route::get('/laporan-gaji/{gaji}/cetak', [TenagaKerjaController::class, 'cetakLaporanGaji'])
         ->name('laporan_gaji.cetak');
 });
 

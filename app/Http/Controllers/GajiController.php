@@ -23,11 +23,15 @@ class GajiController extends Controller
 
     public function index(Request $request)
     {
+        // Pastikan kita selalu bekerja dengan format Y-m untuk tampilan
         $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
-        $karyawans = Karyawan::with('jabatan')->get();
+
+        // [PERBAIKAN] Eager load relasi yang dibutuhkan untuk performa
+        $karyawans = Karyawan::with('jabatan')->where('status_aktif', true)->orderBy('nama')->get();
 
         $dataGaji = [];
         foreach ($karyawans as $karyawan) {
+            // Service akan menangani logika kalkulasi
             $dataGaji[] = $this->salaryService->calculateDetailsForForm($karyawan, $selectedMonth);
         }
 
@@ -39,8 +43,7 @@ class GajiController extends Controller
     {
         $validatedData = $request->validate([
             'karyawan_id' => 'required|exists:karyawans,id',
-            // Validasi tetap Y-m karena input dari form kemungkinan besar hanya bulan dan tahun
-            'bulan' => 'required|date_format:Y-m',
+            'bulan' => 'required|date_format:Y-m', // Validasi tetap Y-m dari form
             'gaji_pokok' => 'required|numeric|min:0',
             'tunj_anak' => 'required|numeric|min:0',
             'tunj_komunikasi' => 'required|numeric|min:0',
@@ -51,14 +54,12 @@ class GajiController extends Controller
             'tunjangan_kehadiran_id' => 'required|exists:tunjangan_kehadirans,id',
         ]);
 
-        // [PERBAIKAN] Ubah format 'Y-m' menjadi 'Y-m-d' sebelum disimpan
-        // Kita asumsikan semua gaji dicatat pada tanggal 1 setiap bulannya.
-        $validatedData['bulan'] = Carbon::createFromFormat('Y-m', $validatedData['bulan'])->startOfMonth()->format('Y-m-d');
-
+        // [PERBAIKAN] Tidak perlu konversi tanggal di controller. Biarkan service yang menangani.
         $this->salaryService->saveGaji($validatedData);
 
         $karyawan = Karyawan::find($validatedData['karyawan_id']);
-        // Kirim format Y-m-d ke service untuk kalkulasi ulang
+
+        // Panggil kembali service untuk mendapatkan data terbaru yang akan dikirim ke view via JSON
         $newData = $this->salaryService->calculateDetailsForForm($karyawan, $validatedData['bulan']);
 
         return response()->json([
@@ -67,7 +68,6 @@ class GajiController extends Controller
             'newData' => $newData
         ]);
     }
-
     public function downloadSlip(Gaji $gaji)
     {
         GenerateIndividualSlip::dispatch($gaji->id, Auth::id());

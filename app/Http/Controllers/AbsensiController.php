@@ -124,65 +124,14 @@ class AbsensiController extends Controller
         try {
             $request->validate(['bulan' => 'required|date_format:Y-m']);
             $selectedMonth = Carbon::createFromFormat('Y-m', $request->bulan);
-            $daysInMonth = $selectedMonth->daysInMonth;
 
-            $workingDaysCount = 0;
-            $workingDaysMap = [];
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $currentDate = $selectedMonth->copy()->setDay($day);
-                $statusInfo = $this->absensiService->getSessionStatus($currentDate);
-                if ($statusInfo['is_active']) {
-                    $workingDaysCount++;
-                    $workingDaysMap[$day] = true;
-                } else {
-                    $workingDaysMap[$day] = false;
-                }
-            }
-
-            $karyawans = Karyawan::where('status_aktif', true)->orderBy('nama')->get();
-            $absensiBulanIniGrouped = Absensi::whereYear('tanggal', $selectedMonth->year)
-                ->whereMonth('tanggal', $selectedMonth->month)
-                ->get()
-                ->groupBy('nip');
-
-            $rekapData = [];
-            foreach ($karyawans as $karyawan) {
-                $karyawanAbsensi = $absensiBulanIniGrouped->get($karyawan->nip, collect());
-                $totalHadir = $karyawanAbsensi->count();
-                $totalAlpha = $workingDaysCount - $totalHadir;
-
-                $harian = [];
-                for ($day = 1; $day <= $daysInMonth; $day++) {
-                    $absenPadaHariIni = $karyawanAbsensi->firstWhere(fn($item) => Carbon::parse($item->tanggal)->day == $day);
-                    $status = '-';
-
-                    if ($workingDaysMap[$day]) {
-                        $status = $absenPadaHariIni ? 'H' : 'A';
-                    }
-
-                    $harian[$day] = [
-                        'status' => $status,
-                        'jam' => $absenPadaHariIni ? Carbon::parse($absenPadaHariIni->jam)->format('H:i') : '-',
-                    ];
-                }
-
-                $rekapData[] = [
-                    'nip' => $karyawan->nip,
-                    'nama' => $karyawan->nama,
-                    'ringkasan' => [
-                        'hadir' => $totalHadir,
-                        'sakit' => 0,
-                        'izin' => 0,
-                        'alpha' => $totalAlpha < 0 ? 0 : $totalAlpha,
-                    ],
-                    'detail' => $harian,
-                ];
-            }
+            // [PERBAIKAN] Panggil logika terpusat dari service
+            $rekap = $this->absensiService->getAttendanceRecap($selectedMonth);
 
             return response()->json([
-                'rekap' => $rekapData,
+                'rekap' => $rekap['rekapData'],
                 'nama_bulan' => $selectedMonth->translatedFormat('F Y'),
-                'total_hari_kerja' => $workingDaysCount,
+                'total_hari_kerja' => $rekap['workingDaysCount'],
             ]);
         } catch (Exception $e) {
             return response()->json([

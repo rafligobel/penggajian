@@ -11,8 +11,8 @@ use App\Models\Absensi;
 use App\Models\TunjanganKehadiran;
 use App\Models\SesiAbsensi;
 use App\Services\AbsensiService;
-use App\Services\SalaryService; // BARU: Impor SalaryService
-use App\Jobs\GenerateIndividualSlip; // <-- Tambahkan ini
+use App\Services\SalaryService;
+use App\Jobs\GenerateIndividualSlip;
 
 use App\Models\TandaTangan;
 use App\Traits\ManagesImageEncoding;
@@ -27,69 +27,75 @@ class TenagaKerjaController extends Controller
     use ManagesImageEncoding;
 
     protected AbsensiService $absensiService;
-    protected SalaryService $salaryService; // BARU: Properti untuk SalaryService
+    protected SalaryService $salaryService;
 
-    // PERUBAHAN: Inject AbsensiService dan SalaryService
     public function __construct(AbsensiService $absensiService, SalaryService $salaryService)
     {
         $this->absensiService = $absensiService;
         $this->salaryService = $salaryService;
     }
 
-    // ... method dashboard() dan prosesAbsensi() tidak ada perubahan ...
-
     public function dashboard(Request $request)
     {
         $user = Auth::user();
         $karyawan = $user->karyawan;
 
-        // --- Logika Absensi (Sudah baik, tidak ada perubahan) ---
+        // ======================================================================================
+        // [PERBAIKAN 1: LOGIKA ABSENSI]
+        // Logika sebelumnya salah karena hanya memeriksa SesiAbsensi spesifik untuk hari ini
+        // dan mengabaikan sesi default. Logika baru ini selalu menggunakan AbsensiService
+        // yang sudah dirancang untuk menangani kedua kasus (spesifik dan default) dengan benar.
+        // ======================================================================================
         $today = today();
-        $sesiAbsensiHariIni = SesiAbsensi::where('tanggal', $today->format('Y-m-d'))->first();
+        $statusInfo = $this->absensiService->getSessionStatus($today); // Langsung gunakan service
 
         $isSesiDibuka = false;
-        $pesanSesi = 'Sesi absensi untuk hari ini belum dibuka oleh administrator.'; // Pesan default baru
+        $pesanSesi = $statusInfo['status']; // Ambil pesan default dari service
 
-        // 2. Jika ada record sesi, baru periksa waktunya
-        if ($sesiAbsensiHariIni) {
-            $statusInfo = $this->absensiService->getSessionStatus($today);
+        // Cek apakah sesi aktif DAN waktunya sesuai
+        if ($statusInfo['is_active']) {
+            $now = now();
+            $waktuMulai = Carbon::parse($statusInfo['waktu_mulai']);
+            $waktuSelesai = Carbon::parse($statusInfo['waktu_selesai']);
 
-            if ($statusInfo['is_active']) {
-                $now = now();
-                $waktuMulai = Carbon::parse($statusInfo['waktu_mulai']);
-                $waktuSelesai = Carbon::parse($statusInfo['waktu_selesai']);
-
-                if ($now->between($waktuMulai, $waktuSelesai)) {
-                    $isSesiDibuka = true; // Sesi HANYA dianggap buka jika record ada DAN waktu sesuai
-                    $pesanSesi = 'Sesi absensi sedang dibuka (' . $waktuMulai->format('H:i') . ' - ' . $waktuSelesai->format('H:i') . ').';
-                } else {
-                    $pesanSesi = 'Sesi absensi hari ini sudah ditutup.';
-                }
-            } else {
-                // Ini terjadi jika ada record sesi, tapi is_default=false dan tanggalnya bukan hari ini
-                // atau jika service menyatakan tidak aktif karena alasan lain (misal: hari libur manual)
-                $pesanSesi = $statusInfo['status'];
+            if ($now->between($waktuMulai, $waktuSelesai)) {
+                $isSesiDibuka = true;
+                $pesanSesi = 'Sesi absensi sedang dibuka (' . $waktuMulai->format('H:i') . ' - ' . $waktuSelesai->format('H:i') . ').';
+            } else if ($now->isAfter($waktuSelesai)) {
+                $pesanSesi = 'Sesi absensi hari ini sudah ditutup.';
+            } else { // $now->isBefore($waktuMulai)
+                $pesanSesi = 'Sesi absensi hari ini akan dibuka pada pukul ' . $waktuMulai->format('H:i') . '.';
             }
         }
+
         $sudahAbsen = Absensi::where('nip', $karyawan->nip)->whereDate('tanggal', $today)->exists();
-        $absensiBulanIni = Absensi::where('nip', $karyawan->nip)->whereMonth('tanggal', now()->month)->count();
+
+        // ======================================================================================
+        // [PERBAIKAN 2: KEHADIRAN BULAN INI]
+        // Menambahkan filter `whereYear()` untuk memastikan hanya kehadiran di tahun ini yang dihitung,
+        // mencegah data dari tahun sebelumnya ikut terhitung.
+        // ======================================================================================
+        $absensiBulanIni = Absensi::where('nip', $karyawan->nip)
+            ->whereYear('tanggal', now()->year)
+            ->whereMonth('tanggal', now()->month)
+            ->count();
+
+        // [INFO] Logika Gaji Terakhir Diterima sudah benar, tidak perlu diubah.
         $gajiTerbaru = $karyawan->gajis()->orderBy('bulan', 'desc')->first();
 
-        // --- Logika untuk Modal Laporan Gaji (Dengan Optimasi) ---
+        // --- Logika untuk Modal Laporan Gaji ---
         $tahunLaporan = $request->input('tahun', date('Y'));
         $laporanTersedia = Gaji::where('karyawan_id', $karyawan->id)
-            ->whereNotNull('bulan') // <-- TAMBAHKAN BARIS INI
+            ->whereNotNull('bulan')
             ->selectRaw('YEAR(bulan) as year')
             ->distinct()->orderBy('year', 'desc')->pluck('year');
 
         $laporanGaji = Gaji::where('karyawan_id', $karyawan->id)
             ->whereYear('bulan', $tahunLaporan)
             ->orderBy('bulan', 'asc')
-            ->with('tunjanganKehadiran', 'karyawan.jabatan') // Eager load relasi
+            ->with('tunjanganKehadiran', 'karyawan.jabatan')
             ->get();
-        // dd($laporanTersedia, $tahunLaporan, $laporanGaji);
 
-        // [OPTIMASI] Ambil semua data absensi untuk tahun yang dipilih dalam satu query.
         $rekapAbsensiPerBulan = Absensi::where('nip', $karyawan->nip)
             ->whereYear('tanggal', $tahunLaporan)
             ->selectRaw('DATE_FORMAT(tanggal, "%Y-%m") as bulan, COUNT(*) as jumlah_hadir')
@@ -98,10 +104,8 @@ class TenagaKerjaController extends Controller
 
         foreach ($laporanGaji as $gaji) {
             $tunjanganDariJabatan = $gaji->karyawan->jabatan->tunjangan_jabatan ?? 0;
-
-            // [OPTIMASI] Gunakan data absensi yang sudah diambil, bukan query baru.
-            $totalKehadiran = $rekapAbsensiPerBulan->get($gaji->bulan, 0); // Default 0 jika tidak ada data
-
+            $bulanKey = $gaji->bulan->format('Y-m');
+            $totalKehadiran = $rekapAbsensiPerBulan->get($bulanKey, 0);
             $tunjanganPerKehadiran = $gaji->tunjanganKehadiran->nominal_per_hari ?? 0;
             $totalTunjanganKehadiran = $totalKehadiran * $tunjanganPerKehadiran;
 
@@ -109,7 +113,6 @@ class TenagaKerjaController extends Controller
             $gaji->total_potongan = $gaji->potongan;
         }
 
-        // --- Logika untuk Modal Slip Gaji (Sudah baik, tidak ada perubahan) ---
         $slipTersedia = Gaji::where('karyawan_id', $karyawan->id)
             ->orderBy('bulan', 'desc')->pluck('bulan');
 
@@ -129,57 +132,81 @@ class TenagaKerjaController extends Controller
 
     public function prosesAbsensi(Request $request)
     {
+        // 1. Validasi input dari frontend, sekarang harus ada koordinat
+        $request->validate([
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+        ]);
+
+        // 2. Logika validasi radius
+        $officeLatitude = (float) env('OFFICE_LATITUDE');
+        $officeLongitude = (float) env('OFFICE_LONGITUDE');
+        $maxRadius = (int) env('MAX_ATTENDANCE_RADIUS');
+
+        $distance = $this->hitungJarak($request->latitude, $request->longitude, $officeLatitude, $officeLongitude);
+
+        if ($distance > $maxRadius) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda berada di luar area sekolah Al-Azhar! Jarak Anda ' . round($distance) . ' meter.'
+            ], 422); // Unprocessable Entity
+        }
+
+        // 3. Logika absensi yang sudah ada (sesi, cek duplikat)
         $karyawan = Auth::user()->karyawan;
         $now = now();
         $today = $now->copy()->startOfDay();
 
-        // --- [PERBAIKAN TOTAL LOGIKA PROSES ABSENSI] ---
-
-        // 1. Cek status sesi melalui service
         $statusInfo = $this->absensiService->getSessionStatus($today);
         if (!$statusInfo['is_active'] || !$now->between(Carbon::parse($statusInfo['waktu_mulai']), Carbon::parse($statusInfo['waktu_selesai']))) {
-            return redirect()->route('tenaga_kerja.dashboard')->with('info', 'Sesi absensi sedang tidak dibuka saat ini.');
+            return response()->json(['status' => 'error', 'message' => 'Sesi absensi sedang tidak dibuka saat ini.'], 403);
         }
 
-        // 2. Cek apakah sudah absen menggunakan 'nip'
-        $sudahAbsen = Absensi::where('nip', $karyawan->nip)
-            ->whereDate('tanggal', $today)
-            ->exists();
-
+        $sudahAbsen = Absensi::where('nip', $karyawan->nip)->whereDate('tanggal', $today)->exists();
         if ($sudahAbsen) {
-            return redirect()->route('tenaga_kerja.dashboard')
-                ->with('info', 'Anda sudah melakukan absensi hari ini.');
+            return response()->json(['status' => 'error', 'message' => 'Anda sudah melakukan absensi hari ini.'], 409);
         }
 
-        // 3. Dapatkan Sesi Absensi ID yang aktif (wajib ada)
         $sesiAbsensi = SesiAbsensi::where('tanggal', $today->format('Y-m-d'))->first() ?? SesiAbsensi::where('is_default', true)->first();
         if (!$sesiAbsensi) {
-            return redirect()->route('tenaga_kerja.dashboard')->with('info', 'Sistem tidak dapat menemukan sesi absensi yang valid.');
+            return response()->json(['status' => 'error', 'message' => 'Sistem tidak dapat menemukan sesi absensi yang valid.'], 500);
         }
 
-        // 4. Simpan data absensi baru sesuai struktur tabel
+        // 4. Simpan absensi ke database DENGAN koordinat
         Absensi::create([
-            'sesi_absensi_id' => $sesiAbsensi->id, // Kolom wajib
+            'sesi_absensi_id' => $sesiAbsensi->id,
             'nip' => $karyawan->nip,
             'nama' => $karyawan->nama,
             'tanggal' => $now->toDateString(),
             'jam' => $now->toTimeString(),
-            // Kolom 'status' tidak ada di migrasi, jadi dihapus
+            'koordinat' => $request->latitude . ',' . $request->longitude, // Simpan koordinat
         ]);
 
-        // --- [AKHIR PERBAIKAN] ---
-
-        return redirect()->route('tenaga_kerja.dashboard')
-            ->with('success', 'Absensi berhasil! Terima kasih telah melakukan absensi hari ini.');
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Absensi berhasil! Terima kasih telah melakukan absensi hari ini.'
+        ]);
     }
 
     /**
-     * PERBAIKAN TOTAL: Method hitungSimulasi kini mendelegasikan
-     * seluruh proses kalkulasi ke SalaryService untuk konsistensi.
+     * Fungsi helper untuk menghitung jarak.
+     * Cukup salin fungsi ini ke bagian bawah controller Anda.
      */
+    private function hitungJarak($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371000;
+        $latFrom = deg2rad($lat1);
+        $lonFrom = deg2rad($lon1);
+        $latTo = deg2rad($lat2);
+        $lonTo = deg2rad($lon2);
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) + cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+        return $angle * $earthRadius;
+    }
+
     public function hitungSimulasi(Request $request)
     {
-        // PERBAIKAN: Validasi semua input yang dikirim dari form simulasi
         $validatedData = $request->validate([
             'jumlah_hari_masuk' => 'required|integer|min:0',
             'lembur'            => 'nullable|numeric|min:0',
@@ -191,11 +218,8 @@ class TenagaKerjaController extends Controller
         ]);
 
         $karyawan = Auth::user()->karyawan;
-
-        // Panggil service untuk melakukan kalkulasi dengan SEMUA data tervalidasi
         $hasilRincian = $this->salaryService->calculateSimulation($karyawan, $validatedData);
 
-        // Siapkan data untuk dikirim ke view hasil.blade.php
         $hasil = [
             'karyawan'          => $karyawan,
             'jumlah_hari_masuk' => $validatedData['jumlah_hari_masuk'],
@@ -205,14 +229,11 @@ class TenagaKerjaController extends Controller
 
         return redirect()->route('tenaga_kerja.dashboard')
             ->with('hasil_simulasi', $hasil)
-            ->with('show_modal', 'hasilSimulasiModal'); // Pastikan show_modal dikirim
+            ->with('show_modal', 'hasilSimulasiModal');
     }
-
-
 
     public function downloadSlipGaji(Request $request)
     {
-        // 1. Validasi input dari form tetap Y-m
         $validated = $request->validate([
             'bulan' => 'required|date_format:Y-m',
         ]);
@@ -222,32 +243,25 @@ class TenagaKerjaController extends Controller
             $karyawan = $user->karyawan;
             $tanggal = Carbon::createFromFormat('Y-m', $validated['bulan']);
 
-            // 2. [PERBAIKAN] Cari data Gaji menggunakan whereYear dan whereMonth
             $gaji = Gaji::where('karyawan_id', $karyawan->id)
                 ->whereYear('bulan', $tanggal->year)
                 ->whereMonth('bulan', $tanggal->month)
                 ->firstOrFail();
 
-            // 3. LOGIKA PEMBUATAN PDF
-            // Karena $gaji->bulan sekarang adalah objek Carbon, kita format ke Y-m-d
             $data = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan->format('Y-m-d'));
 
-            // Siapkan gambar (logo & tanda tangan)
             $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
             $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
 
-            // Ambil data bendahara
             $bendaharaUser = \App\Models\User::where('role', 'bendahara')->first();
             $bendaharaNama = $bendaharaUser ? $bendaharaUser->name : 'Bendahara Umum';
 
-            // Ambil tanda tangan bendahara
             $tandaTanganBendahara = '';
             $pengaturanTtd = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
             if ($pengaturanTtd && Storage::disk('public')->exists($pengaturanTtd->value)) {
                 $tandaTanganBendahara = $this->getImageAsBase64DataUri(storage_path('app/public/' . $pengaturanTtd->value));
             }
 
-            // Generate PDF menggunakan view yang sama dengan bendahara
             $pdf = Pdf::loadView('gaji.slip_pdf', [
                 'data' => $data,
                 'gaji' => $gaji,
@@ -258,46 +272,48 @@ class TenagaKerjaController extends Controller
             ]);
             $pdf->setPaper('A4', 'portrait');
 
-            // 4. GENERATE NAMA FILE & RETURN SEBAGAI UNDUHAN LANGSUNG
-            //======================================================================
             $safeFilename = str_replace(' ', '_', strtolower($gaji->karyawan->nama));
             $filename = 'slip-gaji-' . $safeFilename . '-' . $gaji->bulan->format('Y-m') . '.pdf';
 
-            // Hentikan eksekusi Job, dan langsung kembalikan sebagai file download
             return $pdf->download($filename);
         } catch (Throwable $e) {
-            // Jika terjadi error (misal: gaji tidak ditemukan, file logo hilang, dll)
             Log::error('Gagal membuat slip PDF langsung untuk karyawan: ' . $e->getMessage(), ['exception' => $e]);
             return redirect()->back()->with('error', 'Terjadi kesalahan saat membuat slip gaji. Silakan hubungi administrator.');
         }
     }
 
-
     public function cetakLaporanGaji(Gaji $gaji)
     {
-        // 1. PENTING: Lakukan otorisasi untuk memastikan karyawan hanya bisa mengunduh slip gajinya sendiri.
+        // Autorisasi: Pastikan karyawan hanya bisa mengakses slip gajinya sendiri
         if ($gaji->karyawan_id !== Auth::user()->karyawan->id) {
             abort(403, 'Anda tidak diizinkan mengakses slip gaji ini.');
         }
 
         try {
-            // 2. LOGIKA PEMBUATAN PDF (Sama persis seperti downloadSlipGaji)
-            // Kalkulasi rincian gaji menggunakan service
-            $data = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan);
+            // [PERBAIKAN 1]
+            // Mengirim 'bulan' sebagai string dengan format 'Y-m-d' yang diharapkan oleh SalaryService.
+            // Sebelumnya, objek Carbon lengkap dikirim, yang bisa menyebabkan kesalahan parsing.
+            $data = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan->format('Y-m-d'));
 
-            // Siapkan gambar (logo & tanda tangan)
+            // [PERBAIKAN 2]
+            // Menghapus baris dd($data); yang menghentikan eksekusi skrip.
+            // Ini adalah penyebab utama mengapa PDF tidak pernah dibuat.
+
+            // Mempersiapkan data untuk PDF (logo, nama bendahara, tanda tangan)
             $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
             $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
+
             $bendaharaUser = \App\Models\User::where('role', 'bendahara')->first();
             $bendaharaNama = $bendaharaUser ? $bendaharaUser->name : 'Bendahara Umum';
+
             $tandaTanganBendahara = '';
-            $pengaturanTtd = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
-            if ($pengaturanTtd && Storage::disk('public')->exists($pengaturanTtd->value)) {
+            $pengaturanTtd = \App\Models\TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
+            if ($pengaturanTtd && \Illuminate\Support\Facades\Storage::disk('public')->exists($pengaturanTtd->value)) {
                 $tandaTanganBendahara = $this->getImageAsBase64DataUri(storage_path('app/public/' . $pengaturanTtd->value));
             }
 
-            // Generate PDF
-            $pdf = Pdf::loadView('gaji.slip_pdf', [
+            // Membuat PDF
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('gaji.slip_pdf', [
                 'data' => $data,
                 'gaji' => $gaji,
                 'logoAlAzhar' => $logoAlAzhar,
@@ -307,12 +323,15 @@ class TenagaKerjaController extends Controller
             ]);
             $pdf->setPaper('A4', 'portrait');
 
-            // 3. GENERATE NAMA FILE & RETURN SEBAGAI UNDUHAN LANGSUNG
+            // Membuat nama file yang aman dan deskriptif
             $safeFilename = str_replace(' ', '_', strtolower($gaji->karyawan->nama));
-            $filename = 'slip-gaji-' . $safeFilename . '-' . $gaji->bulan . '.pdf';
+            $filename = 'slip-gaji-' . $safeFilename . '-' . $gaji->bulan->format('Y-m') . '.pdf';
+
+            // Mengirim file PDF ke browser untuk diunduh
             return $pdf->download($filename);
-        } catch (Throwable $e) {
-            Log::error('Gagal membuat slip PDF dari Laporan Gaji: ' . $e->getMessage(), ['exception' => $e]);
+        } catch (\Throwable $e) {
+            // Jika terjadi error, catat log dan kembalikan ke halaman sebelumnya dengan pesan error
+            \Illuminate\Support\Facades\Log::error('Gagal membuat slip PDF dari Laporan Gaji: ' . $e->getMessage(), ['exception' => $e]);
             return redirect()->back()->with('error', 'Terjadi kesalahan saat membuat slip gaji. Silakan hubungi administrator.');
         }
     }

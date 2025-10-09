@@ -91,6 +91,17 @@
                             </div>
                         </a>
                     </div>
+                    <div class="col-md-4">
+                        <a href="{{ route('laporan.gaji.bulanan') }}" class="text-decoration-none">
+                            <div class="card card-menu shadow-sm">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-chart-line fa-3x text-warning mb-2"></i>
+                                    <h5 class="card-title">Lihat Laporan</h5>
+                                    <p class="card-text text-muted">Cetak laporan gaji bulanan.</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
                 @endif
                 @if (Auth::user()->role === 'admin')
                     <div class="col-md-4">
@@ -105,17 +116,7 @@
                         </a>
                     </div>
                 @endif
-                <div class="col-md-4">
-                    <a href="{{ route('laporan.gaji.bulanan') }}" class="text-decoration-none">
-                        <div class="card card-menu shadow-sm">
-                            <div class="card-body text-center">
-                                <i class="fas fa-chart-line fa-3x text-warning mb-2"></i>
-                                <h5 class="card-title">Lihat Laporan</h5>
-                                <p class="card-text text-muted">Cetak laporan gaji bulanan.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
+
             </div>
         </div>
     </div>

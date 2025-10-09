@@ -64,30 +64,32 @@
 <body>
 
     <div class="container text-center">
-        <header class="mb-5">
+        <header class="mb-2">
             <img src="{{ asset('logo/logoalazhar.png') }}" alt="Logo Al-Azhar" style="max-height: 90px;" class="mb-3">
-            <h1 class="brand-title h2">Sistem Informasi Kepegawaian & Penggajian</h1>
+            <h1 class="brand-title h2">Sistem Informasi Penggajian & Kepegawaian</h1>
             <h2 class="brand-subtitle h5 fw-normal">Sekolah Islam Al-Azhar 43 Gorontalo</h2>
         </header>
 
         <main class="row justify-content-center g-4">
             {{-- Kartu Login untuk Tenaga Kerja (Absensi & Slip Gaji) --}}
-            <div class="col-11 col-sm-8 col-md-6 col-lg-4">
-                <div class="card card-menu shadow-sm">
-                    <div class="card-body p-4">
+            <div class="col-11 col-sm-8 col-md-6 col-lg-4 shadow-sm">
+                <a href="{{ route('login') }}" class="btn btn-primary w-100 mt-3">Selnjutnya..</a>
+
+                {{-- <div class="card card-menu shadow-sm">
+                    {{-- <div class="card-body p-4">
                         <div>
                             <i class="fas fa-user-check card-icon text-primary"></i>
                             <h5 class="card-title fw-bold">Portal Tenaga Kerja</h5>
-                            <p class="card-text text-muted small">Masuk untuk melakukan absensi, melihat laporan, dan
-                                mengunduh slip gaji.</p>
+                            {{-- <p class="card-text text-muted small">Masuk untuk melakukan absensi, melihat laporan, dan
+                                        mengunduh slip gaji.</p> 
                         </div>
-                        <a href="{{ route('login') }}" class="btn btn-primary w-100 mt-3">Login Tenaga Kerja</a>
+                        <a href="{{ route('login') }}" class="btn btn-primary w-100 mt-3">Login</a>
                     </div>
-                </div>
+                </div> --}}
             </div>
 
             {{-- Kartu Login untuk Admin/Bendahara --}}
-            <div class="col-11 col-sm-8 col-md-6 col-lg-4">
+            {{-- <div class="col-11 col-sm-8 col-md-6 col-lg-4">
                 <div class="card card-menu shadow-sm">
                     <div class="card-body p-4">
                         <div>
@@ -99,7 +101,7 @@
                         <a href="{{ route('login') }}" class="btn btn-success w-100 mt-3">Login Pengelola</a>
                     </div>
                 </div>
-            </div>
+            </div> --}}
 
             {{-- Kartu Simulasi Gaji (Publik) --}}
             {{-- <div class="col-11 col-sm-8 col-md-6 col-lg-4">

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Absensi;
+use App\Models\Karyawan;
 use App\Models\SesiAbsensi;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -12,6 +14,70 @@ class AbsensiService
     /**
      * Mengambil daftar hari libur nasional dari API.
      */
+    public function getAttendanceRecap(Carbon $selectedMonth): array
+    {
+        $daysInMonth = $selectedMonth->daysInMonth;
+
+        // Hitung hari kerja efektif dalam sebulan
+        $workingDaysCount = 0;
+        $workingDaysMap = [];
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $currentDate = $selectedMonth->copy()->setDay($day);
+            if ($this->getSessionStatus($currentDate)['is_active']) {
+                $workingDaysCount++;
+                $workingDaysMap[$day] = true;
+            } else {
+                $workingDaysMap[$day] = false;
+            }
+        }
+
+        $karyawans = Karyawan::where('status_aktif', true)->orderBy('nama')->get();
+        $absensiBulanIniGrouped = Absensi::whereYear('tanggal', $selectedMonth->year)
+            ->whereMonth('tanggal', $selectedMonth->month)
+            ->get()
+            ->groupBy('nip');
+
+        $rekapData = [];
+        foreach ($karyawans as $karyawan) {
+            $karyawanAbsensi = $absensiBulanIniGrouped->get($karyawan->nip, collect());
+            $totalHadir = $karyawanAbsensi->count();
+            $totalAlpha = max(0, $workingDaysCount - $totalHadir); // max(0, ...) untuk mencegah nilai negatif
+
+            $harian = [];
+            for ($day = 1; $day <= $daysInMonth; $day++) {
+                $absenPadaHariIni = $karyawanAbsensi->firstWhere(fn($item) => Carbon::parse($item->tanggal)->day == $day);
+                $status = '-'; // Default untuk hari non-kerja
+
+                if ($workingDaysMap[$day]) { // Jika ini hari kerja
+                    $status = $absenPadaHariIni ? 'H' : 'A';
+                }
+
+                $harian[$day] = [
+                    'status' => $status,
+                    'jam' => $absenPadaHariIni ? Carbon::parse($absenPadaHariIni->jam)->format('H:i') : '-',
+                ];
+            }
+
+            $rekapData[] = (object)[
+                'id' => $karyawan->id,
+                'nip' => $karyawan->nip,
+                'nama' => $karyawan->nama,
+                'email' => $karyawan->email,
+                'summary' => [
+                    'total_hadir' => $totalHadir,
+                    'total_alpha' => $totalAlpha,
+                ],
+                'detail' => $harian,
+            ];
+        }
+
+        return [
+            'rekapData' => $rekapData,
+            'workingDaysCount' => $workingDaysCount,
+            'daysInMonth' => $daysInMonth,
+        ];
+    }
+
     public function getNationalHolidays(int $year): array
     {
         // Kita ganti URL API ke sumber yang lebih lengkap untuk Indonesia

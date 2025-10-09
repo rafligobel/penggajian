@@ -11,32 +11,28 @@ use Carbon\Carbon;
 class SalaryService
 {
     /**
-     * Menghitung dan menyusun detail gaji sesuai data yang ada di tabel.
-     * Logika 'kelebihan_jam' telah dihapus sepenuhnya.
+     * Menghitung dan menyusun detail gaji.
+     * SEMUA OPERASI TANGGAL KINI MENGGUNAKAN OBJEK CARBON YANG KONSISTEN.
      */
     public function calculateDetailsForForm(Karyawan $karyawan, string $bulan): array
     {
         $karyawan->loadMissing('jabatan');
 
-        $tanggal = null;
-        try {
-            // 1. Coba parsing dengan format BARU ('Y-m-d') terlebih dahulu
-            $tanggal = Carbon::createFromFormat('Y-m-d', $bulan);
-        } catch (\Carbon\Exceptions\InvalidFormatException $e) {
-            // 2. Jika gagal, coba parsing dengan format LAMA ('Y-m')
-            $tanggal = Carbon::createFromFormat('Y-m', $bulan);
-        }
+        // PASTIKAN $bulan SELALU DIANGGAP SEBAGAI TANGGAL 1
+        $tanggal = Carbon::parse($bulan)->startOfMonth();
 
-        // Sekarang kita menggunakan whereYear dan whereMonth agar lebih fleksibel
+        // [PERBAIKAN] Query yang lebih spesifik dan aman menggunakan objek tanggal
         $gajiTersimpan = Gaji::where('karyawan_id', $karyawan->id)
-            ->whereYear('bulan', $tanggal->year)
-            ->whereMonth('bulan', $tanggal->month)
+            ->where('bulan', $tanggal->toDateString())
             ->first();
 
-        // ... Sisa kode method ini sama persis seperti sebelumnya ...
         $gajiBulanLalu = null;
         if (!$gajiTersimpan) {
-            $gajiBulanLalu = Gaji::where('karyawan_id', $karyawan->id)->orderBy('bulan', 'desc')->first();
+            // Ambil gaji terakhir sebelum bulan yang dipilih
+            $gajiBulanLalu = Gaji::where('karyawan_id', $karyawan->id)
+                ->where('bulan', '<', $tanggal->toDateString())
+                ->orderBy('bulan', 'desc')
+                ->first();
         }
 
         $jumlahKehadiran = Absensi::where('nip', $karyawan->nip)
@@ -51,23 +47,27 @@ class SalaryService
         $settingTunjangan = TunjanganKehadiran::find($tunjanganKehadiranId);
         $tarifKehadiran = $settingTunjangan->jumlah_tunjangan ?? 0;
 
-        $gajiPokok = optional($gajiTersimpan)->gaji_pokok ?? optional($gajiBulanLalu)->gaji_pokok ?? 0;
-        $tunjJabatan = $karyawan->jabatan->tunj_jabatan ?? 0;
-        $tunjAnak = optional($gajiTersimpan)->tunj_anak ?? optional($gajiBulanLalu)->tunj_anak ?? 0;
-        $tunjKomunikasi = optional($gajiTersimpan)->tunj_komunikasi ?? optional($gajiBulanLalu)->tunj_komunikasi ?? 0;
-        $tunjPengabdian = optional($gajiTersimpan)->tunj_pengabdian ?? optional($gajiBulanLalu)->tunj_pengabdian ?? 0;
-        $tunjKinerja = optional($gajiTersimpan)->tunj_kinerja ?? optional($gajiBulanLalu)->tunj_kinerja ?? 0;
-        $lembur = optional($gajiTersimpan)->lembur ?? 0;
-        $potongan = optional($gajiTersimpan)->potongan ?? 0;
+        // Komponen gaji diambil dari data tersimpan, atau fallback ke bulan lalu, atau 0
+        $gajiPokok = $gajiTersimpan->gaji_pokok ?? optional($gajiBulanLalu)->gaji_pokok ?? 0;
+        $tunjJabatan = $karyawan->jabatan->tunj_jabatan ?? 0; // Tunjangan jabatan selalu dari relasi
+        $tunjAnak = $gajiTersimpan->tunj_anak ?? optional($gajiBulanLalu)->tunj_anak ?? 0;
+        $tunjKomunikasi = $gajiTersimpan->tunj_komunikasi ?? optional($gajiBulanLalu)->tunj_komunikasi ?? 0;
+        $tunjPengabdian = $gajiTersimpan->tunj_pengabdian ?? optional($gajiBulanLalu)->tunj_pengabdian ?? 0;
+        $tunjKinerja = $gajiTersimpan->tunj_kinerja ?? optional($gajiBulanLalu)->tunj_kinerja ?? 0;
+        $lembur = optional($gajiTersimpan)->lembur ?? 0; // Jika bulan ini belum ada gaji, lembur dianggap 0
+        $potongan = optional($gajiTersimpan)->potongan ?? 0; // Sama seperti lembur
 
         $tunjKehadiran = $jumlahKehadiran * $tarifKehadiran;
-        $gajiBersih = ($gajiPokok + $tunjJabatan + $tunjKehadiran + $tunjAnak + $tunjKomunikasi +
-            $tunjPengabdian + $tunjKinerja + $lembur) - $potongan;
+
+        $totalPendapatan = $gajiPokok + $tunjJabatan + $tunjKehadiran + $tunjAnak + $tunjKomunikasi +
+            $tunjPengabdian + $tunjKinerja + $lembur;
+
+        $gajiBersih = $totalPendapatan - $potongan;
 
         return [
             'karyawan' => $karyawan,
             'gaji' => $gajiTersimpan,
-            'bulan' => $bulan,
+            'bulan' => $tanggal->format('Y-m'), // Kirim balik format Y-m untuk view
             'gaji_pokok' => $gajiPokok,
             'tunj_jabatan' => $tunjJabatan,
             'tunj_anak' => $tunjAnak,
@@ -83,41 +83,28 @@ class SalaryService
         ];
     }
 
+    // Method calculateSimulation sudah terlihat baik, tidak perlu perubahan signifikan.
     public function calculateSimulation(Karyawan $karyawan, array $input): array
     {
         $karyawan->loadMissing('jabatan');
-
-        // 1. Gunakan gaji terakhir sebagai template untuk komponen tetap
         $templateGaji = Gaji::where('karyawan_id', $karyawan->id)
             ->orderBy('bulan', 'desc')
             ->first();
-
-        // Ambil tarif tunjangan kehadiran dari gaji terakhir atau default pertama
         $tunjanganKehadiranId = optional($templateGaji)->tunjangan_kehadiran_id ?? optional(TunjanganKehadiran::first())->id;
         $settingTunjangan = TunjanganKehadiran::find($tunjanganKehadiranId);
-        $tarifKehadiran = $settingTunjangan->jumlah_tunjangan ?? 0; // Default ke 0 jika tidak ada
-
-        // 2. Ambil komponen gaji tetap dari template
+        $tarifKehadiran = $settingTunjangan->jumlah_tunjangan ?? 0;
         $gajiPokok = $templateGaji->gaji_pokok ?? 0;
         $tunjJabatan = $karyawan->jabatan->tunj_jabatan ?? 0;
         $tunjAnak = $templateGaji->tunj_anak ?? 0;
         $tunjKomunikasi = $templateGaji->tunj_komunikasi ?? 0;
         $tunjPengabdian = $templateGaji->tunj_pengabdian ?? 0;
         $tunjKinerja = $templateGaji->tunj_kinerja ?? 0;
-
-        // 3. Ambil komponen tidak tetap dari input form simulasi
         $jumlahHariMasuk = $input['jumlah_hari_masuk'];
         $lembur = $input['lembur'] ?? 0;
         $potongan = $input['potongan'] ?? 0;
-
-        // 4. Hitung tunjangan kehadiran berdasarkan input
         $tunjKehadiran = $jumlahHariMasuk * $tarifKehadiran;
-
-        // 5. Hitung total gaji bersih simulasi
         $gajiBersih = ($gajiPokok + $tunjJabatan + $tunjAnak + $tunjKomunikasi +
             $tunjPengabdian + $tunjKinerja + $tunjKehadiran + $lembur) - $potongan;
-
-        // 6. Kembalikan dalam format yang dibutuhkan oleh view 'hasil.blade.php'
         return [
             'gaji_pokok' => $gajiPokok,
             'tunj_jabatan' => $tunjJabatan,
@@ -128,19 +115,22 @@ class SalaryService
             'tunj_kehadiran' => $tunjKehadiran,
             'lembur' => $lembur,
             'potongan' => $potongan,
-            'gaji_bersih' => $gajiBersih, // Tambahkan ini untuk kemudahan
+            'gaji_bersih' => $gajiBersih,
         ];
     }
 
     /**
-     * Menyimpan data gaji sesuai kolom yang ada di tabel.
+     * Menyimpan data gaji. Format 'bulan' dipastikan Y-m-d.
      */
     public function saveGaji(array $dataForm): Gaji
     {
+        // [PERBAIKAN] Pastikan format tanggal sudah benar sebelum disimpan
+        $bulan = Carbon::parse($dataForm['bulan'])->startOfMonth()->toDateString();
+
         return Gaji::updateOrCreate(
             [
                 'karyawan_id' => $dataForm['karyawan_id'],
-                'bulan' => $dataForm['bulan']
+                'bulan' => $bulan,
             ],
             [
                 'gaji_pokok' => $dataForm['gaji_pokok'] ?? 0,
