@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Karyawan;
 use App\Models\Gaji;
+use App\Models\Jabatan;
 use App\Models\SesiAbsensi;
+use App\Models\User;
 use Carbon\Carbon;
 use App\Services\SalaryService; // Menggunakan SalaryService untuk konsistensi
+use Illuminate\Container\Attributes\DB;
 
 class DashboardController extends Controller
 {
@@ -20,43 +23,50 @@ class DashboardController extends Controller
 
     public function index()
     {
-        $now = Carbon::now();
-        $bulanIni = $now->format('Y-m');
-        $bulanLalu = $now->subMonth()->format('Y-m');
+        $semuaGaji = Gaji::all();
 
-        // Statistik Karyawan
-        $totalKaryawanAktif = Karyawan::where('status_aktif', true)->count();
-        $karyawanBaruBulanIni = Karyawan::where('status_aktif', true)
-            ->whereMonth('created_at', $now->month)
-            ->whereYear('created_at', $now->year)
-            ->count();
-            
-        // Statistik Gaji
-        $gajiBulanIni = Gaji::where('bulan', $bulanIni)->get();
-        $gajiBulanLalu = Gaji::where('bulan', $bulanLalu)->get();
+        // --- 1. Kalkulasi untuk Kartu Gaji ---
+        $totalGajiDibayarkan = $semuaGaji->sum(fn($gaji) => $gaji->gaji_pokok + $gaji->total_tunjangan - $gaji->total_potongan);
+        $totalGajiBulanIni = $semuaGaji->whereBetween('bulan', [now()->startOfMonth(), now()->endOfMonth()])->sum(fn($gaji) => $gaji->gaji_pokok + $gaji->total_tunjangan - $gaji->total_potongan);
+        $totalGajiBulanLalu = $semuaGaji->whereBetween('bulan', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])->sum(fn($gaji) => $gaji->gaji_pokok + $gaji->total_tunjangan - $gaji->total_potongan);
 
-        $totalGajiBulanIni = $gajiBulanIni->sum('gaji_bersih');
-        $totalGajiBulanLalu = $gajiBulanLalu->sum('gaji_bersih');
-        
-        // Menghindari pembagian dengan nol
-        $perbandinganGaji = $totalGajiBulanLalu > 0
-            ? (($totalGajiBulanIni - $totalGajiBulanLalu) / $totalGajiBulanLalu) * 100
-            : 0;
-
-        // Statistik Absensi
-        $sesiHariIni = SesiAbsensi::where('tanggal', today())->first();
-        $statusSesi = 'Belum Dibuat';
-        if ($sesiHariIni) {
-            $statusSesi = $sesiHariIni->is_active ? 'Dibuka' : 'Ditutup';
+        if ($totalGajiBulanLalu > 0) {
+            $perbandinganGaji = (($totalGajiBulanIni - $totalGajiBulanLalu) / $totalGajiBulanLalu) * 100;
+        } else {
+            $perbandinganGaji = $totalGajiBulanIni > 0 ? 100 : 0;
         }
 
-        return view('dashboard.index', [
-            'totalKaryawanAktif' => $totalKaryawanAktif,
-            'karyawanBaruBulanIni' => $karyawanBaruBulanIni,
-            'totalGajiBulanIni' => $totalGajiBulanIni,
-            'gajiDiproses' => $gajiBulanIni->count(),
-            'perbandinganGaji' => $perbandinganGaji,
-            'statusSesi' => $statusSesi,
-        ]);
+        // --- 2. Jumlah Entitas & Statistik Karyawan ---
+        $jumlahKaryawan = Karyawan::count();
+        $jumlahJabatan = Jabatan::count();
+        $jumlahPengguna = User::count();
+        $jumlahSlipGaji = $semuaGaji->count();
+
+        // [PERBAIKAN FINAL] Menghitung karyawan baru bulan ini
+        $karyawanBaruBulanIni = Karyawan::whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])->count();
+        $gajiDiproses = Gaji::with('karyawan.jabatan')->latest()->take(5)->get();
+
+        // --- 3. Data untuk Grafik (Chart) ---
+        $gajiPerBulan = $semuaGaji->groupBy(fn($gaji) => Carbon::parse($gaji->tanggal)->format('Y-m'))
+            ->map(fn($gajiBulanan) => $gajiBulanan->sum(fn($gaji) => $gaji->gaji_pokok + $gaji->total_tunjangan - $gaji->total_potongan))
+            ->sortKeys();
+
+        $labels = $gajiPerBulan->keys()->map(fn($bulan) => Carbon::createFromFormat('Y-m', $bulan)->format('M Y'));
+        $data = $gajiPerBulan->values();
+
+        // --- 4. Kirim Semua Data ke View ---
+        return view('dashboard.index', compact(
+            'totalGajiDibayarkan',
+            'totalGajiBulanIni',
+            'perbandinganGaji',
+            'jumlahKaryawan',
+            'karyawanBaruBulanIni', // Variabel yang hilang kini ditambahkan
+            'jumlahJabatan',
+            'jumlahPengguna',
+            'jumlahSlipGaji',
+            'gajiDiproses',
+            'labels',
+            'data'
+        ));
     }
 }

@@ -45,7 +45,7 @@
                         </div>
                         <div>
                             <h6 class="card-title text-muted">Karyawan Aktif</h6>
-                            <p class="card-text fs-4 fw-bold mb-0">{{ $totalKaryawanAktif }} Orang</p>
+                            <p class="card-text fs-4 fw-bold mb-0">{{ $jumlahKaryawan }} Orang</p>
                             <small class="text-success">+{{ $karyawanBaruBulanIni }} baru bulan ini</small>
                         </div>
                     </div>
@@ -63,12 +63,12 @@
                             <h6 class="card-title text-muted">Proses Bulan Ini</h6>
                             <p class="card-text mb-1">
                                 <i class="fas fa-check-circle text-success me-1"></i>
-                                Gaji Yang Dicetak: <strong>{{ $gajiDiproses }} / {{ $totalKaryawanAktif }}</strong> Karyawan
+                                Gaji Yang Dicetak: <strong>{{ $gajiDiproses }} / {{ $jumlahKaryawan }}</strong> Karyawan
                             </p>
-                            <p class="card-text mb-0">
+                            {{-- <p class="card-text mb-0">
                                 <i class="fas fa-calendar-check text-primary me-1"></i>
                                 Sesi Absensi: <span class="badge bg-info">{{ $statusSesi }}</span>
-                            </p>
+                            </p> --}}
                         </div>
                     </div>
                 </div>

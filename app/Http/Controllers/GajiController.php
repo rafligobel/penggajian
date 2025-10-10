@@ -26,8 +26,9 @@ class GajiController extends Controller
         // Pastikan kita selalu bekerja dengan format Y-m untuk tampilan
         $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
 
-        // [PERBAIKAN] Eager load relasi yang dibutuhkan untuk performa
-        $karyawans = Karyawan::with('jabatan')->where('status_aktif', true)->orderBy('nama')->get();
+        // [PERBAIKAN FINAL] Menghapus filter 'status_aktif'
+        // Sekarang, semua karyawan akan ditampilkan di halaman penggajian
+        $karyawans = Karyawan::with('jabatan')->orderBy('nama')->get();
 
         $dataGaji = [];
         foreach ($karyawans as $karyawan) {

@@ -10,7 +10,7 @@
                     <div class="card text-bg-primary mb-3">
                         <div class="card-body">
                             <h5 class="card-title">Total Karyawan</h5>
-                            <p class="card-text fs-4">{{ $totalKaryawan }}</p>
+                            <p class="card-text fs-4">{{ $jumlahKaryawan }}</p>
                         </div>
                     </div>
                 </div>

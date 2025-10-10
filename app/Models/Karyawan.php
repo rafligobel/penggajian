@@ -18,7 +18,6 @@ class Karyawan extends Model
         'alamat',
         'telepon',
         'jabatan_id',
-        'status_aktif',
         'user_id',
     ];
 

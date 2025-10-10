@@ -33,7 +33,6 @@ class KaryawanFactory extends Factory
             'email' => $this->faker->unique()->safeEmail(),
             'telepon' => $this->faker->phoneNumber(),
             'alamat' => $this->faker->address(),
-            'status_aktif' => $this->faker->boolean(90), // 90
         ];
     }
 }

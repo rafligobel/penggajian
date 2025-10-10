@@ -23,14 +23,7 @@
                             <dt class="col-sm-4">Jabatan</dt>
                             <dd class="col-sm-8">{{ $karyawan->jabatan }}</dd>
 
-                            <dt class="col-sm-4">Status Aktif</dt>
-                            <dd class="col-sm-8">
-                                @if ($karyawan->status_aktif)
-                                    <span class="badge bg-success">Aktif</span>
-                                @else
-                                    <span class="badge bg-danger">Tidak Aktif</span>
-                                @endif
-                            </dd>
+
                         </dl>
                     </div>
                     <div class="col-md-6">

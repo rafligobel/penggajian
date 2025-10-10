@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('email')->nullable();
             $table->string('telepon')->nullable();
             $table->text('alamat')->nullable();
-            $table->boolean('status_aktif')->default(true);
             $table->timestamps();
         });
     }

@@ -34,7 +34,6 @@ class KaryawanController extends Controller
             'alamat' => 'nullable|string',
             'telepon' => 'nullable|string|max:15',
             'jabatan_id' => 'nullable|exists:jabatans,id',
-            'status_aktif' => 'sometimes|boolean',
             'user_email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
         ]);
@@ -55,7 +54,6 @@ class KaryawanController extends Controller
             'alamat' => $validated['alamat'],
             'telepon' => $validated['telepon'],
             'jabatan_id' => $validated['jabatan_id'],
-            'status_aktif' => $request->boolean('status_aktif'),
             // 'email' di tabel karyawan bisa kita samakan atau biarkan (sesuai kebutuhan)
             'email' => $validated['user_email'],
         ]);
@@ -85,7 +83,6 @@ class KaryawanController extends Controller
             'alamat' => 'nullable|string',
             'telepon' => 'nullable|string|max:15',
             'jabatan_id' => 'nullable|exists:jabatans,id',
-            'status_aktif' => 'sometimes|boolean',
             'user_email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore(optional($karyawan->user)->id)],
             'password' => 'nullable|string|min:8',
         ]);
@@ -97,7 +94,6 @@ class KaryawanController extends Controller
             'alamat' => $validated['alamat'],
             'telepon' => $validated['telepon'],
             'jabatan_id' => $validated['jabatan_id'],
-            'status_aktif' => $request->boolean('status_aktif'),
             'email' => $validated['user_email'],
         ]);
 

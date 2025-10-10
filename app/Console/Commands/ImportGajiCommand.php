@@ -94,7 +94,6 @@ class ImportGajiCommand extends Command
             'telepon' => trim($data['Telepon'] ?? null),
             'alamat' => trim($data['Alamat'] ?? null),
             'jabatan_id' => trim($jabatanId ?? null),
-            'status_aktif' => true,
         ];
         return Karyawan::updateOrCreate(['nip' => trim($data['NIP'])], $karyawanData);
     }
