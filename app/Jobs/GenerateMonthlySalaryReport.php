@@ -63,13 +63,10 @@ class GenerateMonthlySalaryReport implements ShouldQueue
                 'potongan' => $gajis->sum('potongan'),
             ];
 
-            // Kalkulasi total tunjangan dan pendapatan
             $total_semua_tunjangan = $totals['tunj_jabatan'] + $totals['tunj_kehadiran'] + $totals['tunj_anak'] + $totals['tunj_komunikasi'] + $totals['tunj_pengabdian'] + $totals['tunj_kinerja'] + $totals['lembur'];
             $totals['total_tunjangan'] = $total_semua_tunjangan;
             $totals['gaji_bersih'] = ($totals['gaji_pokok'] + $total_semua_tunjangan) - $totals['potongan'];
 
-
-            // [PERBAIKAN] Mengganti 'is_active' menjadi pencarian berdasarkan 'key'
             $tandaTanganBendahara = '';
             $pengaturanTtd = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
             if ($pengaturanTtd && Storage::disk('public')->exists($pengaturanTtd->value)) {
@@ -92,24 +89,28 @@ class GenerateMonthlySalaryReport implements ShouldQueue
             $pdf = Pdf::loadView('gaji.cetak_semua', $data);
             $pdf->setPaper('A4', 'landscape');
 
-            $safeMonth = str_replace('-', '', $this->selectedMonth);
-            $filename = 'reports/laporan_gaji_' . $safeMonth . '_' . uniqid() . '.pdf';
+            $periode = Carbon::parse($this->selectedMonth);
+            $filename = 'laporan-gaji-bulanan-' . $periode->format('Y-m') . '_' . uniqid() . '.pdf';
+            // [PERBAIKAN] Path penyimpanan dibuat lebih terstruktur
+            $path = 'laporan/gaji_bulanan/' . $filename;
 
-            Storage::disk('public')->put($filename, $pdf->output());
+            // [PERBAIKAN] Menyimpan ke disk 'local' untuk keamanan
+            Storage::disk('local')->put($path, $pdf->output());
 
+            $notifMessage = 'Laporan Gaji Bulanan periode ' . $periode->translatedFormat('F Y') . ' telah selesai dibuat.';
             $this->user->notify(new ReportGenerated(
-                $filename,
-                'Laporan Gaji ' . $safeMonth . '.pdf',
+                $path,
+                'Laporan Gaji ' . $periode->translatedFormat('F Y') . '.pdf',
                 $this->selectedMonth,
-                'Laporan Gaji Bulanan telah selesai dibuat.'
+                $notifMessage
             ));
         } catch (Throwable $e) {
             Log::error('Gagal membuat Laporan Gaji Bulanan: ' . $e->getMessage(), ['exception' => $e]);
             $this->user->notify(new ReportGenerated(
                 '',
-                'Gagal Membuat Laporan Gaji',
+                '',
                 $this->selectedMonth,
-                'Terjadi kesalahan teknis saat membuat Laporan Gaji Bulanan. Error: ' . $e->getMessage(),
+                'Gagal membuat Laporan Gaji Bulanan. Error: ' . $e->getMessage(),
                 true
             ));
         }

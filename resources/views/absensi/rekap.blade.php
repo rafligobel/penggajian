@@ -38,10 +38,12 @@
         .summary-row td {
             vertical-align: middle;
             border: none;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
         }
 
         .cell-nama-karyawan {
-            padding: 12px 20px !important;
+            padding-left: 20px !important;
             text-align: left;
         }
 
@@ -112,10 +114,10 @@
                         <input type="text" class="form-control" id="search-input" placeholder="Ketik untuk mencari...">
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary w-100">Ganti Bulan</button>
+                        <button type="submit" class="btn btn-primary w-100">Tampilkan</button>
                     </div>
                 </form>
-                {{-- KETERANGAN WARNA BARU --}}
+                {{-- Keterangan Warna --}}
                 <div class="d-flex justify-content-center align-items-center mt-3 pt-2 border-top small text-muted">
                     <div class="d-flex align-items-center me-4">
                         <div class="me-2"
@@ -133,7 +135,8 @@
             </div>
         </div>
 
-        <h5 id="judul-bulan" class="text-center mb-3" style="display:none;"></h5>
+        <h5 id="judul-bulan" class="text-center mb-1" style="display:none;"></h5>
+        <p id="info-hari-kerja" class="text-center text-muted small mb-3" style="display:none;"></p>
 
         <div id="rekap-content" class="table-responsive">
             <p id="loading-message" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Memuat
@@ -147,7 +150,7 @@
                 <thead>
                     <tr class="text-center">
                         <th style="width: 5%;">No.</th>
-                        <th class="text-left">Nama Karyawan</th>
+                        <th class="text-start" style="padding-left: 20px;">Nama Karyawan</th>
                         <th style="width: 15%;">NIP</th>
                         <th style="width: 8%;">Hadir</th>
                         <th style="width: 8%;">Alpha</th>
@@ -164,12 +167,12 @@
             const searchInput = document.getElementById('search-input');
             const rekapTbody = document.getElementById('rekap-tbody');
             const judulBulan = document.getElementById('judul-bulan');
+            const infoHariKerja = document.getElementById('info-hari-kerja');
             const loadingMessage = document.getElementById('loading-message');
             const noDataMessage = document.getElementById('no-data-message');
 
             let allRekapData = [];
 
-            // Renders the table with the provided data
             function renderTable(dataToRender) {
                 rekapTbody.innerHTML = '';
 
@@ -189,16 +192,15 @@
                     summaryRow.className = 'summary-row';
                     summaryRow.dataset.target = `detail-row-${k.nip}`;
 
-                    // === [FOKUS PERUBAHAN DI SINI] ===
                     summaryRow.innerHTML = `
                         <td class="text-center align-middle">${index + 1}</td>
                         <td class="cell-nama-karyawan">
                             <b>${k.nama}</b>
-                            <small class="d-block text-muted"> </small>
+                            <small class="d-block text-muted">${k.email || ''}</small>
                         </td>
                         <td class="text-center align-middle">${k.nip}</td>
-                        <td class="text-center align-middle text-success fw-bold">${k.ringkasan.hadir}</td>
-                        <td class="text-center align-middle text-danger fw-bold">${k.ringkasan.alpha}</td>
+                        <td class="text-center align-middle text-success fw-bold">${k.summary.total_hadir}</td>
+                        <td class="text-center align-middle text-danger fw-bold">${k.summary.total_alpha}</td>
                     `;
 
                     const detailRow = document.createElement('tr');
@@ -207,20 +209,20 @@
 
                     let detailGridHtml = '<div class="detail-grid">';
                     for (const day in k.detail) {
-                        const statusClass = k.detail[day].status === 'H' ? 'status-hadir' :
-                            'status-absen';
-                        const jam = k.detail[day].jam;
-                        detailGridHtml += `
-                        <div class="attendance-day ${statusClass}" title="Jam: ${jam}">
-                            <span class="day-number">${day}</span>
-                            <span>${k.detail[day].status}</span>
-                        </div>
-                    `;
+                        const detailHari = k.detail[day];
+                        if (detailHari.status === 'H' || detailHari.status === 'A') {
+                            const statusClass = detailHari.status === 'H' ? 'status-hadir' : 'status-absen';
+                            const jam = detailHari.jam;
+                            detailGridHtml += `
+                            <div class="attendance-day ${statusClass}" title="Jam: ${jam}">
+                                <span class="day-number">${day}</span>
+                                <span>${detailHari.status}</span>
+                            </div>
+                            `;
+                        }
                     }
                     detailGridHtml += '</div>';
-
-                    detailRow.innerHTML = `<td colspan="7" class="detail-cell">${detailGridHtml}</td>`;
-
+                    detailRow.innerHTML = `<td colspan="5" class="detail-cell">${detailGridHtml}</td>`;
                     rekapTbody.appendChild(summaryRow);
                     rekapTbody.appendChild(detailRow);
                 });
@@ -228,6 +230,10 @@
 
             function filterAndRender() {
                 const searchTerm = searchInput.value.toLowerCase().trim();
+                if (!searchTerm) {
+                    renderTable(allRekapData);
+                    return;
+                }
                 const filteredData = allRekapData.filter(k => {
                     return k.nama.toLowerCase().includes(searchTerm) || k.nip.toLowerCase().includes(
                         searchTerm);
@@ -243,14 +249,23 @@
                 rekapTbody.innerHTML = '';
                 noDataMessage.style.display = 'none';
                 judulBulan.style.display = 'none';
+                infoHariKerja.style.display = 'none';
                 searchInput.value = '';
 
-                fetch(`{{ route('laporan.absensi.data') }}?bulan=${bulan}`)
-                    .then(response => response.json())
+                fetch(`{{ route('absensi.rekap.data') }}?bulan=${bulan}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         loadingMessage.style.display = 'none';
                         judulBulan.textContent = `Rekapitulasi Bulan: ${data.nama_bulan}`;
                         judulBulan.style.display = 'block';
+                        infoHariKerja.textContent = `Total Hari Kerja Efektif: ${data.total_hari_kerja} hari`;
+                        infoHariKerja.style.display = 'block';
+
                         allRekapData = data.rekap || [];
                         renderTable(allRekapData);
                     })

@@ -10,15 +10,11 @@ use Carbon\Carbon;
 
 class SalaryService
 {
-    /**
-     * Menghitung dan menyusun detail gaji.
-     * SEMUA OPERASI TANGGAL KINI MENGGUNAKAN OBJEK CARBON YANG KONSISTEN.
-     */
+
     public function calculateDetailsForForm(Karyawan $karyawan, string $bulan): array
     {
         $karyawan->loadMissing('jabatan');
 
-        // PASTIKAN $bulan SELALU DIANGGAP SEBAGAI TANGGAL 1
         $tanggal = Carbon::parse($bulan)->startOfMonth();
 
         // [PERBAIKAN] Query yang lebih spesifik dan aman menggunakan objek tanggal

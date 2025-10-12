@@ -59,7 +59,7 @@
                                 </div>
 
                                 @if (!($notification->data['is_error'] ?? true))
-                                    <a href="{{ route('notifications.markAsRead', $notification->id) }}" target="_blank"
+                                    <a href="{{ route('notifications.markAsRead', $notification->id) }}" target=""
                                         class="btn btn-sm btn-outline-primary ms-3">Lihat PDF</a>
                                 @endif
                             </li>

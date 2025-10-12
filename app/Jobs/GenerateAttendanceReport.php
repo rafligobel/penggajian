@@ -38,9 +38,9 @@ class GenerateAttendanceReport implements ShouldQueue
     public function handle(): void
     {
         $user = User::find($this->userId);
-        try {
-            $periode = Carbon::create($this->tahun, $this->bulan);
+        $periode = Carbon::create($this->tahun, $this->bulan);
 
+        try {
             $karyawans = Karyawan::whereIn('id', $this->karyawanIds)
                 ->with(['absensi' => function ($query) {
                     $query->whereMonth('tanggal', $this->bulan)->whereYear('tanggal', $this->tahun);
@@ -79,9 +79,6 @@ class GenerateAttendanceReport implements ShouldQueue
             $bendahara = User::where('role', 'bendahara')->first();
             $bendaharaNama = $bendahara ? $bendahara->name : 'Bendahara Umum';
 
-            // ========================================================================
-            // PERBAIKAN LOGIKA PENGAMBILAN TANDA TANGAN
-            // ========================================================================
             $tandaTanganBendahara = '';
             $pengaturanTtd = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
             if ($pengaturanTtd && Storage::disk('public')->exists($pengaturanTtd->value)) {
@@ -103,16 +100,20 @@ class GenerateAttendanceReport implements ShouldQueue
 
             $pdf = Pdf::loadView('laporan.pdf.rekap_absensi', $data)->setPaper('a4', 'landscape');
 
-            $filename = 'laporan_absensi_' . str_replace(' ', '_', $periode->translatedFormat('F_Y')) . '_' . uniqid() . '.pdf';
-            $path = 'reports/' . $filename;
+            $filename = 'laporan-absensi-' . $periode->format('Y-m') . '-' . uniqid() . '.pdf';
+            // [PERBAIKAN] Path penyimpanan dibuat lebih terstruktur
+            $path = 'laporan/absensi/' . $filename;
 
-            Storage::disk('public')->put($path, $pdf->output());
+            // [PERBAIKAN] Menyimpan ke disk 'local' untuk keamanan
+            Storage::disk('local')->put($path, $pdf->output());
 
-            $user->notify(new ReportGenerated($path, "Laporan Absensi {$periode->translatedFormat('F Y')}.pdf", $periode->format('Y-m'), "Laporan rincian absensi untuk periode {$periode->translatedFormat('F Y')} telah selesai dibuat."));
+            $notifMessage = "Laporan absensi periode {$periode->translatedFormat('F Y')} telah selesai dibuat.";
+            $user->notify(new ReportGenerated($path, "Laporan Absensi {$periode->translatedFormat('F Y')}.pdf", $periode->format('Y-m'), $notifMessage));
         } catch (Throwable $e) {
             Log::error('Gagal membuat Laporan Rincian Absensi: ' . $e->getMessage(), ['exception' => $e]);
             if ($user) {
-                $user->notify(new ReportGenerated('', '', '', 'Gagal membuat Laporan Rincian Absensi: ' . $e->getMessage(), true));
+                $notifMessage = "Gagal membuat laporan absensi untuk periode {$periode->translatedFormat('F Y')}.";
+                $user->notify(new ReportGenerated('', '', $periode->format('Y-m'), $notifMessage, true));
             }
         }
     }

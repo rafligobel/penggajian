@@ -160,16 +160,14 @@
             if (urlParams.has('tahun')) {
                 const laporanModalEl = document.getElementById('laporanGajiModal');
                 if (laporanModalEl) {
-                    const laporanModal = new bootstrap.Modal(laporanModalEl);
-                    laporanModal.show();
+                    new bootstrap.Modal(laporanModalEl).show();
                 }
             }
 
             // Logika untuk menampilkan modal HASIL SIMULASI setelah redirect
             const hasilModalEl = document.getElementById('hasilSimulasiModal');
             if (hasilModalEl) {
-                const hasilModal = new bootstrap.Modal(hasilModalEl);
-                hasilModal.show();
+                new bootstrap.Modal(hasilModalEl).show();
             }
 
             // Logika untuk auto-submit form tahun pada modal laporan

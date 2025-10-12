@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class NotificationController extends Controller
 {
@@ -36,21 +37,27 @@ class NotificationController extends Controller
      */
     public function markAsRead($id)
     {
-        // Gunakan findOrFail untuk keamanan
         $notification = Auth::user()->notifications()->findOrFail($id);
         $notification->markAsRead();
 
+        // Cek apakah ada 'path' dalam data notifikasi
         if (isset($notification->data['path']) && !empty($notification->data['path'])) {
-            if (Storage::disk('public')->exists($notification->data['path'])) {
-                // Gunakan helper `response()->file()` untuk keamanan lebih
-                return response()->file(storage_path('app/public/' . $notification->data['path']));
+            $filePath = $notification->data['path'];
+
+            // LOGIKA CERDAS: Cek di kedua disk, 'public' dan 'local' (private)
+            if (Storage::disk('public')->exists($filePath)) {
+                return Storage::disk('public')->download($filePath, $notification->data['filename'] ?? 'download.pdf');
             }
+
+            if (Storage::disk('local')->exists($filePath)) {
+                return Storage::disk('local')->download($filePath, $notification->data['filename'] ?? 'download.pdf');
+            }
+
+            Log::warning('File notifikasi tidak ditemukan di disk manapun.', ['path' => $filePath]);
         }
 
-        // Redirect dengan pesan jika file tidak ditemukan
         return redirect()->route('notifications.index')->with('error', 'File tidak ditemukan atau telah dihapus.');
     }
-
     /**
      * Menghapus notifikasi yang dipilih.
      */

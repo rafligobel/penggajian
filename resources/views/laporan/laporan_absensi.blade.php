@@ -19,7 +19,7 @@
         .summary-row {
             background-color: #fff;
             cursor: pointer;
-            transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            transition: all 0.2s ease-in-out;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
@@ -80,25 +80,20 @@
             font-size: 0.9rem;
         }
 
-        /* [INI BAGIAN PENTING] Definisi warna hijau dan merah */
         .status-hadir {
             background-color: #d1e7dd;
             color: #0a3622;
         }
 
-        /* Hijau */
         .status-absen {
             background-color: #f8d7da;
             color: #58151c;
         }
 
-        /* Merah */
         .status-libur {
             background-color: #f8f9fa;
             color: #6c757d;
         }
-
-        /* Abu-abu */
     </style>
 
     <div class="container py-4">
@@ -139,22 +134,19 @@
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Data Rekap untuk {{ $selectedMonth->translatedFormat('F Y') }}</h5>
                     <div>
-                        <button type="button" id="cetak-terpilih-btn" class="btn btn-danger btn-sm">
-                            <i class="fas fa-file-pdf me-1"></i> Cetak PDF Terpilih
-                        </button>
-                        <button type="button" id="kirim-email-terpilih-btn" class="btn btn-info btn-sm text-white">
-                            <i class="fas fa-envelope me-1"></i> Kirim Email Terpilih
-                        </button>
+                        <button type="button" id="cetak-terpilih-btn" class="btn btn-danger btn-sm"> <i
+                                class="fas fa-file-pdf me-1"></i> Cetak PDF Terpilih </button>
+                        <button type="button" id="kirim-email-terpilih-btn" class="btn btn-info btn-sm text-white"> <i
+                                class="fas fa-envelope me-1"></i> Kirim Email Terpilih </button>
                     </div>
                 </div>
             </div>
 
-            {{-- Tabel Rekap Absensi Baru --}}
             <table class="table table-borderless table-minimalis">
                 <thead>
                     <tr class="text-center">
                         <th style="width: 5%;"><input type="checkbox" id="select-all"></th>
-                        <th class="text-left">Nama Karyawan</th>
+                        <th class="text-start">Nama Karyawan</th>
                         <th style="width: 15%;">NIP</th>
                         <th style="width: 8%;">Hadir</th>
                         <th style="width: 8%;">Alpha</th>
@@ -163,24 +155,25 @@
                 <tbody id="rekap-tbody">
                     @forelse ($rekapData as $data)
                         {{-- Baris Ringkasan --}}
-                        <tr class="summary-row" data-bs-toggle="collapse" data-bs-target="#detail-row-{{ $data->nip }}"
-                            aria-expanded="false" aria-controls="detail-row-{{ $data->nip }}">
+                        <tr class="summary-row" data-bs-toggle="collapse" data-bs-target="#detail-row-{{ $data['nip'] }}"
+                            aria-expanded="false" aria-controls="detail-row-{{ $data['nip'] }}">
                             <td class="text-center">
-                                <input type="checkbox" name="karyawan_ids[]" value="{{ $data->id }}"
+                                <input type="checkbox" name="karyawan_ids[]" value="{{ $data['id'] }}"
                                     class="karyawan-checkbox" onclick="event.stopPropagation();">
                             </td>
-                            <td><b>{{ $data->nama }}</b></td>
-                            <td class="text-center">{{ $data->nip }}</td>
-                            <td class="text-center text-success fw-bold">{{ $data->summary['total_hadir'] }}</td>
-                            <td class="text-center text-danger fw-bold">{{ $data->summary['total_alpha'] }}</td>
+                            <td><b>{{ $data['nama'] }}</b></td>
+                            <td class="text-center">{{ $data['nip'] }}</td>
+                            <td class="text-center text-success fw-bold">{{ $data['summary']['total_hadir'] }}</td>
+                            <td class="text-center text-danger fw-bold">{{ $data['summary']['total_alpha'] }}</td>
                         </tr>
                         {{-- Baris Detail (Kalender) --}}
-                        <tr id="detail-row-{{ $data->nip }}" class="collapse detail-row">
+                        <tr id="detail-row-{{ $data['nip'] }}" class="collapse detail-row">
                             <td colspan="5" class="detail-cell">
                                 <div class="detail-grid">
                                     @for ($day = 1; $day <= $daysInMonth; $day++)
                                         @php
-                                            $detailHari = $data->detail[$day];
+                                            // Menghapus baris "array $data['detail'];" yang menyebabkan error
+                                            $detailHari = $data['detail'][$day];
                                             $statusClass = 'status-libur'; // Default
                                             if ($detailHari['status'] === 'H') {
                                                 $statusClass = 'status-hadir';
@@ -200,9 +193,8 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center fst-italic py-4">
-                                Tidak ada data absensi untuk periode ini.
-                            </td>
+                            <td colspan="5" class="text-center fst-italic py-4"> Tidak ada data absensi untuk periode
+                                ini. </td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -222,17 +214,14 @@
                         checkbox.checked = this.checked;
                     });
                 });
-
                 document.getElementById('cetak-terpilih-btn').addEventListener('click', function() {
                     form.action = "{{ route('laporan.absensi.cetak') }}";
                     form.submit();
                 });
-
                 document.getElementById('kirim-email-terpilih-btn').addEventListener('click', function() {
                     form.action = "{{ route('laporan.absensi.kirim-email') }}";
                     form.submit();
                 });
-
                 document.querySelectorAll('.summary-row').forEach(row => {
                     row.addEventListener('click', function() {
                         this.classList.toggle('expanded');

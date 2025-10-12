@@ -63,7 +63,7 @@
                             <h6 class="card-title text-muted">Proses Bulan Ini</h6>
                             <p class="card-text mb-1">
                                 <i class="fas fa-check-circle text-success me-1"></i>
-                                Gaji Yang Dicetak: <strong>{{ $gajiDiproses }} / {{ $jumlahKaryawan }}</strong> Karyawan
+                                Gaji Yang Diproses: <strong>{{ $gajiDiproses }} / {{ $jumlahKaryawan }}</strong> Karyawan
                             </p>
                             {{-- <p class="card-text mb-0">
                                 <i class="fas fa-calendar-check text-primary me-1"></i>

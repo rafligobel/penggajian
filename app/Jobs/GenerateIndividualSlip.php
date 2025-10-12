@@ -16,6 +16,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Carbon;
 use Throwable;
 
 class GenerateIndividualSlip implements ShouldQueue
@@ -60,11 +61,18 @@ class GenerateIndividualSlip implements ShouldQueue
             $pdf->setPaper('A4', 'portrait');
 
             $safeFilename = str_replace(' ', '_', strtolower($gaji->karyawan->nama));
-            $filename = 'slip-gaji-' . $safeFilename . '-' . $gaji->bulan . '-' . uniqid() . '.pdf';
-            $path = 'slips/' . $filename;
-            Storage::disk('public')->put($path, $pdf->output());
+            $periode = Carbon::parse($gaji->bulan);
+            $filename = 'slip-gaji-' . $safeFilename . '-' . $periode->format('Y-m') . '-' . uniqid() . '.pdf';
 
-            $notif = new ReportGenerated($path, 'slip-gaji-' . $safeFilename . '-' . $gaji->bulan . '.pdf', $gaji->bulan, 'Slip gaji untuk ' . $gaji->karyawan->nama . ' telah selesai dibuat.');
+            $path = 'slip_gaji/' . $periode->format('Y-m') . '/' . $filename;
+            Storage::disk('local')->put($path, $pdf->output()); // <-- Ganti ke 'local' untuk keamanan
+
+            $notif = new ReportGenerated(
+                $path, // Path ini sekarang sudah benar dan aman
+                'slip-gaji-' . $safeFilename . '-' . $gaji->bulan . '.pdf',
+                $gaji->bulan,
+                'Slip gaji untuk ' . $gaji->karyawan->nama . ' telah selesai dibuat.'
+            );
             $user->notify($notif);
         } catch (Throwable $e) {
             Log::error('Gagal membuat slip PDF individual: ' . $e->getMessage(), ['exception' => $e]);

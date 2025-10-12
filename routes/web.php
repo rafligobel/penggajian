@@ -30,7 +30,6 @@ Route::get('/', function () {
 // --- RUTE UNTUK SEMUA USER YANG SUDAH LOGIN ---
 Route::middleware('auth')->group(function () {
     // Hanya satu definisi untuk route 'dashboard' utama
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Profile & Notifikasi
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -38,40 +37,56 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-
-    // Menghapus notifikasi yang dipilih (checkbox)
-    // Diubah dari POST menjadi DELETE sesuai dengan @method('DELETE') di form Anda
     Route::delete('/notifications/delete-selected', [NotificationController::class, 'deleteSelected'])->name('notifications.deleteSelected');
-
-    // [BARU] Menghapus semua notifikasi milik user yang sedang login
     Route::delete('/notifications/delete-all', [NotificationController::class, 'deleteAll'])->name('notifications.deleteAll');
-
-    // Menandai semua notifikasi sebagai sudah dibaca
     Route::get('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
-
-    // Menandai notifikasi spesifik sebagai sudah dibaca (saat klik link)
     Route::get('/notifications/mark-as-read/{id}', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
 });
 
 
 // --- RUTE KHUSUS ADMIN & SUPERADMIN ---
 Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
+
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::delete('/notifications/delete-selected', [NotificationController::class, 'deleteSelected'])->name('notifications.deleteSelected');
+    Route::delete('/notifications/delete-all', [NotificationController::class, 'deleteAll'])->name('notifications.deleteAll');
+    Route::get('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+    Route::get('/notifications/mark-as-read/{id}', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+
     Route::resource('users', UserController::class);
     Route::resource('jabatan', JabatanController::class);
     Route::resource('tunjangan-kehadiran', TunjanganKehadiranController::class)->except(['create', 'edit', 'show']);
 
     // Resource Karyawan sekarang aman di dalam middleware admin
-    Route::resource('karyawan', KaryawanController::class);
+    Route::get('karyawan/create', [KaryawanController::class, 'create'])->name('karyawan.create');
+    Route::post('karyawan', [KaryawanController::class, 'store'])->name('karyawan.store');
+    Route::get('karyawan/{karyawan}/edit', [KaryawanController::class, 'edit'])->name('karyawan.edit');
+    Route::put('karyawan/{karyawan}', [KaryawanController::class, 'update'])->name('karyawan.update');
+    Route::delete('karyawan/{karyawan}', [KaryawanController::class, 'destroy'])->name('karyawan.destroy');
 });
 
+Route::middleware(['auth', 'role:superadmin,admin,bendahara'])->group(function () {
+    Route::get('karyawan', [KaryawanController::class, 'index'])->name('karyawan.index');
+    Route::get('karyawan/{karyawan}', [KaryawanController::class, 'show'])->name('karyawan.show');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+});
 
 // --- RUTE KHUSUS BENDAHARA ---
 Route::middleware(['auth', 'role:bendahara'])->group(function () {
     // Kelola Gaji
+
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::delete('/notifications/delete-selected', [NotificationController::class, 'deleteSelected'])->name('notifications.deleteSelected');
+    Route::delete('/notifications/delete-all', [NotificationController::class, 'deleteAll'])->name('notifications.deleteAll');
+    Route::get('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+    Route::get('/notifications/mark-as-read/{id}', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+
+
     Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
     Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save');
     Route::post('/gaji/{gaji}/download-slip', [GajiController::class, 'downloadSlip'])->name('gaji.download-slip');
     Route::post('/gaji/{gaji}/send-email', [GajiController::class, 'sendEmail'])->name('gaji.send-email');
+
 
     // Laporan
     Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
@@ -91,6 +106,9 @@ Route::middleware(['auth', 'role:bendahara'])->group(function () {
     Route::get('/sesi-absensi', [SesiAbsensiController::class, 'index'])->name('sesi-absensi.index');
     Route::post('sesi-absensi', [SesiAbsensiController::class, 'storeOrUpdate'])->name('sesi-absensi.storeOrUpdate');
     Route::get('sesi-absensi/calendar-events', [SesiAbsensiController::class, 'getCalendarEvents'])->name('sesi-absensi.calendar-events');
+
+    Route::get('/laporan/absensi/data', [App\Http\Controllers\AbsensiController::class, 'fetchRekapData'])->name('absensi.rekap.data');
+
 
     // Pengaturan Tanda Tangan
     Route::get('/tanda-tangan', [TandaTanganController::class, 'index'])->name('tanda_tangan.index');

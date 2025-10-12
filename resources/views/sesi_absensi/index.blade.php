@@ -35,11 +35,19 @@
                         </h3>
                         <p class="text-muted small mt-2">
                             Hari Kerja:
-                            @forelse ($defaultTimes['hari_kerja'] as $hari)
-                                {{ ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'][$hari - 1] }}{{ !$loop->last ? ',' : '' }}
-                            @empty
-                                Tidak ada
-                            @endforelse
+                            @php
+                                $hariMapping = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+                                $hariKerjaAktif = [];
+                                if (is_array($defaultTimes['hari_kerja'])) {
+                                    foreach ($defaultTimes['hari_kerja'] as $hari) {
+                                        // Pastikan index ada sebelum diakses
+                                        if (isset($hariMapping[$hari - 1])) {
+                                            $hariKerjaAktif[] = $hariMapping[$hari - 1];
+                                        }
+                                    }
+                                }
+                            @endphp
+                            {{ !empty($hariKerjaAktif) ? implode(', ', $hariKerjaAktif) : 'Tidak ada' }}
                         </p>
                         <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#defaultTimeModal">
                             <i class="fas fa-edit"></i> Ubah Waktu Default
@@ -68,13 +76,18 @@
                                 class="list-group-item d-flex justify-content-between align-items-center @if ($day['date']->isToday()) list-group-item-primary @endif">
                                 <div>
                                     <h6 class="mb-0">{{ $day['date']->isoFormat('dddd, D MMMM YYYY') }}</h6>
-                                    <small
-                                        class="text-muted">{{ $day['status_info']['keterangan'] ?? $day['status_info']['status'] }}</small>
+                                    {{-- [PERBAIKAN TAMPILAN] Tampilkan keterangan yang lebih informatif --}}
+                                    <small class="text-muted fst-italic">{{ $day['status_info']['keterangan'] }}</small>
                                 </div>
                                 @if ($day['status_info']['is_active'])
                                     <span class="badge bg-success rounded-pill">Aktif</span>
                                 @else
-                                    <span class="badge bg-secondary rounded-pill">Tidak Aktif</span>
+                                    {{-- [PERBAIKAN TAMPILAN] Beri warna berbeda untuk libur vs dinonaktifkan --}}
+                                    @if (str_contains($day['status_info']['status'], 'Dinonaktifkan'))
+                                        <span class="badge bg-danger rounded-pill">Non-Aktif</span>
+                                    @else
+                                        <span class="badge bg-secondary rounded-pill">Libur</span>
+                                    @endif
                                 @endif
                             </div>
                         @endforeach
@@ -150,33 +163,38 @@
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="tanggal" class="form-label">Pilih Tanggal</label>
-                            <input type="date" name="tanggal" class="form-control" value="{{ date('Y-m-d') }}"
-                                required>
+                            <input type="date" name="tanggal" class="form-control"
+                                value="{{ old('tanggal', date('Y-m-d')) }}" required>
                         </div>
                         <div class="mb-3">
                             <label for="tipe" class="form-label">Pilih Tindakan</label>
                             <select name="tipe" class="form-select" id="tipePengecualian">
-                                <option value="aktif">Aktifkan Sesi (di Hari Libur)</option>
-                                <option value="nonaktif">Nonaktifkan Sesi (di Hari Kerja)</option>
-                                <option value="reset">Reset ke Default</option>
+                                <option value="aktif" @if (old('tipe') == 'aktif') selected @endif>Aktifkan Sesi (di
+                                    Hari Libur)</option>
+                                <option value="nonaktif" @if (old('tipe') == 'nonaktif') selected @endif>Nonaktifkan Sesi
+                                    (di Hari Kerja)</option>
+                                <option value="reset" @if (old('tipe') == 'reset') selected @endif>Reset ke Default
+                                </option>
                             </select>
                         </div>
-                        <div id="waktu-container-exception" style="display: none;">
+                        <div id="waktu-container-exception">
                             <p class="text-muted small">Atur waktu khusus untuk sesi yang diaktifkan ini.</p>
                             <div class="row">
                                 <div class="col-6">
                                     <label class="form-label">Waktu Mulai</label>
-                                    <input type="time" name="waktu_mulai" class="form-control" value="07:00">
+                                    <input type="time" name="waktu_mulai" class="form-control"
+                                        value="{{ old('waktu_mulai', '07:00') }}">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label">Waktu Selesai</label>
-                                    <input type="time" name="waktu_selesai" class="form-control" value="17:00">
+                                    <input type="time" name="waktu_selesai" class="form-control"
+                                        value="{{ old('waktu_selesai', '17:00') }}">
                                 </div>
                             </div>
                         </div>
                         <div class="mt-3">
                             <label for="keterangan" class="form-label">Keterangan (Opsional)</label>
-                            <textarea name="keterangan" class="form-control" rows="2" placeholder="Contoh: Libur Cuti Bersama"></textarea>
+                            <textarea name="keterangan" class="form-control" rows="2" placeholder="Contoh: Libur Cuti Bersama">{{ old('keterangan') }}</textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -215,6 +233,7 @@
             const waktuContainer = document.getElementById('waktu-container-exception');
 
             function toggleWaktuInputs() {
+                // Tampilkan input waktu hanya jika tipe adalah 'aktif'
                 waktuContainer.style.display = tipePengecualian.value === 'aktif' ? 'block' : 'none';
             }
             tipePengecualian.addEventListener('change', toggleWaktuInputs);
@@ -238,7 +257,7 @@
                         },
                         events: '{{ route('sesi-absensi.calendar-events') }}',
                         eventDidMount: (info) => {
-                            if (bootstrap.Tooltip) { // Cek apakah Bootstrap Tooltip ada
+                            if (bootstrap.Tooltip) {
                                 new bootstrap.Tooltip(info.el, {
                                     title: info.event.title,
                                     placement: 'top',
@@ -246,6 +265,10 @@
                                     container: 'body'
                                 });
                             }
+                        },
+                        // [PERBAIKAN TAMPILAN] Refresh events saat navigasi bulan
+                        datesSet: function() {
+                            calendar.refetchEvents();
                         }
                     });
                     calendar.render();
@@ -253,10 +276,12 @@
                 calendar.updateSize();
             });
 
-            // Jika ada error validasi, buka kembali modal yang sesuai
+            // [BUG FIX] Jika ada error validasi, buka kembali modal yang sesuai
             @if ($errors->any())
-                @if ($errors->has('hari_kerja') || $errors->has('waktu_mulai_default'))
+                // Cek apakah error berasal dari form default time
+                @if ($errors->has('hari_kerja') || ($errors->has('waktu_mulai') && old('update_default')))
                     new bootstrap.Modal(document.getElementById('defaultTimeModal')).show();
+                    // Jika tidak, asumsikan dari form pengecualian
                 @else
                     new bootstrap.Modal(document.getElementById('exceptionModal')).show();
                 @endif

@@ -73,7 +73,6 @@ class GenerateIndividualReport implements ShouldQueue
             $totalPotongan = $gajis->sum('potongan');
             $totalGajiBersih = $totalGajiPokok + $totalSemuaTunjangan - $totalPotongan;
 
-            // [PERBAIKAN] Mengambil tanda tangan berdasarkan 'key', bukan 'status' atau 'is_active'
             $tandaTanganBendahara = '';
             $pengaturanTtd = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
             if ($pengaturanTtd && Storage::disk('public')->exists($pengaturanTtd->value)) {
@@ -101,24 +100,24 @@ class GenerateIndividualReport implements ShouldQueue
             $pdf = Pdf::loadView('laporan.pdf.per_karyawan', $data);
             $pdf->setPaper('A4', 'portrait');
 
+            // [PERBAIKAN] Menggunakan variabel yang benar untuk membuat nama file dan path
             $safeFilename = str_replace(' ', '_', strtolower($selectedKaryawan->nama));
-            $filename = 'reports/' . $safeFilename . '_' . $this->tanggalMulai . '_sd_' . $this->tanggalSelesai . '_' . uniqid() . '.pdf';
+            $filename = 'laporan-individual-' . $safeFilename . '-' . $this->tanggalMulai . '-sd-' . $this->tanggalSelesai . '-' . uniqid() . '.pdf';
+            $path = 'laporan/individual/' . $filename; // Path dibuat lebih logis
 
-            Storage::disk('public')->put($filename, $pdf->output());
+            // Menyimpan ke disk 'local' untuk keamanan
+            Storage::disk('local')->put($path, $pdf->output());
 
-            $user->notify(new ReportGenerated(
-                $filename,
-                'Laporan Karyawan ' . $selectedKaryawan->nama . '.pdf',
-                $this->tanggalMulai,
-                'Laporan Rincian Karyawan untuk ' . $selectedKaryawan->nama . ' telah selesai dibuat.'
-            ));
+            // Memperbaiki logika pembuatan notifikasi
+            $notifMessage = 'Laporan rincian untuk ' . $selectedKaryawan->nama . ' telah selesai dibuat.';
+            $user->notify(new ReportGenerated($path, $filename, $this->tanggalMulai, $notifMessage));
         } catch (Throwable $e) {
             Log::error('Gagal membuat Laporan Rincian Karyawan: ' . $e->getMessage(), ['exception' => $e]);
             $user->notify(new ReportGenerated(
                 '',
-                'Gagal Membuat Laporan',
+                '',
                 $this->tanggalMulai,
-                'Terjadi kesalahan teknis saat membuat laporan karyawan. Error: ' . $e->getMessage(),
+                'Gagal membuat laporan rincian karyawan. Error: ' . $e->getMessage(),
                 true
             ));
         }

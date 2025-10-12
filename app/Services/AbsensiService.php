@@ -6,59 +6,69 @@ use App\Models\Absensi;
 use App\Models\Karyawan;
 use App\Models\SesiAbsensi;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 
 class AbsensiService
 {
     /**
-     * Mengambil daftar hari libur nasional dari API.
+     * Mengambil rekap absensi untuk satu bulan, termasuk menghitung hari kerja efektif.
      */
-    public function getAttendanceRecap(Carbon $selectedMonth): array
+    public function getAttendanceRecap(Carbon $bulan)
     {
-        $daysInMonth = $selectedMonth->daysInMonth;
+        $startOfMonth = $bulan->copy()->startOfMonth();
+        $endOfMonth = $bulan->copy()->endOfMonth();
 
-        // Hitung hari kerja efektif dalam sebulan
-        $workingDaysCount = 0;
-        $workingDaysMap = [];
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $currentDate = $selectedMonth->copy()->setDay($day);
-            if ($this->getSessionStatus($currentDate)['is_active']) {
-                $workingDaysCount++;
-                $workingDaysMap[$day] = true;
-            } else {
-                $workingDaysMap[$day] = false;
-            }
-        }
+        $karyawans = Karyawan::orderBy('nama', 'asc')->get();
+        $rekapData = [];
+        $period = CarbonPeriod::create($startOfMonth, $endOfMonth);
 
-        $karyawans = Karyawan::where('status_aktif', true)->orderBy('nama')->get();
-        $absensiBulanIniGrouped = Absensi::whereYear('tanggal', $selectedMonth->year)
-            ->whereMonth('tanggal', $selectedMonth->month)
+        $absensiBulanan = Absensi::whereBetween('tanggal', [$startOfMonth, $endOfMonth])
             ->get()
             ->groupBy('nip');
 
-        $rekapData = [];
+        // Menghitung hari kerja efektif dalam sebulan
+        $workingDaysCount = 0;
+        foreach ($period as $date) {
+            if ($this->getSessionStatus($date)['is_active']) {
+                $workingDaysCount++;
+            }
+        }
+
         foreach ($karyawans as $karyawan) {
-            $karyawanAbsensi = $absensiBulanIniGrouped->get($karyawan->nip, collect());
-            $totalHadir = $karyawanAbsensi->count();
-            $totalAlpha = max(0, $workingDaysCount - $totalHadir); // max(0, ...) untuk mencegah nilai negatif
+            $absensiKaryawan = $absensiBulanan->get($karyawan->nip, collect())->keyBy(function ($item) {
+                return Carbon::parse($item->tanggal)->format('Y-m-d');
+            });
 
-            $harian = [];
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $absenPadaHariIni = $karyawanAbsensi->firstWhere(fn($item) => Carbon::parse($item->tanggal)->day == $day);
-                $status = '-'; // Default untuk hari non-kerja
+            $totalHadir = 0;
+            $totalAlpha = 0;
+            $detailHarian = [];
 
-                if ($workingDaysMap[$day]) { // Jika ini hari kerja
-                    $status = $absenPadaHariIni ? 'H' : 'A';
+            // Buat periode baru untuk setiap karyawan agar tidak ada masalah referensi
+            $employeePeriod = CarbonPeriod::create($startOfMonth, $endOfMonth);
+            foreach ($employeePeriod as $date) {
+                $dateString = $date->toDateString();
+                $dayIndex = $date->day;
+
+                if ($absensiKaryawan->has($dateString)) {
+                    $totalHadir++;
+                    $jamMasuk = $absensiKaryawan[$dateString]->jam;
+                    $detailHarian[$dayIndex] = ['status' => 'H', 'jam' => Carbon::parse($jamMasuk)->format('H:i')];
+                } else {
+                    $statusSesi = $this->getSessionStatus($date);
+                    if ($statusSesi['is_active']) {
+                        // Hanya hitung Alpha jika sesi seharusnya aktif
+                        $totalAlpha++;
+                        $detailHarian[$dayIndex] = ['status' => 'A', 'jam' => '-'];
+                    } else {
+                        // Jika hari libur, statusnya L (Libur)
+                        $detailHarian[$dayIndex] = ['status' => 'L', 'jam' => '-'];
+                    }
                 }
-
-                $harian[$day] = [
-                    'status' => $status,
-                    'jam' => $absenPadaHariIni ? Carbon::parse($absenPadaHariIni->jam)->format('H:i') : '-',
-                ];
             }
 
-            $rekapData[] = (object)[
+            $rekapData[] = [
                 'id' => $karyawan->id,
                 'nip' => $karyawan->nip,
                 'nama' => $karyawan->nama,
@@ -67,35 +77,96 @@ class AbsensiService
                     'total_hadir' => $totalHadir,
                     'total_alpha' => $totalAlpha,
                 ],
-                'detail' => $harian,
+                'detail' => $detailHarian,
             ];
         }
 
         return [
             'rekapData' => $rekapData,
+            'daysInMonth' => $endOfMonth->day,
             'workingDaysCount' => $workingDaysCount,
-            'daysInMonth' => $daysInMonth,
         ];
     }
 
+    /**
+     * Memeriksa status sesi untuk tanggal tertentu dengan logika yang benar dan berurutan.
+     */
+    public function getSessionStatus(Carbon $date): array
+    {
+        // 1. Cek Pengecualian Spesifik untuk tanggal tersebut
+        $exception = SesiAbsensi::where('tanggal', $date->toDateString())->where('is_default', false)->first();
+        if ($exception) {
+            if ($exception->tipe === 'nonaktif') {
+                return [
+                    'is_active' => false,
+                    'status' => 'Sesi Dinonaktifkan',
+                    'keterangan' => $exception->keterangan ?: 'Sesi dinonaktifkan secara manual',
+                ];
+            }
+            if ($exception->tipe === 'aktif') {
+                return [
+                    'is_active' => true,
+                    'status' => 'Sesi Khusus Aktif',
+                    'keterangan' => $exception->keterangan ?: 'Sesi diaktifkan pada hari libur',
+                    'waktu_mulai' => $exception->waktu_mulai,
+                    'waktu_selesai' => $exception->waktu_selesai,
+                ];
+            }
+        }
+
+        // 2. Cek apakah tanggal ini adalah hari libur nasional
+        $holidays = $this->getNationalHolidays($date->year);
+        $dateString = $date->format('Y-m-d');
+        if (isset($holidays[$dateString])) {
+            return [
+                'is_active' => false,
+                'status' => 'Libur Nasional',
+                'keterangan' => $holidays[$dateString]['localName'],
+            ];
+        }
+
+        // 3. Cek Aturan Default (Hari Kerja)
+        $defaultSetting = Cache::remember('sesi_absensi_default_setting', now()->addHours(24), function () {
+            return SesiAbsensi::where('is_default', true)->first();
+        });
+
+        // Konversi Carbon dayOfWeek (0=Minggu, 1=Senin) ke format ISO 8601 (1=Senin, 7=Minggu)
+        $dayOfWeek = $date->dayOfWeekIso;
+
+        if ($defaultSetting && is_array($defaultSetting->hari_kerja) && in_array($dayOfWeek, $defaultSetting->hari_kerja)) {
+            return [
+                'is_active' => true,
+                'status' => 'Hari Kerja',
+                'keterangan' => 'Sesi berjalan sesuai jadwal default',
+                'waktu_mulai' => $defaultSetting->waktu_mulai,
+                'waktu_selesai' => $defaultSetting->waktu_selesai,
+            ];
+        }
+
+        // 4. Jika tidak cocok semua, maka sesi tidak aktif
+        return [
+            'is_active' => false,
+            'status' => 'Libur Akhir Pekan',
+            'keterangan' => 'Tidak ada sesi yang dijadwalkan',
+        ];
+    }
+
+    /**
+     * Mengambil daftar hari libur nasional dari API.
+     */
     public function getNationalHolidays(int $year): array
     {
-        // Kita ganti URL API ke sumber yang lebih lengkap untuk Indonesia
         $apiUrl = "https://api-harilibur.vercel.app/api?year={$year}";
         $cacheKey = "national_holidays_indonesia_{$year}";
 
-        // Cache selama 30 hari untuk efisiensi
         return Cache::remember($cacheKey, now()->addDays(30), function () use ($apiUrl) {
             try {
-                // API ini tidak memerlukan parameter negara (ID)
                 $response = Http::get($apiUrl);
                 if ($response->successful()) {
                     $holidays = collect($response->json());
-                    // Kita format ulang agar strukturnya sama seperti sebelumnya
                     return $holidays->filter(fn($holiday) => $holiday['is_national_holiday'])
                         ->mapWithKeys(function ($holiday) {
                             return [
-                                // Key-nya adalah tanggal libur
                                 $holiday['holiday_date'] => [
                                     'localName' => $holiday['holiday_name']
                                 ]
@@ -105,49 +176,7 @@ class AbsensiService
             } catch (\Exception $e) {
                 report($e);
             }
-            return []; // Kembalikan array kosong jika gagal
+            return [];
         });
-    }
-
-    private function getDefaultTimes(): array
-    {
-        return Cache::remember('default_session_times', 60, function () {
-            $defaultSetting = SesiAbsensi::where('tanggal', '1970-01-01')->first();
-            return [
-                'waktu_mulai' => $defaultSetting?->waktu_mulai ?? '07:00:00',
-                'waktu_selesai' => $defaultSetting?->waktu_selesai ?? '12:00:00',
-            ];
-        });
-    }
-
-    /**
-     * Memeriksa status sesi untuk tanggal tertentu.
-     */
-    public function getSessionStatus(Carbon $date): array
-    {
-        // 1. Cek pengecualian
-        $exception = SesiAbsensi::where('tanggal', $date->format('Y-m-d'))->first();
-        if ($exception) {
-            if ($exception->tipe === 'aktif') {
-                return ['status' => 'Aktif', 'is_active' => true, 'waktu_mulai' => $exception->waktu_mulai, 'waktu_selesai' => $exception->waktu_selesai, 'keterangan' => $exception->keterangan, 'is_exception' => true];
-            } else {
-                return ['status' => 'Nonaktif', 'is_active' => false, 'keterangan' => $exception->keterangan, 'is_exception' => true];
-            }
-        }
-
-        // 2. Cek hari libur nasional
-        $holidays = $this->getNationalHolidays($date->year);
-        if (isset($holidays[$date->format('Y-m-d')])) {
-            return ['status' => 'Libur Nasional', 'is_active' => false, 'keterangan' => $holidays[$date->format('Y-m-d')]['localName'], 'is_exception' => false];
-        }
-
-        // 3. Cek akhir pekan
-        if ($date->isWeekend()) {
-            return ['status' => 'Akhir Pekan', 'is_active' => false, 'is_exception' => false];
-        }
-
-        // 4. Hari kerja (Default)
-        $defaultTimes = $this->getDefaultTimes();
-        return ['status' => 'Aktif', 'is_active' => true, 'waktu_mulai' => $defaultTimes['waktu_mulai'], 'waktu_selesai' => $defaultTimes['waktu_selesai'], 'is_exception' => false];
     }
 }

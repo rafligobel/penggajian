@@ -56,7 +56,6 @@
                                                 class="gaji-checkbox"></td>
                                         <td>{{ $loop->iteration }}</td>
                                         <td>{{ $gaji->karyawan->nama }}</td>
-                                        {{-- [PERBAIKAN] Menggunakan optional operator --}}
                                         <td>{{ $gaji->karyawan?->jabatan?->nama_jabatan ?? '-' }}</td>
                                         <td class="text-end fw-bold">Rp {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}
                                         </td>
@@ -84,12 +83,12 @@
                 document.getElementById('filter-btn').addEventListener('click', function() {
                     form.method = 'GET';
                     form.action = "{{ route('laporan.gaji.bulanan') }}";
-                    const token = form.querySelector('input[name="_token"]');
-                    if (token) token.remove();
+                    // [PERBAIKAN BUG 2] Baris yang menghapus token CSRF dihilangkan untuk mencegah error 419
                     form.submit();
                 });
 
                 document.getElementById('cetak-terpilih-btn').addEventListener('click', function() {
+                    // Pastikan method dan action kembali ke POST untuk cetak
                     form.method = 'POST';
                     form.action = "{{ route('laporan.gaji.cetak') }}";
                     form.removeAttribute('target');
@@ -97,15 +96,40 @@
                 });
 
                 document.getElementById('kirim-email-terpilih-btn').addEventListener('click', function() {
+                    // Pastikan method dan action kembali ke POST untuk kirim email
                     form.method = 'POST';
                     form.action = "{{ route('laporan.gaji.kirim-email-terpilih') }}";
                     form.removeAttribute('target');
                     form.submit();
                 });
 
-                document.getElementById('select-all').addEventListener('change', function(e) {
-                    document.querySelectorAll('.gaji-checkbox').forEach(checkbox => {
-                        checkbox.checked = e.target.checked;
+                // [PERBAIKAN BUG 4] Logika checkbox 'select all' dibuat lebih responsif
+                const selectAllCheckbox = document.getElementById('select-all');
+                const gajiCheckboxes = document.querySelectorAll('.gaji-checkbox');
+
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.addEventListener('change', function(e) {
+                        gajiCheckboxes.forEach(checkbox => {
+                            checkbox.checked = e.target.checked;
+                        });
+                    });
+                }
+
+                gajiCheckboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        const allAreChecked = [...gajiCheckboxes].every(cb => cb.checked);
+                        const noneAreChecked = [...gajiCheckboxes].every(cb => !cb.checked);
+
+                        if (allAreChecked) {
+                            selectAllCheckbox.checked = true;
+                            selectAllCheckbox.indeterminate = false;
+                        } else if (noneAreChecked) {
+                            selectAllCheckbox.checked = false;
+                            selectAllCheckbox.indeterminate = false;
+                        } else {
+                            // Jika beberapa terpilih (tapi tidak semua), set ke indeterminate
+                            selectAllCheckbox.indeterminate = true;
+                        }
                     });
                 });
             });

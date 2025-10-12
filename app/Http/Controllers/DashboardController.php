@@ -41,26 +41,25 @@ class DashboardController extends Controller
         $jumlahJabatan = Jabatan::count();
         $jumlahPengguna = User::count();
         $jumlahSlipGaji = $semuaGaji->count();
-
-        // [PERBAIKAN FINAL] Menghitung karyawan baru bulan ini
         $karyawanBaruBulanIni = Karyawan::whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])->count();
-        $gajiDiproses = Gaji::with('karyawan.jabatan')->latest()->take(5)->get();
+        $gajiDiproses = Gaji::whereBetween('bulan', [now()->startOfMonth(), now()->endOfMonth()])->count();
 
         // --- 3. Data untuk Grafik (Chart) ---
-        $gajiPerBulan = $semuaGaji->groupBy(fn($gaji) => Carbon::parse($gaji->tanggal)->format('Y-m'))
+        $gajiPerBulan = $semuaGaji->groupBy(fn($gaji) => Carbon::parse($gaji->bulan)->format('Y-m')) // Menggunakan 'bulan' untuk konsistensi
             ->map(fn($gajiBulanan) => $gajiBulanan->sum(fn($gaji) => $gaji->gaji_pokok + $gaji->total_tunjangan - $gaji->total_potongan))
             ->sortKeys();
 
         $labels = $gajiPerBulan->keys()->map(fn($bulan) => Carbon::createFromFormat('Y-m', $bulan)->format('M Y'));
         $data = $gajiPerBulan->values();
 
-        // --- 4. Kirim Semua Data ke View ---
+        // --- 4. Kirim Semua Data ke View [SUDAH DIPERBAIKI] ---
         return view('dashboard.index', compact(
             'totalGajiDibayarkan',
             'totalGajiBulanIni',
+            'totalGajiBulanLalu', // Variabel yang dibutuhkan view kini sudah dikirim
             'perbandinganGaji',
             'jumlahKaryawan',
-            'karyawanBaruBulanIni', // Variabel yang hilang kini ditambahkan
+            'karyawanBaruBulanIni',
             'jumlahJabatan',
             'jumlahPengguna',
             'jumlahSlipGaji',

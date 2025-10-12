@@ -46,10 +46,8 @@ class SendSlipToEmail implements ShouldQueue
                 return;
             }
 
-            // 1. Dapatkan data yang sudah dihitung dari Service
             $data = $salaryService->calculateDetailsForForm($karyawan, $gaji->bulan);
 
-            // ... (logika ambil logo & ttd sama seperti job sebelumnya)
             $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
             $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
             $bendaharaUser = User::where('role', 'bendahara')->first();
@@ -60,10 +58,9 @@ class SendSlipToEmail implements ShouldQueue
                 $tandaTanganBendahara = $this->getImageAsBase64DataUri(storage_path('app/public/' . $pengaturanTtd->value));
             }
 
-
             $pdf = Pdf::loadView('gaji.slip_pdf', [
-                'data' => $data, // Data hasil kalkulasi
-                'gaji' => $gaji, // Data mentah dari Eloquent
+                'data' => $data,
+                'gaji' => $gaji,
                 'logoAlAzhar' => $logoAlAzhar,
                 'logoYayasan' => $logoYayasan,
                 'bendaharaNama' => $bendaharaNama,
@@ -77,13 +74,14 @@ class SendSlipToEmail implements ShouldQueue
 
             Mail::to($karyawan->email)->send(new SalarySlipMail($gaji, $pdfOutput, $filename));
 
-            $user->notify(new ReportGenerated('', $filename, $gaji->bulan, 'Slip gaji berhasil dikirim ke email ' . $karyawan->nama, false));
+            $notifMessage = 'Slip gaji berhasil dikirim ke email ' . $karyawan->nama;
+            $user->notify(new ReportGenerated('', $filename, $gaji->bulan, $notifMessage, false));
         } catch (Throwable $e) {
-            // ... (logika error handling)
             Log::error('Gagal mengirim slip gaji ke email: ' . $e->getMessage(), ['exception' => $e]);
             if ($user) {
                 $gaji = Gaji::find($this->gajiId);
-                $user->notify(new ReportGenerated('', '', optional($gaji)->bulan ?? 'N/A', 'Gagal mengirim slip ke email ' . (optional($gaji->karyawan)->nama ?? 'N/A') . '.', true));
+                $notifMessage = 'Gagal mengirim slip ke email ' . (optional($gaji->karyawan)->nama ?? 'N/A') . '.';
+                $user->notify(new ReportGenerated('', '', optional($gaji)->bulan ?? 'N/A', $notifMessage, true));
             }
         }
     }

@@ -67,30 +67,24 @@
     <div class="col-md-6">
         <div class="mb-3">
             <label for="user_email" class="form-label">Email Login</label>
+            {{-- Variabel 'user_email' untuk membuat User --}}
             <input type="email" class="form-control @error('user_email') is-invalid @enderror" id="user_email"
-                name="user_email" value="{{ old('user_email', optional($karyawan->user)->email) }}" required>
+                name="user_email" value="{{ old('user_email', $karyawan->email ?? '') }}" required>
             @error('user_email')
                 <div class="invalid-feedback">{{ $message }}</div>
             @enderror
-            <small class="text-muted">Email ini akan digunakan oleh tenaga kerja untuk login ke sistem.</small>
         </div>
     </div>
     <div class="col-md-6">
         <div class="mb-3">
             <label for="password" class="form-label">Password</label>
+            {{-- Variabel 'password' untuk membuat User --}}
             <input type="password" class="form-control @error('password') is-invalid @enderror" id="password"
                 name="password"
                 @if ($karyawan->exists) placeholder="Isi hanya jika ingin mengubah" @else required @endif>
             @error('password')
                 <div class="invalid-feedback">{{ $message }}</div>
             @enderror
-            <small class="text-muted">
-                @if ($karyawan->exists)
-                    Kosongkan jika tidak ingin mengubah password.
-                @else
-                    Password minimal 8 karakter.
-                @endif
-            </small>
         </div>
     </div>
 </div>

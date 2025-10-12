@@ -47,12 +47,10 @@ class TenagaKerjaController extends Controller
         // yang sudah dirancang untuk menangani kedua kasus (spesifik dan default) dengan benar.
         // ======================================================================================
         $today = today();
-        $statusInfo = $this->absensiService->getSessionStatus($today); // Langsung gunakan service
-
+        $statusInfo = $this->absensiService->getSessionStatus($today);
         $isSesiDibuka = false;
-        $pesanSesi = $statusInfo['status']; // Ambil pesan default dari service
+        $pesanSesi = $statusInfo['status'];
 
-        // Cek apakah sesi aktif DAN waktunya sesuai
         if ($statusInfo['is_active']) {
             $now = now();
             $waktuMulai = Carbon::parse($statusInfo['waktu_mulai']);
@@ -63,18 +61,14 @@ class TenagaKerjaController extends Controller
                 $pesanSesi = 'Sesi absensi sedang dibuka (' . $waktuMulai->format('H:i') . ' - ' . $waktuSelesai->format('H:i') . ').';
             } else if ($now->isAfter($waktuSelesai)) {
                 $pesanSesi = 'Sesi absensi hari ini sudah ditutup.';
-            } else { // $now->isBefore($waktuMulai)
+            } else {
                 $pesanSesi = 'Sesi absensi hari ini akan dibuka pada pukul ' . $waktuMulai->format('H:i') . '.';
             }
         }
 
         $sudahAbsen = Absensi::where('nip', $karyawan->nip)->whereDate('tanggal', $today)->exists();
 
-        // ======================================================================================
-        // [PERBAIKAN 2: KEHADIRAN BULAN INI]
-        // Menambahkan filter `whereYear()` untuk memastikan hanya kehadiran di tahun ini yang dihitung,
-        // mencegah data dari tahun sebelumnya ikut terhitung.
-        // ======================================================================================
+        // [PERBAIKAN: Tambah whereYear untuk akurasi]
         $absensiBulanIni = Absensi::where('nip', $karyawan->nip)
             ->whereYear('tanggal', now()->year)
             ->whereMonth('tanggal', now()->month)
