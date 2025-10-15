@@ -3,216 +3,178 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Laporan Rincian - {{ $selectedKaryawan->nama }}</title>
+    <title>Laporan Rincian Karyawan</title>
     <style>
-        /* ... CSS tidak ada perubahan ... */
         body {
             font-family: 'Helvetica', sans-serif;
+            font-size: 10px;
             color: #333;
-            font-size: 12px;
-        }
-
-        .container {
-            width: 100%;
-            margin: 0 auto;
         }
 
         .header-table,
-        .info-table {
+        .main-table {
             width: 100%;
             border-collapse: collapse;
         }
 
         .header-table td {
+            border: none;
+            padding: 5px;
             vertical-align: middle;
-        }
-
-        .header-text {
-            text-align: center;
-        }
-
-        .header-text h3,
-        .header-text h4 {
-            margin: 0;
-        }
-
-        .header-text p {
-            margin: 5px 0;
-            font-size: 10px;
         }
 
         .logo {
             width: 60px;
-            height: auto;
+        }
+
+        .kop-surat {
+            text-align: center;
+        }
+
+        .kop-surat h3 {
+            font-size: 16px;
+            margin: 0;
+        }
+
+        .kop-surat p {
+            font-size: 11px;
+            margin: 2px 0;
+        }
+
+        hr {
+            border: 0;
+            border-top: 2px solid #333;
+            margin: 15px 0;
+        }
+
+        .info-table {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .info-table td {
+            padding: 3px;
+        }
+
+        .main-table th,
+        .main-table td {
+            border: 1px solid #ccc;
+            padding: 6px;
+        }
+
+        .main-table th {
+            background-color: #f2f2f2;
+            text-align: center;
         }
 
         .text-right {
             text-align: right;
         }
 
-        .salary-details {
-            width: 100%;
-            margin-top: 15px;
-            border-collapse: collapse;
-        }
-
-        .salary-details th,
-        .salary-details td {
-            border: 1px solid #ddd;
-            padding: 8px;
-        }
-
-        .salary-details th {
-            background-color: #f8f9fa;
-            text-align: left;
-        }
-
-        .section-header td {
-            background-color: #e9ecef;
-            font-weight: bold;
-        }
-
-        .total-row td,
-        .grand-total-row td {
-            font-weight: bold;
-        }
-
-        .grand-total-row {
-            background-color: #d1ecf1;
-        }
-
-        .footer {
-            margin-top: 40px;
-            width: 100%;
-        }
-
-        .signature-section {
-            float: right;
-            width: 250px;
+        .text-center {
             text-align: center;
         }
 
-        .signature-section .signature-space {
-            height: 60px;
-            border-bottom: 1px solid #333;
-            margin-bottom: 5px;
+        .fw-bold {
+            font-weight: bold;
         }
 
-        .clearfix::after {
-            content: "";
-            clear: both;
-            display: table;
+        .signature-section {
+            margin-top: 30px;
+            width: 100%;
+        }
+
+        .signature-section td {
+            border: none;
+            text-align: center;
+            padding: 10px;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        {{-- KOP SURAT (Tidak ada perubahan) --}}
-        <table class="header-table">
+    <table class="header-table">
+        <tr>
+            <td style="width: 15%;"><img src="{{ $logoYayasan }}" alt="Logo Yayasan" class="logo"></td>
+            <td style="width: 70%;" class="kop-surat">
+                <h3>YAYASAN ISLAM AL-AZHAR 43 GORONTALO</h3>
+                <p>LAPORAN RINCIAN KARYAWAN</p>
+            </td>
+            <td style="width: 15%; text-align: right;"><img src="{{ $logoAlAzhar }}" alt="Logo Al-Azhar" class="logo">
+            </td>
+        </tr>
+    </table>
+    <hr>
+    <table class="info-table">
+        <tr>
+            <td style="width: 15%;"><strong>Nama Karyawan</strong></td>
+            <td style="width: 2%;">:</td>
+            <td>{{ $karyawan->nama }}</td>
+        </tr>
+        <tr>
+            <td><strong>NIP</strong></td>
+            <td>:</td>
+            <td>{{ $karyawan->nip }}</td>
+        </tr>
+        <tr>
+            <td><strong>Jabatan</strong></td>
+            <td>:</td>
+            <td>{{ $karyawan->jabatan?->nama_jabatan ?? '-' }}</td>
+        </tr>
+        <tr>
+            <td><strong>Periode Laporan</strong></td>
+            <td>:</td>
+            <td>{{ $tanggalMulai->translatedFormat('F Y') }} s.d. {{ $tanggalSelesai->translatedFormat('F Y') }}</td>
+        </tr>
+    </table>
+
+    <h4>Riwayat Gaji & Absensi Bulanan</h4>
+    <table class="main-table">
+        <thead>
             <tr>
-                <td style="width: 15%; text-align: center;"><img src="{{ $logoYayasan }}" alt="Logo Yayasan"
-                        class="logo"></td>
-                <td style="width: 70%;" class="header-text">
-                    <h3>YAYASAN PENDIDIKAN AL-AZHAR GORONTALO</h3>
-                    <h4>LAPORAN RINCIAN GAJI KARYAWAN</h4>
-                    <p>Jl. Dr. H. Zainal Umar Sidiki, S.H, Kota Gorontalo</p>
-                </td>
-                <td style="width: 15%; text-align: center;"><img src="{{ $logoAlAzhar }}" alt="Logo Al-Azhar"
-                        class="logo"></td>
+                <th>Periode Gaji</th>
+                <th>Hadir</th>
+                <th>Alpha</th>
+                <th>Gaji Pokok</th>
+                <th>Total Tunjangan</th>
+                <th>Potongan</th>
+                <th class="fw-bold">Gaji Bersih</th>
             </tr>
-        </table>
-        <hr style="border: 0; border-top: 2px solid #333; margin-top: 10px;">
+        </thead>
+        <tbody>
+            @forelse ($gajis as $gaji)
+                <tr>
+                    <td class="text-center">{{ \Carbon\Carbon::parse($gaji->bulan)->translatedFormat('F Y') }}</td>
+                    <td class="text-center">{{ $gaji->hadir ?? 0 }} Hari</td>
+                    <td class="text-center">{{ $gaji->alpha ?? 0 }} Hari</td>
+                    <td class="text-right">Rp {{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
+                    <td class="text-right">Rp {{ number_format($gaji->total_tunjangan, 0, ',', '.') }}</td>
+                    <td class="text-right">(Rp {{ number_format($gaji->potongan, 0, ',', '.') }})</td>
+                    <td class="text-right fw-bold">Rp {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="7" class="text-center">Tidak ada data gaji pada periode ini.</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
 
-        {{-- INFO KARYAWAN (Tidak ada perubahan) --}}
-        <table class="info-table" style="margin-top: 20px;">
-            <tr>
-                <td style="width: 15%;"><strong>Nama Karyawan</strong></td>
-                <td style="width: 35%;">: {{ $selectedKaryawan->nama }}</td>
-                <td style="width: 15%;"><strong>Periode Laporan</strong></td>
-                <td style="width: 35%;">: {{ $tanggalMulai }} s/d {{ $tanggalSelesai }}</td>
-            </tr>
-            <tr>
-                <td><strong>NIP</strong></td>
-                <td>: {{ $selectedKaryawan->nip }}</td>
-                <td><strong>Jabatan</strong></td>
-                <td>: {{ $selectedKaryawan->jabatan->nama_jabatan ?? 'N/A' }}</td>
-            </tr>
-        </table>
-
-        <hr style="margin-top: 20px; border: 0; border-top: 1px solid #ccc;">
-
-        @if ($gajis->isNotEmpty())
-            <h4 style="margin-top: 20px; margin-bottom: 10px; text-align:center;">Rekapitulasi Gaji Selama Periode</h4>
-            <table class="salary-details">
-                <thead>
-                    <tr>
-                        <th width="70%">KETERANGAN</th>
-                        <th class="text-right">TOTAL JUMLAH (Rp)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr class="section-header">
-                        <td colspan="2">A. PENDAPATAN</td>
-                    </tr>
-                    <tr>
-                        <td>Total Gaji Pokok</td>
-                        <td class="text-right">{{ number_format($totalGajiPokok, 0, ',', '.') }}</td>
-                    </tr>
-
-                    {{-- === [PERBAIKAN DIMULAI DI SINI] === --}}
-                    {{-- Loop untuk menampilkan setiap jenis tunjangan, termasuk yang bernilai 0 --}}
-                    @foreach ($totalPerTunjangan as $namaTunjangan => $total)
-                        <tr>
-                            <td style="padding-left: 20px;">{{ $namaTunjangan }}</td>
-                            <td class="text-right">{{ number_format($total, 0, ',', '.') }}</td>
-                        </tr>
-                    @endforeach
-                    {{-- === [PERBAIKAN SELESAI] === --}}
-
-                    <tr class="total-row">
-                        <td class="text-right">TOTAL PENDAPATAN</td>
-                        <td class="text-right">{{ number_format($totalGajiPokok + $totalSemuaTunjangan, 0, ',', '.') }}
-                        </td>
-                    </tr>
-
-                    <tr class="section-header">
-                        <td colspan="2">B. POTONGAN</td>
-                    </tr>
-                    <tr>
-                        <td>Total Potongan Lain-lain</td>
-                        <td class="text-right">({{ number_format($totalPotongan, 0, ',', '.') }})</td>
-                    </tr>
-                    <tr class="total-row">
-                        <td class="text-right">TOTAL POTONGAN</td>
-                        <td class="text-right">({{ number_format($totalPotongan, 0, ',', '.') }})</td>
-                    </tr>
-
-                    <tr class="grand-total-row">
-                        <td class="text-right">TOTAL GAJI BERSIH DITERIMA</td>
-                        <td class="text-right">Rp {{ number_format($totalGajiBersih, 0, ',', '.') }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        @else
-            <p style="text-align:center; margin-top: 30px; font-style: italic;">Tidak ada data gaji untuk ditampilkan
-                pada periode ini.</p>
-        @endif
-
-        {{-- TANDA TANGAN (Tidak ada perubahan) --}}
-        <div class="footer clearfix">
-            <div class="signature-section">
-                <p>Gorontalo, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}</p>
-                <p>Bendahara Yayasan</p>
-                @if ($tandaTanganBendahara)
-                    <img src="{{ $tandaTanganBendahara }}" alt="Tanda Tangan" style="height: 60px; width: auto;">
-                @else
-                    <div class="signature-space"></div>
-                @endif
-                <p style="font-weight: bold; text-decoration: underline;">{{ $bendaharaNama }}</p>
-            </div>
-        </div>
-    </div>
+    <table class="signature-section">
+        <tr>
+            <td style="width: 65%;"></td>
+            <td style="width: 35%;">
+                Gorontalo, {{ now()->translatedFormat('d F Y') }}<br>
+                Bendahara
+                <div style="height: 60px; margin: 5px 0;">
+                    @if (!empty($tandaTanganBendahara))
+                        <img src="{{ $tandaTanganBendahara }}" alt="Tanda Tangan" style="height: 100%; width: auto;">
+                    @endif
+                </div>
+                <b style="text-decoration: underline;">{{ $bendaharaNama }}</b>
+            </td>
+        </tr>
+    </table>
 </body>
 
 </html>

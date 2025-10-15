@@ -11,7 +11,7 @@ use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 
-class SalarySlipMail extends Mailable
+class SlipGajiMail extends Mailable
 {
     use Queueable, SerializesModels;
 

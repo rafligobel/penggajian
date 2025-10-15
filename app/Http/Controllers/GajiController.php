@@ -80,7 +80,9 @@ class GajiController extends Controller
         if (empty($gaji->karyawan->email)) {
             return response()->json(['message' => 'Gagal. Karyawan ini tidak memiliki alamat email.'], 422);
         }
-        SendSlipToEmail::dispatch($gaji->id, Auth::id());
+
+        SendSlipToEmail::dispatch([$gaji->id], Auth::id());
+
         return response()->json(['message' => 'Permintaan diterima! Email sedang dikirim & notifikasi akan muncul jika berhasil.']);
     }
 }

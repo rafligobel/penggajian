@@ -15,21 +15,15 @@ class NotificationController extends Controller
      */
     public function index()
     {
-        // Tandai semua notifikasi yang belum dibaca sebagai "telah dibaca" saat halaman dibuka
-        Auth::user()->unreadNotifications->markAsRead();
+        $user = Auth::user();
 
-        // Ambil notifikasi milik pengguna dan tampilkan dengan paginasi
-        $notifications = Auth::user()->notifications->sortByDesc('created_at');
-        $notifications = $notifications->forPage(request('page', 1), 15);
-        $paginatedNotifications = new \Illuminate\Pagination\LengthAwarePaginator(
-            $notifications,
-            Auth::user()->notifications->count(),
-            15,
-            request('page', 1),
-            ['path' => request()->url(), 'query' => request()->query()]
-        );
+        // Tandai semua notifikasi yang belum dibaca sebagai "telah dibaca"
+        $user->unreadNotifications->markAsRead();
 
-        return view('notifications.index', ['notifications' => $paginatedNotifications]);
+        // PENYEMPURNAAN: Paginasi yang lebih efisien dan idiomatik
+        $notifications = $user->notifications()->latest()->paginate(15);
+
+        return view('notifications.index', ['notifications' => $notifications]);
     }
 
     /**
@@ -46,11 +40,11 @@ class NotificationController extends Controller
 
             // LOGIKA CERDAS: Cek di kedua disk, 'public' dan 'local' (private)
             if (Storage::disk('public')->exists($filePath)) {
-                return Storage::disk('public')->download($filePath, $notification->data['filename'] ?? 'download.pdf');
+                return Storage::disk('public')->response($filePath, $notification->data['filename'] ?? 'download.pdf');
             }
 
             if (Storage::disk('local')->exists($filePath)) {
-                return Storage::disk('local')->download($filePath, $notification->data['filename'] ?? 'download.pdf');
+                return Storage::disk('local')->response($filePath, $notification->data['filename'] ?? 'download.pdf');
             }
 
             Log::warning('File notifikasi tidak ditemukan di disk manapun.', ['path' => $filePath]);

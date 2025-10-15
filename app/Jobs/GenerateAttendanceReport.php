@@ -2,30 +2,31 @@
 
 namespace App\Jobs;
 
+use App\Models\Karyawan;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Karyawan;
 use App\Models\User;
-use App\Models\TandaTangan;
+use App\Models\TandaTangan; // Tambahkan ini
 use App\Notifications\ReportGenerated;
+use App\Services\AbsensiService;
 use App\Traits\ManagesImageEncoding;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Storage; // Tambahkan ini
 use Throwable;
 
 class GenerateAttendanceReport implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, ManagesImageEncoding;
 
-    protected $karyawanIds;
-    protected $bulan;
-    protected $tahun;
-    protected $userId;
+    protected array $karyawanIds;
+    protected string $bulan;
+    protected string $tahun;
+    protected int $userId;
 
     public function __construct(array $karyawanIds, string $bulan, string $tahun, int $userId)
     {
@@ -35,84 +36,71 @@ class GenerateAttendanceReport implements ShouldQueue
         $this->userId = $userId;
     }
 
-    public function handle(): void
+    public function handle(AbsensiService $absensiService): void
     {
         $user = User::find($this->userId);
-        $periode = Carbon::create($this->tahun, $this->bulan);
+        $karyawan = Karyawan::find($this->karyawanIds);
+        $periode = Carbon::create($this->tahun, $this->bulan, 1);
+
 
         try {
-            $karyawans = Karyawan::whereIn('id', $this->karyawanIds)
-                ->with(['absensi' => function ($query) {
-                    $query->whereMonth('tanggal', $this->bulan)->whereYear('tanggal', $this->tahun);
-                }])
-                ->get();
+            $rekap = $absensiService->getAttendanceRecap($periode, $this->karyawanIds);
 
-            $daysInMonth = $periode->daysInMonth;
+            if (empty($rekap['rekapData'])) {
+                throw new \Exception('Tidak ada data absensi untuk karyawan yang dipilih pada periode ini.');
+            }
+
+            // [PERBAIKAN UTAMA] Transformasi struktur data agar cocok dengan view
             $detailAbsensi = [];
+            foreach ($rekap['rekapData'] as $dataKaryawan) {
+                $item = new \stdClass();
+                $item->nama = $dataKaryawan['nama'];
+                $item->nip = $dataKaryawan['nip'];
+                $item->total_hadir = $dataKaryawan['summary']['total_hadir'];
+                $item->total_alpha = $dataKaryawan['summary']['total_alpha'];
 
-            foreach ($karyawans as $karyawan) {
+                // Ubah struktur 'detail' menjadi 'daily_data'
                 $dailyData = [];
-                $totalHadir = 0;
-
-                $absensiHarian = $karyawan->absensi->keyBy(function ($item) {
-                    return Carbon::parse($item->tanggal)->format('j');
-                });
-
-                for ($day = 1; $day <= $daysInMonth; $day++) {
-                    if (isset($absensiHarian[$day])) {
-                        $dailyData[$day] = 'H'; // Hadir
-                        $totalHadir++;
-                    } else {
-                        $dailyData[$day] = 'A'; // Alpha
-                    }
+                foreach ($dataKaryawan['detail'] as $day => $statusData) {
+                    $dailyData[$day] = $statusData['status'];
                 }
-
-                $detailAbsensi[] = (object)[
-                    'nip' => $karyawan->nip,
-                    'nama' => $karyawan->nama,
-                    'daily_data' => $dailyData,
-                    'total_hadir' => $totalHadir,
-                    'total_alpha' => $daysInMonth - $totalHadir,
-                ];
+                $item->daily_data = $dailyData;
+                $detailAbsensi[] = $item;
             }
 
-            $bendahara = User::where('role', 'bendahara')->first();
-            $bendaharaNama = $bendahara ? $bendahara->name : 'Bendahara Umum';
+            // [PERBAIKAN] Ambil data Tanda Tangan
+            $bendahara = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
+            $bendaharaNama = $bendahara ? $bendahara->nama : 'Bendahara Belum Diset';
+            $tandaTanganBendahara = $bendahara && Storage::disk('public')->exists($bendahara->path)
+                ? $this->getImageAsBase64DataUri(storage_path('app/public/' . $bendahara->path))
+                : null;
 
-            $tandaTanganBendahara = '';
-            $pengaturanTtd = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
-            if ($pengaturanTtd && Storage::disk('public')->exists($pengaturanTtd->value)) {
-                $tandaTanganBendahara = $this->getImageAsBase64DataUri(storage_path('app/public/' . $pengaturanTtd->value));
-            }
-
-            $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
-            $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
-
+            // [PERBAIKAN] Kumpulkan semua data yang dibutuhkan oleh view baru
             $data = [
-                'detailAbsensi' => $detailAbsensi,
-                'daysInMonth' => $daysInMonth,
                 'periode' => $periode,
+                'daysInMonth' => $rekap['daysInMonth'],
+                'detailAbsensi' => $detailAbsensi, // Menggunakan data yang sudah ditransformasi
+                'logoAlAzhar' => $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png')),
+                'logoYayasan' => $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png')),
                 'bendaharaNama' => $bendaharaNama,
                 'tandaTanganBendahara' => $tandaTanganBendahara,
-                'logoAlAzhar' => $logoAlAzhar,
-                'logoYayasan' => $logoYayasan,
             ];
 
             $pdf = Pdf::loadView('laporan.pdf.rekap_absensi', $data)->setPaper('a4', 'landscape');
 
-            $filename = 'laporan-absensi-' . $periode->format('Y-m') . '-' . uniqid() . '.pdf';
-            // [PERBAIKAN] Path penyimpanan dibuat lebih terstruktur
+            $periodeFormatted = $periode->format('Y-m');
+            $filename = "laporan_absensi_{$periodeFormatted}_" . time() . ".pdf";
+            $downloadFilename = "laporan_absensi_{$periodeFormatted}.pdf";
             $path = 'laporan/absensi/' . $filename;
 
-            // [PERBAIKAN] Menyimpan ke disk 'local' untuk keamanan
             Storage::disk('local')->put($path, $pdf->output());
 
-            $notifMessage = "Laporan absensi periode {$periode->translatedFormat('F Y')} telah selesai dibuat.";
-            $user->notify(new ReportGenerated($path, "Laporan Absensi {$periode->translatedFormat('F Y')}.pdf", $periode->format('Y-m'), $notifMessage));
+            $notifMessage = 'Laporan rekap absensi periode ' . $periode->translatedFormat('F Y') . ' telah selesai dibuat.';
+            $user->notify(new ReportGenerated($path, $downloadFilename, $periodeFormatted, $notifMessage, false));
         } catch (Throwable $e) {
-            Log::error('Gagal membuat Laporan Rincian Absensi: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error("Gagal membuat PDF Laporan Absensi: " . $e->getMessage(), ['exception' => $e]);
             if ($user) {
-                $notifMessage = "Gagal membuat laporan absensi untuk periode {$periode->translatedFormat('F Y')}.";
+                $notifMessage = 'Gagal memproses laporan rekap absensi untuk periode ' . $periode->translatedFormat('F Y') . '.';
                 $user->notify(new ReportGenerated('', '', $periode->format('Y-m'), $notifMessage, true));
             }
         }

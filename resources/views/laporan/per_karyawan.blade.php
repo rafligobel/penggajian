@@ -57,7 +57,7 @@
                             s.d. {{ \Carbon\Carbon::parse($tanggalSelesai)->translatedFormat('F Y') }}</p>
                     </div>
                     <div>
-                        {{-- FORM UNTUK MENGIRIM PERINTAH CETAK/KIRIM --}}
+                        {{-- [PERBAIKAN BUG] Form dipisahkan untuk aksi Cetak dan Kirim --}}
                         <form id="laporan-karyawan-form" method="POST" class="d-inline">
                             @csrf
                             <input type="hidden" name="karyawan_id" value="{{ $selectedKaryawan->id }}">
@@ -119,7 +119,6 @@
                                         <td class="text-center">
                                             {{ \Carbon\Carbon::parse($gaji->bulan)->translatedFormat('F Y') }}</td>
                                         <td class="text-end">Rp {{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
-                                        {{-- [PERBAIKAN SEMPURNA] Menggunakan accessor yang sudah benar --}}
                                         <td class="text-end">Rp {{ number_format($gaji->total_tunjangan, 0, ',', '.') }}
                                         </td>
                                         <td class="text-end text-danger">(Rp
@@ -153,16 +152,13 @@
                 const form = document.getElementById('laporan-karyawan-form');
 
                 if (form) {
-                    // Event listener untuk tombol Cetak PDF
+                    // [PERBAIKAN BUG] Logika JS yang sudah benar, memastikan action diatur sebelum submit
                     document.getElementById('cetak-pdf-btn').addEventListener('click', function() {
-                        // Mengatur action form ke rute cetak dan submit
                         form.action = "{{ route('laporan.per.karyawan.cetak') }}";
                         form.submit();
                     });
 
-                    // Event listener untuk tombol Kirim Email
                     document.getElementById('kirim-email-btn').addEventListener('click', function() {
-                        // Mengatur action form ke rute kirim email dan submit
                         form.action = "{{ route('laporan.per.karyawan.kirim-email') }}";
                         form.submit();
                     });

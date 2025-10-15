@@ -6,43 +6,45 @@
 
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
-                <form id="laporan-form" method="POST" action="{{ route('laporan.gaji.cetak') }}">
-                    @csrf
-                    <div class="row align-items-end g-3">
+                <form id="filter-form" method="GET" action="{{ route('laporan.gaji.bulanan') }}">
+                    <div class="row align-items-end g-3 mb-3">
                         <div class="col-md-3">
                             <label for="bulan" class="form-label fw-bold">Pilih Periode</label>
                             <input type="month" class="form-control" id="bulan" name="bulan"
                                 value="{{ $selectedMonth }}">
                         </div>
                         <div class="col-md-2">
-                            <button type="button" id="filter-btn" class="btn btn-primary w-100">
+                            <button type="submit" class="btn btn-primary w-100">
                                 <i class="fas fa-filter me-1"></i> Tampilkan
                             </button>
                         </div>
-                        <div class="col-md-3">
-                            <button type="button" id="cetak-terpilih-btn" class="btn btn-danger w-100">
-                                <i class="fas fa-file-pdf me-1"></i> Cetak PDF Terpilih
-                            </button>
-                        </div>
-                        <div class="col-md-4">
-                            <button type="button" id="kirim-email-terpilih-btn" class="btn btn-info w-100">
-                                <i class="fas fa-envelope me-1"></i> Kirim Email Terpilih
-                            </button>
-                        </div>
+                    </div>
+                </form>
+
+                <hr>
+
+                <form id="laporan-gaji-form" method="POST">
+                    @csrf
+                    <input type="hidden" name="bulan" value="{{ $selectedMonth }}">
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button type="button" id="cetak-terpilih-btn" class="btn btn-danger">
+                            <i class="fas fa-file-pdf me-1"></i> Cetak PDF Terpilih
+                        </button>
+                        <button type="button" id="kirim-email-terpilih-btn" class="btn btn-info text-white">
+                            <i class="fas fa-envelope me-1"></i> Kirim Email Terpilih
+                        </button>
                     </div>
 
+                    {{-- [PERBAIKAN] Menampilkan pesan error jika tidak ada checkbox yang dipilih --}}
                     @if ($errors->has('gaji_ids'))
-                        <div class="text-danger small mt-2">{{ $errors->first('gaji_ids') }}</div>
+                        <div class="alert alert-danger py-2 small">{{ $errors->first('gaji_ids') }}</div>
                     @endif
 
-                    <hr>
-
-                    {{-- Tabel Rincian --}}
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th><input type="checkbox" id="select-all"></th>
+                                    <th><input type="checkbox" id="select-all" title="Pilih Semua"></th>
                                     <th>No.</th>
                                     <th>Nama Karyawan</th>
                                     <th>Jabatan</th>
@@ -50,21 +52,22 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($gajis as $gaji)
+                                @forelse ($laporanGaji as $item)
                                     <tr>
-                                        <td><input type="checkbox" name="gaji_ids[]" value="{{ $gaji->id }}"
+                                        {{-- Kunci fungsionalitas: name="gaji_ids[]" mengirim ID sebagai array --}}
+                                        <td><input type="checkbox" name="gaji_ids[]" value="{{ $item['gaji']->id }}"
                                                 class="gaji-checkbox"></td>
                                         <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $gaji->karyawan->nama }}</td>
-                                        <td>{{ $gaji->karyawan?->jabatan?->nama_jabatan ?? '-' }}</td>
-                                        <td class="text-end fw-bold">Rp {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}
+                                        <td>{{ $item['karyawan']->nama }}</td>
+                                        <td>{{ $item['karyawan']->jabatan?->nama_jabatan ?? '-' }}</td>
+                                        <td class="text-end fw-bold">Rp
+                                            {{ number_format($item['gaji_bersih'], 0, ',', '.') }}
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center fst-italic py-4">
-                                            Tidak ada data gaji untuk periode ini.
-                                        </td>
+                                        <td colspan="5" class="text-center fst-italic py-4">Tidak ada data gaji untuk
+                                            periode ini.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -78,60 +81,34 @@
     @push('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', function() {
-                const form = document.getElementById('laporan-form');
+                const form = document.getElementById('laporan-gaji-form');
+                const cetakBtn = document.getElementById('cetak-terpilih-btn');
+                const kirimEmailBtn = document.getElementById('kirim-email-terpilih-btn');
 
-                document.getElementById('filter-btn').addEventListener('click', function() {
-                    form.method = 'GET';
-                    form.action = "{{ route('laporan.gaji.bulanan') }}";
-                    // [PERBAIKAN BUG 2] Baris yang menghapus token CSRF dihilangkan untuk mencegah error 419
-                    form.submit();
-                });
+                if (cetakBtn) {
+                    cetakBtn.addEventListener('click', function() {
+                        form.method = 'POST';
+                        form.action = "{{ route('laporan.gaji.cetak') }}";
+                        form.submit();
+                    });
+                }
 
-                document.getElementById('cetak-terpilih-btn').addEventListener('click', function() {
-                    // Pastikan method dan action kembali ke POST untuk cetak
-                    form.method = 'POST';
-                    form.action = "{{ route('laporan.gaji.cetak') }}";
-                    form.removeAttribute('target');
-                    form.submit();
-                });
+                if (kirimEmailBtn) {
+                    kirimEmailBtn.addEventListener('click', function() {
+                        form.method = 'POST';
+                        form.action = "{{ route('laporan.gaji.kirim-email-terpilih') }}";
+                        form.submit();
+                    });
+                }
 
-                document.getElementById('kirim-email-terpilih-btn').addEventListener('click', function() {
-                    // Pastikan method dan action kembali ke POST untuk kirim email
-                    form.method = 'POST';
-                    form.action = "{{ route('laporan.gaji.kirim-email-terpilih') }}";
-                    form.removeAttribute('target');
-                    form.submit();
-                });
-
-                // [PERBAIKAN BUG 4] Logika checkbox 'select all' dibuat lebih responsif
                 const selectAllCheckbox = document.getElementById('select-all');
                 const gajiCheckboxes = document.querySelectorAll('.gaji-checkbox');
 
                 if (selectAllCheckbox) {
-                    selectAllCheckbox.addEventListener('change', function(e) {
-                        gajiCheckboxes.forEach(checkbox => {
-                            checkbox.checked = e.target.checked;
-                        });
+                    selectAllCheckbox.addEventListener('change', e => {
+                        gajiCheckboxes.forEach(checkbox => checkbox.checked = e.target.checked);
                     });
                 }
-
-                gajiCheckboxes.forEach(checkbox => {
-                    checkbox.addEventListener('change', function() {
-                        const allAreChecked = [...gajiCheckboxes].every(cb => cb.checked);
-                        const noneAreChecked = [...gajiCheckboxes].every(cb => !cb.checked);
-
-                        if (allAreChecked) {
-                            selectAllCheckbox.checked = true;
-                            selectAllCheckbox.indeterminate = false;
-                        } else if (noneAreChecked) {
-                            selectAllCheckbox.checked = false;
-                            selectAllCheckbox.indeterminate = false;
-                        } else {
-                            // Jika beberapa terpilih (tapi tidak semua), set ke indeterminate
-                            selectAllCheckbox.indeterminate = true;
-                        }
-                    });
-                });
             });
         </script>
     @endpush

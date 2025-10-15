@@ -15,16 +15,21 @@ class AbsensiService
     /**
      * Mengambil rekap absensi untuk satu bulan, termasuk menghitung hari kerja efektif.
      */
-    public function getAttendanceRecap(Carbon $bulan)
+    public function getAttendanceRecap(Carbon $bulan, array $karyawanIds = null): array
     {
         $startOfMonth = $bulan->copy()->startOfMonth();
         $endOfMonth = $bulan->copy()->endOfMonth();
 
-        $karyawans = Karyawan::orderBy('nama', 'asc')->get();
+        $karyawanQuery = Karyawan::orderBy('nama', 'asc');
+        if ($karyawanIds) {
+            $karyawanQuery->whereIn('id', $karyawanIds);
+        }
+        $karyawans = $karyawanQuery->get();
         $rekapData = [];
         $period = CarbonPeriod::create($startOfMonth, $endOfMonth);
 
         $absensiBulanan = Absensi::whereBetween('tanggal', [$startOfMonth, $endOfMonth])
+            ->whereIn('nip', $karyawans->pluck('nip'))
             ->get()
             ->groupBy('nip');
 

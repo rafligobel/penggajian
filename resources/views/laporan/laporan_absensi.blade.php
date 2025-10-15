@@ -121,8 +121,17 @@
         @if (session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif
-        @if (session('error'))
-            <div class="alert alert-danger">{{ session('error') }}</div>
+        @if ($errors->has('karyawan_ids'))
+            <div class="alert alert-danger">{{ $errors->first('karyawan_ids') }}</div>
+        @endif
+        @if ($errors->any())
+            <div class="alert alert-danger">
+                <ul class="mb-0">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
         @endif
 
         {{-- Form Aksi Utama --}}
@@ -130,7 +139,7 @@
             @csrf
             <input type="hidden" name="periode" value="{{ $selectedMonth->format('Y-m') }}">
 
-            <div class="card shadow-sm border-0">
+            <div class="card shadow-sm border-0 mb-3">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Data Rekap untuk {{ $selectedMonth->translatedFormat('F Y') }}</h5>
                     <div>
@@ -154,9 +163,8 @@
                 </thead>
                 <tbody id="rekap-tbody">
                     @forelse ($rekapData as $data)
-                        {{-- Baris Ringkasan --}}
                         <tr class="summary-row" data-bs-toggle="collapse" data-bs-target="#detail-row-{{ $data['nip'] }}"
-                            aria-expanded="false" aria-controls="detail-row-{{ $data['nip'] }}">
+                            aria-expanded="false">
                             <td class="text-center">
                                 <input type="checkbox" name="karyawan_ids[]" value="{{ $data['id'] }}"
                                     class="karyawan-checkbox" onclick="event.stopPropagation();">
@@ -166,13 +174,11 @@
                             <td class="text-center text-success fw-bold">{{ $data['summary']['total_hadir'] }}</td>
                             <td class="text-center text-danger fw-bold">{{ $data['summary']['total_alpha'] }}</td>
                         </tr>
-                        {{-- Baris Detail (Kalender) --}}
                         <tr id="detail-row-{{ $data['nip'] }}" class="collapse detail-row">
                             <td colspan="5" class="detail-cell">
                                 <div class="detail-grid">
                                     @for ($day = 1; $day <= $daysInMonth; $day++)
                                         @php
-                                            // Menghapus baris "array $data['detail'];" yang menyebabkan error
                                             $detailHari = $data['detail'][$day];
                                             $statusClass = 'status-libur'; // Default
                                             if ($detailHari['status'] === 'H') {
@@ -209,19 +215,22 @@
                 const selectAllCheckbox = document.getElementById('select-all');
                 const karyawanCheckboxes = document.querySelectorAll('.karyawan-checkbox');
 
-                selectAllCheckbox.addEventListener('change', function() {
-                    karyawanCheckboxes.forEach(checkbox => {
-                        checkbox.checked = this.checked;
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.addEventListener('change', function() {
+                        karyawanCheckboxes.forEach(checkbox => checkbox.checked = this.checked);
                     });
-                });
+                }
+
                 document.getElementById('cetak-terpilih-btn').addEventListener('click', function() {
                     form.action = "{{ route('laporan.absensi.cetak') }}";
                     form.submit();
                 });
+
                 document.getElementById('kirim-email-terpilih-btn').addEventListener('click', function() {
                     form.action = "{{ route('laporan.absensi.kirim-email') }}";
                     form.submit();
                 });
+
                 document.querySelectorAll('.summary-row').forEach(row => {
                     row.addEventListener('click', function() {
                         this.classList.toggle('expanded');

@@ -4,9 +4,10 @@ namespace App\Jobs;
 
 use App\Models\Gaji;
 use App\Models\User;
+use App\Models\Absensi;
 use App\Models\TandaTangan;
 use App\Notifications\ReportGenerated;
-use App\Traits\ManagesImageEncoding;
+use App\Traits\ManagesImageEncoding; // DIbutuhkan untuk logo & ttd
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -17,102 +18,116 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 use Carbon\Carbon;
-use App\Services\SalaryService;
 
 class GenerateMonthlySalaryReport implements ShouldQueue
 {
+    // [PERBAIKAN] Tambahkan trait untuk mengubah gambar menjadi base64
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, ManagesImageEncoding;
 
-    protected $selectedMonth;
-    protected $user;
-    protected $gajiIds;
+    protected string $bulan;
+    protected User $user;
+    protected array $gajiIds;
 
-    public function __construct(string $selectedMonth, User $user, ?array $gajiIds = null)
+    public function __construct(string $bulan, User $user, array $gajiIds)
     {
-        $this->selectedMonth = $selectedMonth;
+        $this->bulan = $bulan;
         $this->user = $user;
         $this->gajiIds = $gajiIds;
     }
 
-    public function handle(SalaryService $salaryService): void
+    public function handle(): void
     {
+        $user = $this->user;
+        $periode = null;
+
         try {
-            $query = Gaji::with(['karyawan.jabatan', 'tunjanganKehadiran'])->where('bulan', $this->selectedMonth);
+            $periode = Carbon::createFromFormat('Y-m', $this->bulan);
 
-            if ($this->gajiIds) {
-                $query->whereIn('id', $this->gajiIds);
+            $gajis = Gaji::with(['karyawan.jabatan', 'tunjanganKehadiran'])
+                ->whereIn('id', $this->gajiIds)
+                ->get();
+
+            if ($gajis->isEmpty()) {
+                throw new \Exception('Tidak ada data gaji yang valid untuk diproses.');
             }
-
-            $gajis = $query->get()->sortBy('karyawan.nama');
 
             $kehadiranData = [];
-            foreach ($gajis as $gaji) {
-                $detailGaji = $salaryService->calculateDetailsForForm($gaji->karyawan, $this->selectedMonth);
-                $kehadiranData[$gaji->id] = $detailGaji['jumlah_kehadiran'];
-            }
-
             $totals = [
-                'gaji_pokok' => $gajis->sum('gaji_pokok'),
-                'tunj_jabatan' => $gajis->sum(fn($g) => $g->karyawan->jabatan->tunj_jabatan ?? 0),
-                'tunj_kehadiran' => $gajis->sum(fn($g) => ($kehadiranData[$g->id] ?? 0) * ($g->tunjanganKehadiran->jumlah_tunjangan ?? 0)),
-                'tunj_anak' => $gajis->sum('tunj_anak'),
-                'tunj_komunikasi' => $gajis->sum('tunj_komunikasi'),
-                'tunj_pengabdian' => $gajis->sum('tunj_pengabdian'),
-                'tunj_kinerja' => $gajis->sum('tunj_kinerja'),
-                'lembur' => $gajis->sum('lembur'),
-                'potongan' => $gajis->sum('potongan'),
+                'gaji_pokok' => 0,
+                'tunj_jabatan' => 0,
+                'tunj_kehadiran' => 0,
+                'tunj_anak' => 0,
+                'tunj_komunikasi' => 0,
+                'tunj_pengabdian' => 0,
+                'tunj_kinerja' => 0,
+                'total_tunjangan' => 0,
+                'potongan' => 0,
+                'gaji_bersih' => 0,
             ];
 
-            $total_semua_tunjangan = $totals['tunj_jabatan'] + $totals['tunj_kehadiran'] + $totals['tunj_anak'] + $totals['tunj_komunikasi'] + $totals['tunj_pengabdian'] + $totals['tunj_kinerja'] + $totals['lembur'];
-            $totals['total_tunjangan'] = $total_semua_tunjangan;
-            $totals['gaji_bersih'] = ($totals['gaji_pokok'] + $total_semua_tunjangan) - $totals['potongan'];
+            foreach ($gajis as $gaji) {
+                $jumlahKehadiran = Absensi::where('nip', $gaji->karyawan->nip)
+                    ->whereYear('tanggal', $periode->year)
+                    ->whereMonth('tanggal', $periode->month)
+                    ->count();
+                $kehadiranData[$gaji->id] = $jumlahKehadiran;
 
-            $tandaTanganBendahara = '';
-            $pengaturanTtd = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
-            if ($pengaturanTtd && Storage::disk('public')->exists($pengaturanTtd->value)) {
-                $tandaTanganBendahara = $this->getImageAsBase64DataUri(storage_path('app/public/' . $pengaturanTtd->value));
+                $tunjanganJabatan = $gaji->karyawan->jabatan->tunj_jabatan ?? 0;
+                $tunjanganKehadiran = $jumlahKehadiran * ($gaji->tunjanganKehadiran->jumlah_tunjangan ?? 0);
+                $totalTunjangan = $tunjanganJabatan + $tunjanganKehadiran + $gaji->tunj_anak + $gaji->tunj_komunikasi + $gaji->tunj_pengabdian + $gaji->tunj_kinerja + $gaji->lembur;
+                $gajiBersih = ($gaji->gaji_pokok + $totalTunjangan) - $gaji->potongan;
+
+                $totals['gaji_pokok'] += $gaji->gaji_pokok;
+                $totals['tunj_jabatan'] += $tunjanganJabatan;
+                $totals['tunj_kehadiran'] += $tunjanganKehadiran;
+                $totals['tunj_anak'] += $gaji->tunj_anak;
+                $totals['tunj_komunikasi'] += $gaji->tunj_komunikasi;
+                $totals['tunj_pengabdian'] += $gaji->tunj_pengabdian;
+                $totals['tunj_kinerja'] += $gaji->tunj_kinerja;
+                $totals['total_tunjangan'] += $totalTunjangan;
+                $totals['potongan'] += $gaji->potongan;
+                $totals['gaji_bersih'] += $gajiBersih;
+
+                $gaji->gaji_bersih = $gajiBersih;
             }
-            $bendahara = User::where('role', 'bendahara')->first();
-            $bendaharaNama = $bendahara ? $bendahara->name : 'Bendahara Umum';
+
+            // [PERBAIKAN UTAMA DI SINI]
+            // Menggunakan kolom 'key' bukan 'jabatan'
+            $bendahara = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
+
+            $bendaharaNama = $bendahara ? $bendahara->nama : 'Bendahara Belum Diset';
+            $tandaTanganBendahara = $bendahara && Storage::disk('public')->exists($bendahara->path)
+                ? $this->getImageAsBase64DataUri(storage_path('app/public/' . $bendahara->path))
+                : null;
+            $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
+            $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
 
             $data = [
                 'gajis' => $gajis,
-                'periode' => $this->selectedMonth,
+                'periode' => $this->bulan,
+                'kehadiranData' => $kehadiranData,
                 'totals' => $totals,
                 'bendaharaNama' => $bendaharaNama,
-                'logoAlAzhar' => $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png')),
-                'logoYayasan' => $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png')),
                 'tandaTanganBendahara' => $tandaTanganBendahara,
-                'kehadiranData' => $kehadiranData,
+                'logoAlAzhar' => $logoAlAzhar,
+                'logoYayasan' => $logoYayasan,
             ];
 
-            $pdf = Pdf::loadView('gaji.cetak_semua', $data);
-            $pdf->setPaper('A4', 'landscape');
+            $pdf = Pdf::loadView('gaji.cetak_semua', $data)->setPaper('A4', 'landscape');
 
-            $periode = Carbon::parse($this->selectedMonth);
-            $filename = 'laporan-gaji-bulanan-' . $periode->format('Y-m') . '_' . uniqid() . '.pdf';
-            // [PERBAIKAN] Path penyimpanan dibuat lebih terstruktur
-            $path = 'laporan/gaji_bulanan/' . $filename;
+            $periodeFormatted = $periode->format('Y-m');
+            $downloadFilename = "laporan_gaji_bulanan_{$periodeFormatted}.pdf";
+            $storageFilename = "laporan_gaji_bulanan_{$periodeFormatted}_" . time() . ".pdf";
+            $path = 'reports/' . $storageFilename;
 
-            // [PERBAIKAN] Menyimpan ke disk 'local' untuk keamanan
             Storage::disk('local')->put($path, $pdf->output());
 
             $notifMessage = 'Laporan Gaji Bulanan periode ' . $periode->translatedFormat('F Y') . ' telah selesai dibuat.';
-            $this->user->notify(new ReportGenerated(
-                $path,
-                'Laporan Gaji ' . $periode->translatedFormat('F Y') . '.pdf',
-                $this->selectedMonth,
-                $notifMessage
-            ));
+            $user->notify(new ReportGenerated($path, $downloadFilename, $this->bulan, $notifMessage));
         } catch (Throwable $e) {
             Log::error('Gagal membuat Laporan Gaji Bulanan: ' . $e->getMessage(), ['exception' => $e]);
-            $this->user->notify(new ReportGenerated(
-                '',
-                '',
-                $this->selectedMonth,
-                'Gagal membuat Laporan Gaji Bulanan. Error: ' . $e->getMessage(),
-                true
-            ));
+            $notifMessage = 'Gagal memproses laporan gaji bulanan.';
+            $user->notify(new ReportGenerated('', '', $this->bulan, $notifMessage, true));
         }
     }
 }
