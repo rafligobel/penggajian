@@ -95,6 +95,14 @@
             background-color: #f8d7da;
             color: #58151c;
         }
+
+        /* --- MODIFIKASI: CSS untuk status libur ditambahkan --- */
+        .status-libur {
+            background-color: #f8f9fa;
+            color: #6c757d;
+        }
+
+        /* --- END MODIFIKASI --- */
     </style>
 
     <div class="container py-4">
@@ -124,6 +132,13 @@
                             style="width: 15px; height: 15px; background-color: #d1e7dd; border-radius: 3px; border: 1px solid #bce0ce;">
                         </div>
                         <span>Hadir</span>
+                    </div>
+                    {{-- MODIFIKASI: Menambahkan Keterangan Libur --}}
+                    <div class="d-flex align-items-center me-4">
+                        <div class="me-2"
+                            style="width: 15px; height: 15px; background-color: #f8f9fa; border-radius: 3px; border: 1px solid #e9ecef;">
+                        </div>
+                        <span>Libur</span>
                     </div>
                     <div class="d-flex align-items-center">
                         <div class="me-2"
@@ -172,6 +187,7 @@
             const noDataMessage = document.getElementById('no-data-message');
 
             let allRekapData = [];
+            let currentDaysInMonth = 0; // MODIFIKASI: Variabel untuk simpan jumlah hari
 
             function renderTable(dataToRender) {
                 rekapTbody.innerHTML = '';
@@ -207,21 +223,49 @@
                     detailRow.id = `detail-row-${k.nip}`;
                     detailRow.className = 'detail-row';
 
+                    // --- MODIFIKASI: Logika untuk render kalender detail diubah total ---
                     let detailGridHtml = '<div class="detail-grid">';
-                    for (const day in k.detail) {
-                        const detailHari = k.detail[day];
-                        if (detailHari.status === 'H' || detailHari.status === 'A') {
-                            const statusClass = detailHari.status === 'H' ? 'status-hadir' : 'status-absen';
-                            const jam = detailHari.jam;
+
+                    // Pastikan kita punya data jumlah hari dan detail absensi
+                    if (currentDaysInMonth > 0 && k.detail) {
+
+                        // Loop dari hari 1 s/d hari terakhir di bulan tsb
+                        for (let day = 1; day <= currentDaysInMonth; day++) {
+
+                            // Ambil data untuk hari H
+                            const detailHari = k.detail[day];
+
+                            // Tentukan status default (Libur)
+                            let statusClass = 'status-libur';
+                            let jam = '-';
+                            let statusText = '...'; // Status default jika data hari tsb tidak ada
+
+                            // Jika ada data detail untuk hari itu
+                            if (detailHari) {
+                                jam = detailHari.jam || '-';
+                                statusText = detailHari.status || '...';
+
+                                // Set class berdasarkan status, mirip di laporan_absensi.blade.php
+                                if (detailHari.status === 'H') {
+                                    statusClass = 'status-hadir';
+                                } else if (detailHari.status === 'A') {
+                                    statusClass = 'status-absen';
+                                }
+                                // Jika status 'L' atau lainnya, akan tetap 'status-libur'
+                            }
+
+                            // Buat elemen kalender harian
                             detailGridHtml += `
                             <div class="attendance-day ${statusClass}" title="Jam: ${jam}">
                                 <span class="day-number">${day}</span>
-                                <span>${detailHari.status}</span>
+                                <span>${statusText}</span>
                             </div>
                             `;
                         }
                     }
                     detailGridHtml += '</div>';
+                    // --- END MODIFIKASI ---
+
                     detailRow.innerHTML = `<td colspan="5" class="detail-cell">${detailGridHtml}</td>`;
                     rekapTbody.appendChild(summaryRow);
                     rekapTbody.appendChild(detailRow);
@@ -245,6 +289,21 @@
                 const bulan = bulanInput.value;
                 if (!bulan) return;
 
+                // --- MODIFIKASI: Hitung dan simpan jumlah hari di bulan terpilih ---
+                try {
+                    const [year, month] = bulan.split('-').map(Number);
+                    // new Date(year, month, 0) akan memberikan tanggal terakhir dari bulan SEBELUMNYA.
+                    // JavaScript month adalah 0-indexed (0=Jan, 1=Feb, ...). 
+                    // Jadi 'month' dari input (misal 10 untuk Okt) adalah month ke-9 di JS.
+                    // new Date(year, month, 0) artinya kita minta hari ke-0 dari bulan *berikutnya* (Nov),
+                    // yang mana adalah hari terakhir dari bulan ini (Okt).
+                    currentDaysInMonth = new Date(year, month, 0).getDate();
+                } catch (e) {
+                    console.error("Format bulan salah:", bulan);
+                    currentDaysInMonth = 0; // Reset jika error
+                }
+                // --- END MODIFIKASI ---
+
                 loadingMessage.style.display = 'block';
                 rekapTbody.innerHTML = '';
                 noDataMessage.style.display = 'none';
@@ -267,7 +326,7 @@
                         infoHariKerja.style.display = 'block';
 
                         allRekapData = data.rekap || [];
-                        renderTable(allRekapData);
+                        renderTable(allRekapData); // renderTable sekarang akan menggunakan currentDaysInMonth
                     })
                     .catch(error => {
                         console.error('Error fetching data:', error);
@@ -298,6 +357,7 @@
 
             searchInput.addEventListener('input', filterAndRender);
 
+            // Muat data saat halaman pertama kali dibuka
             fetchData();
         });
     </script>

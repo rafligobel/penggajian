@@ -92,7 +92,7 @@
             <tr>
                 <td style="width: 15%; text-align: left;"><img src="{{ $logoAlAzhar }}" alt="Logo" class="logo"></td>
                 <td>
-                    <h3>YAYASAN ISLAM AL-AZHAR 43 GORONTALO</h3>
+                    <h3>SEKOLAH ISLAM AL AZHAR 43 GORONTALO</h3>
                     <h4>LAPORAN GAJI TENAGA KERJA</h4>
                     <span>Periode: {{ \Carbon\Carbon::parse($periode)->translatedFormat('F Y') }}</span>
                 </td>
@@ -130,8 +130,16 @@
                     @php
                         // Hitung total tunjangan per karyawan
                         $tunjanganJabatan = $gaji->karyawan->jabatan->tunj_jabatan ?? 0;
-                        $tunjanganKehadiran = ($kehadiranData[$gaji->id] ?? 0) * ($gaji->tunjanganKehadiran->jumlah_tunjangan ?? 0);
-                        $totalTunjangan = $tunjanganJabatan + $tunjanganKehadiran + $gaji->tunj_anak + $gaji->tunj_komunikasi + $gaji->tunj_pengabdian + $gaji->tunj_kinerja + $gaji->lembur;
+                        $tunjanganKehadiran =
+                            ($kehadiranData[$gaji->id] ?? 0) * ($gaji->tunjanganKehadiran->jumlah_tunjangan ?? 0);
+                        $totalTunjangan =
+                            $tunjanganJabatan +
+                            $tunjanganKehadiran +
+                            $gaji->tunj_anak +
+                            $gaji->tunj_komunikasi +
+                            $gaji->tunj_pengabdian +
+                            $gaji->tunj_kinerja +
+                            $gaji->lembur;
                     @endphp
                     <tr>
                         <td class="text-center">{{ $loop->iteration }}</td>
@@ -147,7 +155,8 @@
                         <td>{{ number_format($gaji->tunj_pengabdian, 0, ',', '.') }}</td>
                         <td>{{ number_format($gaji->tunj_kinerja, 0, ',', '.') }}</td>
                         {{-- [PERUBAIKAN] Menampilkan Total Tunjangan per karyawan --}}
-                        <td style="font-weight: bold; background-color: #f8f9fa;">{{ number_format($totalTunjangan, 0, ',', '.') }}</td>
+                        <td style="font-weight: bold; background-color: #f8f9fa;">
+                            {{ number_format($totalTunjangan, 0, ',', '.') }}</td>
                         <td>({{ number_format($gaji->potongan, 0, ',', '.') }})</td>
                         <td style="font-weight: bold;">{{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
                     </tr>
@@ -171,7 +180,8 @@
                         <td>{{ number_format($totals['tunj_pengabdian'], 0, ',', '.') }}</td>
                         <td>{{ number_format($totals['tunj_kinerja'], 0, ',', '.') }}</td>
                         {{-- [PERUBAIKAN] Menampilkan Grand Total Tunjangan --}}
-                        <td style="background-color: #d1ecf1;">{{ number_format($totals['total_tunjangan'], 0, ',', '.') }}</td>
+                        <td style="background-color: #d1ecf1;">
+                            {{ number_format($totals['total_tunjangan'], 0, ',', '.') }}</td>
                         <td>({{ number_format($totals['potongan'], 0, ',', '.') }})</td>
                         <td>{{ number_format($totals['gaji_bersih'], 0, ',', '.') }}</td>
                     </tr>

@@ -142,7 +142,7 @@
             <tr>
                 <td style="width: 20%; text-align: left;"><img src="{{ $logoAlAzhar }}" alt="Logo" class="logo"></td>
                 <td class="title-container">
-                    <h3>YAYASAN ISLAM AL-AZHAR 43 GORONTALO</h3>
+                    <h3>SEKOLAH ISLAM AL AZHAR 43 GORONTALO</h3>
                     <h4>SLIP GAJI TENAGA KERJA</h4>
                 </td>
                 <td style="width: 20%; text-align: right;"><img src="{{ $logoYayasan }}" alt="Logo" class="logo">

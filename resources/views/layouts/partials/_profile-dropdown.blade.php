@@ -1,6 +1,8 @@
 <li class="nav-item dropdown">
+    {{-- PERBAIKAN: Tambahkan dua atribut di baris ini --}}
     <a id="navbarDropdown" class="nav-link dropdown-toggle profile-btn" href="#" role="button"
-        data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-bs-container="body"
+        data-bs-strategy="fixed">
         <i class="fas fa-user-circle me-1"></i> {{ Auth::user()->name }}
     </a>
 

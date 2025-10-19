@@ -79,8 +79,8 @@
         <div class="footer">
             <p>Salam Hormat,</p>
             <p>
-                <strong>Bendahara Al-Azhar 43 Gorontalo</strong><br>
-                Sistem Informasi Kepegawaian & Penggajian (SIKAP)
+                <strong>Bendahara Sekolah Islam Al Azhar 43 Gorontalo</strong><br>
+                Sistem Informasi Penggajian & Kepegawaian
             </p>
         </div>
     </div>

@@ -109,7 +109,7 @@
             <td style="width: 20%; text-align: center;"><img src="{{ $logoAlAzhar }}" alt="Logo Al-Azhar"
                     class="header-img"></td>
             <td style="width: 60%;" class="header-text">
-                <h3>YAYASAN AL AZHAR GORONTALO</h3>
+                <h3>SEKOLAH ISLAM AL AZHAR 43 GORONTALO</h3>
                 <h4>LAPORAN RINCIAN ABSENSI KARYAWAN</h4>
                 <p>Periode: {{ $periode->translatedFormat('F Y') }}</p>
             </td>
