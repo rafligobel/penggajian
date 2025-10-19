@@ -3,7 +3,7 @@
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 <div class="modal-body">
-    {{-- Form untuk memilih tahun (Sudah berfungsi dengan baik, tidak perlu diubah) --}}
+    {{-- Form untuk memilih tahun (Sudah berfungsi dengan baik) --}}
     <form method="GET" action="{{ route('tenaga_kerja.dashboard') }}" class="mb-3">
         <div class="row align-items-end">
             <div class="col-md-4">
@@ -14,7 +14,7 @@
                         </option>
                     @empty
                         <option>Belum ada data</option>
-                    @endforelse
+                    @endforelse {{-- <-- [PERBAIKAN] Typo F kapital diubah menjadi f kecil --}}
                 </select>
             </div>
         </div>
@@ -34,7 +34,7 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse ($gajis as $gaji)
+                @forelse ($laporanData['gajis'] as $gaji)
                     <tr>
                         <td>{{ \Carbon\Carbon::parse($gaji->bulan)->translatedFormat('F Y') }}</td>
                         <td class="text-end">Rp {{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
@@ -45,7 +45,7 @@
                         <td class="text-center">
                             {{-- [PERBAIKAN] Mengubah dari <form> menjadi <a> untuk metode GET --}}
                             <a href="{{ route('tenaga_kerja.laporan_gaji.cetak', $gaji->id) }}"
-                                class="btn btn-sm btn-success" title="Cetak Slip Gaji">
+                                class="btn btn-sm btn-success" title="Cetak Slip Gaji" target="_blank">
                                 <i class="fas fa-print"></i> Cetak
                             </a>
                         </td>

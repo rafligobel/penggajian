@@ -16,8 +16,7 @@
                 @forelse ($availableMonths as $bulan)
                     {{--
                         [PERBAIKAN] Nilai (value) dari option diformat menjadi 'Y-m'
-                        agar lolos validasi di controller. Carbon::parse() digunakan
-                        untuk memastikan variabel $bulan dapat diproses dengan benar.
+                        agar lolos validasi 'date_format:Y-m' di controller.
                     --}}
                     <option value="{{ \Carbon\Carbon::parse($bulan)->format('Y-m') }}">
                         {{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}

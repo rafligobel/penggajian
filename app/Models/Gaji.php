@@ -44,17 +44,17 @@ class Gaji extends Model
     /**
      * Relasi ke model Karyawan.
      */
-    public function karyawan(): BelongsTo
+    public function karyawan()
     {
-        return $this->belongsTo(Karyawan::class);
+        return $this->belongsTo(\App\Models\Karyawan::class, 'karyawan_id');
     }
 
     /**
      * Relasi ke model TunjanganKehadiran.
      */
-    public function tunjanganKehadiran(): BelongsTo
+    public function tunjanganKehadiran()
     {
-        return $this->belongsTo(TunjanganKehadiran::class);
+        return $this->belongsTo(\App\Models\TunjanganKehadiran::class, 'tunjangan_kehadiran_id');
     }
 
     /*

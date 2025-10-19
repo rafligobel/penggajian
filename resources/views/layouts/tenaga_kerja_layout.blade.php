@@ -16,6 +16,9 @@
     <style>
         body {
             background-color: #f4f7f6;
+        }
+
+        /* <-- [PERBAIKAN] Kurung kurawal '}' yang hilang ditambahkan di sini */
 
         .navbar-brand img {
             max-height: 38px;

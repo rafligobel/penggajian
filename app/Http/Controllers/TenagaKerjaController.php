@@ -41,15 +41,14 @@ class TenagaKerjaController extends Controller
         $karyawan = $user->karyawan;
 
         // ======================================================================================
-        // [PERBAIKAN 1: LOGIKA ABSENSI]
-        // Logika sebelumnya salah karena hanya memeriksa SesiAbsensi spesifik untuk hari ini
-        // dan mengabaikan sesi default. Logika baru ini selalu menggunakan AbsensiService
-        // yang sudah dirancang untuk menangani kedua kasus (spesifik dan default) dengan benar.
+        // [PERBAIKAN 1: LOGIKA ABSENSI DASHBOARD]
+        // Logika disederhanakan untuk selalu menggunakan service, yang sudah
+        // menangani kasus sesi default vs. sesi spesifik hari ini.
         // ======================================================================================
         $today = today();
         $statusInfo = $this->absensiService->getSessionStatus($today);
         $isSesiDibuka = false;
-        $pesanSesi = $statusInfo['status'];
+        $pesanSesi = $statusInfo['status']; // Pesan default dari service
 
         if ($statusInfo['is_active']) {
             $now = now();
@@ -74,38 +73,41 @@ class TenagaKerjaController extends Controller
             ->whereMonth('tanggal', now()->month)
             ->count();
 
-        // [INFO] Logika Gaji Terakhir Diterima sudah benar, tidak perlu diubah.
         $gajiTerbaru = $karyawan->gajis()->orderBy('bulan', 'desc')->first();
 
         // --- Logika untuk Modal Laporan Gaji ---
-        $tahunLaporan = $request->input('tahun', date('Y'));
-        $laporanTersedia = Gaji::where('karyawan_id', $karyawan->id)
+        $tahun = $request->input('tahun', date('Y'));
+        $availableYears = Gaji::where('karyawan_id', $karyawan->id)
             ->whereNotNull('bulan')
             ->selectRaw('YEAR(bulan) as year')
             ->distinct()->orderBy('year', 'desc')->pluck('year');
 
-        $laporanGaji = Gaji::where('karyawan_id', $karyawan->id)
-            ->whereYear('bulan', $tahunLaporan)
+        $gajis = Gaji::where('karyawan_id', $karyawan->id)
+            ->whereYear('bulan', $tahun)
             ->orderBy('bulan', 'asc')
             ->with('tunjanganKehadiran', 'karyawan.jabatan')
             ->get();
 
         $rekapAbsensiPerBulan = Absensi::where('nip', $karyawan->nip)
-            ->whereYear('tanggal', $tahunLaporan)
+            ->whereYear('tanggal', $tahun)
             ->selectRaw('DATE_FORMAT(tanggal, "%Y-%m") as bulan, COUNT(*) as jumlah_hadir')
             ->groupBy('bulan')
             ->pluck('jumlah_hadir', 'bulan');
 
-        foreach ($laporanGaji as $gaji) {
+        foreach ($gajis as $gaji) {
             $tunjanganDariJabatan = $gaji->karyawan->jabatan->tunjangan_jabatan ?? 0;
             $bulanKey = $gaji->bulan->format('Y-m');
             $totalKehadiran = $rekapAbsensiPerBulan->get($bulanKey, 0);
-            $tunjanganPerKehadiran = $gaji->tunjanganKehadiran->nominal_per_hari ?? 0;
+            $tunjanganPerKehadiran = $gaji->tunjanganKehadiran->jumlah_tunjangan ?? 0;
             $totalTunjanganKehadiran = $totalKehadiran * $tunjanganPerKehadiran;
 
             $gaji->total_tunjangan = $tunjanganDariJabatan + $gaji->tunj_anak + $gaji->tunj_komunikasi + $gaji->tunj_pengabdian + $gaji->tunj_kinerja + $totalTunjanganKehadiran + $gaji->lembur;
             $gaji->total_potongan = $gaji->potongan;
         }
+
+        $laporanData = [
+            'gajis' => $gajis
+        ];
 
         $slipTersedia = Gaji::where('karyawan_id', $karyawan->id)
             ->orderBy('bulan', 'desc')->pluck('bulan');
@@ -117,36 +119,49 @@ class TenagaKerjaController extends Controller
             'isSesiDibuka',
             'sudahAbsen',
             'pesanSesi',
-            'laporanGaji',
-            'tahunLaporan',
-            'laporanTersedia',
+            'laporanData', // ▲▲▲ PERUBAHAN 2: GANTI 'gajis' MENJADI 'laporanData' ▲▲▲
+            'tahun',
+            'availableYears',
             'slipTersedia'
         ));
     }
 
     public function prosesAbsensi(Request $request)
     {
-        // 1. Validasi input dari frontend, sekarang harus ada koordinat
         $request->validate([
-            'latitude' => 'required|numeric',
-            'longitude' => 'required|numeric',
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
         ]);
 
-        // 2. Logika validasi radius
-        $officeLatitude = (float) env('OFFICE_LATITUDE');
-        $officeLongitude = (float) env('OFFICE_LONGITUDE');
-        $maxRadius = (int) env('MAX_ATTENDANCE_RADIUS');
+        // ======================================================================================
+        // [PERBAIKAN 2: BUG LOKASI (0,0)]
+        // Menambahkan validasi untuk menolak koordinat (0,0) jika GPS gagal.
+        // ======================================================================================
+        $userLat = (float) $request->latitude;
+        $userLon = (float) $request->longitude;
 
-        $distance = $this->hitungJarak($request->latitude, $request->longitude, $officeLatitude, $officeLongitude);
-
-        if ($distance > $maxRadius) {
+        if ($userLat == 0 && $userLon == 0) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Anda berada di luar area sekolah Al-Azhar! Jarak Anda ' . round($distance) . ' meter.'
+                'message' => 'Gagal mendapatkan lokasi GPS. Pastikan izin lokasi (GPS) di perangkat Anda sudah aktif dan coba lagi.'
             ], 422); // Unprocessable Entity
         }
+        // --- PERBAIKAN SELESAI ---
 
-        // 3. Logika absensi yang sudah ada (sesi, cek duplikat)
+        $officeLatitude = (float) env('OFFICE_LATITUDE');
+        $officeLongitude = (float) env('OFFICE_LONGITUDE');
+        $maxRadius = (int) env('MAX_ATTENDANCE_RADIUS', 50);
+
+        $distance = $this->hitungJarak($userLat, $userLon, $officeLatitude, $officeLongitude);
+
+        if ($distance > $maxRadius) {
+            $errorMessage = 'Anda berada di luar area sekolah! Jarak Anda ' . round($distance) . ' meter dari sekolah Alazhar.';
+            return response()->json([
+                'status' => 'error',
+                'message' => $errorMessage
+            ], 422);
+        }
+
         $karyawan = Auth::user()->karyawan;
         $now = now();
         $today = $now->copy()->startOfDay();
@@ -166,26 +181,22 @@ class TenagaKerjaController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Sistem tidak dapat menemukan sesi absensi yang valid.'], 500);
         }
 
-        // 4. Simpan absensi ke database DENGAN koordinat
         Absensi::create([
             'sesi_absensi_id' => $sesiAbsensi->id,
             'nip' => $karyawan->nip,
             'nama' => $karyawan->nama,
             'tanggal' => $now->toDateString(),
             'jam' => $now->toTimeString(),
-            'koordinat' => $request->latitude . ',' . $request->longitude, // Simpan koordinat
+            'koordinat' => $userLat . ',' . $userLon,
+            'jarak' => round($distance)
         ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Absensi berhasil! Terima kasih telah melakukan absensi hari ini.'
+            'message' => 'Absensi berhasil! Terima kasih.'
         ]);
     }
 
-    /**
-     * Fungsi helper untuk menghitung jarak.
-     * Cukup salin fungsi ini ke bagian bawah controller Anda.
-     */
     private function hitungJarak($lat1, $lon1, $lat2, $lon2)
     {
         $earthRadius = 6371000;
@@ -199,32 +210,12 @@ class TenagaKerjaController extends Controller
         return $angle * $earthRadius;
     }
 
-    public function hitungSimulasi(Request $request)
-    {
-        $validatedData = $request->validate([
-            'jumlah_hari_masuk' => 'required|integer|min:0',
-            'lembur'            => 'nullable|numeric|min:0',
-            'potongan'          => 'nullable|numeric|min:0',
-            'tunj_anak'         => 'nullable|numeric|min:0',
-            'tunj_komunikasi'   => 'nullable|numeric|min:0',
-            'tunj_pengabdian'   => 'nullable|numeric|min:0',
-            'tunj_kinerja'      => 'nullable|numeric|min:0',
-        ]);
-
-        $karyawan = Auth::user()->karyawan;
-        $hasilRincian = $this->salaryService->calculateSimulation($karyawan, $validatedData);
-
-        $hasil = [
-            'karyawan'          => $karyawan,
-            'jumlah_hari_masuk' => $validatedData['jumlah_hari_masuk'],
-            'rincian'           => $hasilRincian,
-            'gaji_bersih'       => $hasilRincian['gaji_bersih'],
-        ];
-
-        return redirect()->route('tenaga_kerja.dashboard')
-            ->with('hasil_simulasi', $hasil)
-            ->with('show_modal', 'hasilSimulasiModal');
-    }
+    // ======================================================================================
+    // [PERBAIKAN: FITUR SIMULASI]
+    // Fungsi hitungSimulasi() yang lama (menggunakan redirect) dihapus.
+    // Logika tersebut sekarang ditangani oleh SimulasiGajiController,
+    // yang akan di-rute-kan ke 'tenaga_kerja.simulasi.hitung'.
+    // ======================================================================================
 
     public function downloadSlipGaji(Request $request)
     {
@@ -269,7 +260,7 @@ class TenagaKerjaController extends Controller
             $safeFilename = str_replace(' ', '_', strtolower($gaji->karyawan->nama));
             $filename = 'slip-gaji-' . $safeFilename . '-' . $gaji->bulan->format('Y-m') . '.pdf';
 
-            return $pdf->download($filename);
+            return $pdf->stream($filename);
         } catch (Throwable $e) {
             Log::error('Gagal membuat slip PDF langsung untuk karyawan: ' . $e->getMessage(), ['exception' => $e]);
             return redirect()->back()->with('error', 'Terjadi kesalahan saat membuat slip gaji. Silakan hubungi administrator.');
@@ -278,22 +269,19 @@ class TenagaKerjaController extends Controller
 
     public function cetakLaporanGaji(Gaji $gaji)
     {
-        // Autorisasi: Pastikan karyawan hanya bisa mengakses slip gajinya sendiri
         if ($gaji->karyawan_id !== Auth::user()->karyawan->id) {
             abort(403, 'Anda tidak diizinkan mengakses slip gaji ini.');
         }
 
         try {
-            // [PERBAIKAN 1]
-            // Mengirim 'bulan' sebagai string dengan format 'Y-m-d' yang diharapkan oleh SalaryService.
-            // Sebelumnya, objek Carbon lengkap dikirim, yang bisa menyebabkan kesalahan parsing.
+            // ======================================================================================
+            // [PERBAIKAN 3: BUG CETAK LAPORAN]
+            // 1. Mengirim 'bulan' sebagai string 'Y-m-d' yang diharapkan SalaryService.
+            // 2. Menghapus 'dd($data);' yang menghentikan eksekusi.
+            // ======================================================================================
             $data = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan->format('Y-m-d'));
 
-            // [PERBAIKAN 2]
-            // Menghapus baris dd($data); yang menghentikan eksekusi skrip.
-            // Ini adalah penyebab utama mengapa PDF tidak pernah dibuat.
-
-            // Mempersiapkan data untuk PDF (logo, nama bendahara, tanda tangan)
+            // Mempersiapkan data untuk PDF
             $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
             $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));
 
@@ -317,14 +305,11 @@ class TenagaKerjaController extends Controller
             ]);
             $pdf->setPaper('A4', 'portrait');
 
-            // Membuat nama file yang aman dan deskriptif
             $safeFilename = str_replace(' ', '_', strtolower($gaji->karyawan->nama));
             $filename = 'slip-gaji-' . $safeFilename . '-' . $gaji->bulan->format('Y-m') . '.pdf';
 
-            // Mengirim file PDF ke browser untuk diunduh
-            return $pdf->download($filename);
+            return $pdf->stream($filename);
         } catch (\Throwable $e) {
-            // Jika terjadi error, catat log dan kembalikan ke halaman sebelumnya dengan pesan error
             \Illuminate\Support\Facades\Log::error('Gagal membuat slip PDF dari Laporan Gaji: ' . $e->getMessage(), ['exception' => $e]);
             return redirect()->back()->with('error', 'Terjadi kesalahan saat membuat slip gaji. Silakan hubungi administrator.');
         }

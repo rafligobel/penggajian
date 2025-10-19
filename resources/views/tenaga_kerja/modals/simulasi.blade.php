@@ -3,7 +3,8 @@
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
-<form method="POST" action="{{ route('tenaga_kerja.simulasi.hitung') }}">
+{{-- [PERBAIKAN] Tambahkan ID pada form untuk hook JavaScript --}}
+<form method="POST" action="{{ route('tenaga_kerja.simulasi.hitung') }}" id="form-simulasi">
     @csrf
     <div class="modal-body">
         <p class="text-muted text-center mb-4">
@@ -15,10 +16,14 @@
             @endif
         </p>
 
+        {{-- Pesan Error Validasi (opsional, untuk AJAX) --}}
+        <div id="simulasi-error-container" class="alert alert-danger d-none"></div>
+
         {{-- Input Utama (Tidak Tetap) --}}
         <div class="mb-3">
             <label for="jumlah_hari_masuk" class="form-label fw-bold">Jumlah Hari Masuk</label>
-            <input type="number" class="form-control" name="jumlah_hari_masuk" id="jumlah_hari_masuk" value="26" required>
+            <input type="number" class="form-control" name="jumlah_hari_masuk" id="jumlah_hari_masuk" value="26"
+                required>
             <div class="form-text">Input ini akan menghitung Tunjangan Kehadiran.</div>
         </div>
         <hr>
@@ -31,7 +36,8 @@
             <label for="tunj_anak" class="form-label">Tunjangan Anak</label>
             <div class="input-group">
                 <span class="input-group-text">Rp</span>
-                <input type="number" class="form-control" name="tunj_anak" id="tunj_anak" value="{{ $gajiTerakhir->tunj_anak ?? 0 }}" min="0">
+                <input type="number" class="form-control" name="tunj_anak" id="tunj_anak"
+                    value="{{ $gajiTerakhir->tunj_anak ?? 0 }}" min="0">
             </div>
         </div>
 
@@ -39,7 +45,8 @@
             <label for="tunj_komunikasi" class="form-label">Tunjangan Komunikasi</label>
             <div class="input-group">
                 <span class="input-group-text">Rp</span>
-                <input type="number" class="form-control" name="tunj_komunikasi" id="tunj_komunikasi" value="{{ $gajiTerakhir->tunj_komunikasi ?? 0 }}" min="0">
+                <input type="number" class="form-control" name="tunj_komunikasi" id="tunj_komunikasi"
+                    value="{{ $gajiTerakhir->tunj_komunikasi ?? 0 }}" min="0">
             </div>
         </div>
 
@@ -47,7 +54,8 @@
             <label for="tunj_pengabdian" class="form-label">Tunjangan Pengabdian</label>
             <div class="input-group">
                 <span class="input-group-text">Rp</span>
-                <input type="number" class="form-control" name="tunj_pengabdian" id="tunj_pengabdian" value="{{ $gajiTerakhir->tunj_pengabdian ?? 0 }}" min="0">
+                <input type="number" class="form-control" name="tunj_pengabdian" id="tunj_pengabdian"
+                    value="{{ $gajiTerakhir->tunj_pengabdian ?? 0 }}" min="0">
             </div>
         </div>
 
@@ -55,7 +63,8 @@
             <label for="tunj_kinerja" class="form-label">Tunjangan Kinerja</label>
             <div class="input-group">
                 <span class="input-group-text">Rp</span>
-                <input type="number" class="form-control" name="tunj_kinerja" id="tunj_kinerja" value="{{ $gajiTerakhir->tunj_kinerja ?? 0 }}" min="0">
+                <input type="number" class="form-control" name="tunj_kinerja" id="tunj_kinerja"
+                    value="{{ $gajiTerakhir->tunj_kinerja ?? 0 }}" min="0">
             </div>
         </div>
 
@@ -63,7 +72,8 @@
             <label for="lembur" class="form-label">Estimasi Lembur</label>
             <div class="input-group">
                 <span class="input-group-text">Rp</span>
-                <input type="number" class="form-control" name="lembur" id="lembur" value="{{ $gajiTerakhir->lembur ?? 0 }}" min="0">
+                <input type="number" class="form-control" name="lembur" id="lembur"
+                    value="{{ $gajiTerakhir->lembur ?? 0 }}" min="0">
             </div>
         </div>
         <hr>
@@ -74,7 +84,8 @@
             <label for="potongan" class="form-label">Potongan Lain-lain</label>
             <div class="input-group">
                 <span class="input-group-text">Rp</span>
-                <input type="number" class="form-control" name="potongan" id="potongan" value="{{ $gajiTerakhir->potongan ?? 0 }}" min="0">
+                <input type="number" class="form-control" name="potongan" id="potongan"
+                    value="{{ $gajiTerakhir->potongan ?? 0 }}" min="0">
             </div>
         </div>
     </div>

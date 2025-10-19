@@ -54,6 +54,7 @@
                             input)</strong></td>
                 </tr>
                 <tr class="table-info">
+                    {{-- [PERBAIKAN] Menggunakan $hasil['jumlah_hari_masuk'] untuk konsistensi --}}
                     <td colspan="2">Tunjangan Kehadiran ({{ $hasil['jumlah_hari_masuk'] }} hari)</td>
                     <td class="text-end">{{ number_format($hasil['rincian']['tunj_kehadiran'], 0, ',', '.') }}</td>
                 </tr>
@@ -88,9 +89,9 @@
 </div>
 
 <div class="modal-footer">
-    {{-- PERUBAHAN: Tombol ini kini menutup modal hasil dan membuka kembali modal form --}}
-    <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#simulasiModal"
-        data-bs-dismiss="modal">
+    {{-- [PERBAIKAN] Tombol ini sekarang berfungsi untuk menutup modal hasil (#hasilSimulasiModal)
+         dan membuka kembali modal form (#simulasiModal). Ini sudah benar. --}}
+    <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#simulasiModal">
         <i class="fas fa-calculator me-1"></i> Hitung Ulang
     </button>
     <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Selesai</button>

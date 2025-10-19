@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable; // <-- PASTIKAN INI ADA
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Karyawan;
 
 class User extends Authenticatable
 {

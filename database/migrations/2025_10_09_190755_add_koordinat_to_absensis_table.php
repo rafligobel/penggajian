@@ -8,28 +8,28 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     * * Metode 'up' akan dijalankan saat Anda menjalankan 'php artisan migrate'.
-     * Kode ini menambahkan satu kolom baru ke tabel 'absensis'.
      */
     public function up(): void
     {
         Schema::table('absensis', function (Blueprint $table) {
             // Menambahkan kolom 'koordinat' dengan tipe data string.
-            // ->nullable() berarti kolom ini boleh kosong.
-            // ->after('jam') menempatkan kolom ini setelah kolom 'jam' agar rapi.
             $table->string('koordinat')->nullable()->after('jam');
+
+            // --- TAMBAHAN BARU ---
+            // Menambahkan kolom 'jarak' untuk menyimpan jarak (dalam meter).
+            $table->float('jarak')->nullable()->after('koordinat');
         });
     }
 
     /**
      * Reverse the migrations.
-     * * Metode 'down' akan dijalankan jika Anda perlu membatalkan migrasi (rollback).
-     * Kode ini akan menghapus kolom 'koordinat' yang sudah ditambahkan.
      */
     public function down(): void
     {
         Schema::table('absensis', function (Blueprint $table) {
-            $table->dropColumn('koordinat');
+            // --- MODIFIKASI ---
+            // Menghapus kedua kolom jika migrasi di-rollback
+            $table->dropColumn(['koordinat', 'jarak']);
         });
     }
 };

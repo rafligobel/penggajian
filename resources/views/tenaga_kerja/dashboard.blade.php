@@ -11,7 +11,6 @@
         </div>
 
         {{-- Kartu Statistik --}}
-        {{-- PERUBAHAN 1: Menambahkan class col-12 agar eksplisit full-width di mobile --}}
         <div class="row g-3 mb-4">
             <div class="col-12 col-md-6">
                 <div class="card h-100 shadow-sm border-0">
@@ -50,7 +49,6 @@
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-light fw-bold">Aksi Cepat</div>
             <div class="card-body">
-                {{-- PERUBAHAN 2: Tombol dibuat full-width di layar extra small (xs) dan 50% di layar small (sm) ke atas --}}
                 <div class="row g-2">
                     <div class="col-12 col-sm-6 d-grid">
                         <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#absensiModal">
@@ -68,7 +66,6 @@
 
         {{-- Menu Lainnya --}}
         <div class="list-group">
-            {{-- PERUBAHAN: Trigger diubah menjadi data-bs-target biasa, tanpa AJAX --}}
             <a href="#" class="list-group-item list-group-item-action fs-5" data-bs-toggle="modal"
                 data-bs-target="#laporanGajiModal">
                 <i class="fas fa-file-invoice-dollar fa-fw me-3 text-primary"></i>Laporan Gaji
@@ -88,7 +85,6 @@
     <div class="modal fade" id="absensiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                {{-- Menggunakan variabel yang sudah disiapkan di controller dashboard --}}
                 @include('tenaga_kerja.modals.absensi', [
                     'isSesiDibuka' => $isSesiDibuka,
                     'sudahAbsen' => $sudahAbsen,
@@ -98,7 +94,7 @@
         </div>
     </div>
 
-    {{-- 2. Modal Simulasi Gaji (Statis) --}}
+    {{-- 2. Modal Simulasi Gaji (Form) --}}
     <div class="modal fade" id="simulasiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -111,17 +107,10 @@
     <div class="modal fade" id="laporanGajiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
             <div class="modal-content">
-                {{-- 
-                [PERIKSA BAGIAN INI DENGAN SEKSAMA]
-                Pastikan Anda meneruskan variabel dengan nama yang benar:
-                - 'gajis'         => $laporanGaji
-                - 'tahun'         => $tahunLaporan
-                - 'availableYears' => $laporanTersedia
-            --}}
                 @include('tenaga_kerja.modals.laporan_gaji', [
-                    'gajis' => $laporanGaji,
-                    'tahun' => $tahunLaporan,
-                    'availableYears' => $laporanTersedia,
+                    'laporanData' => $laporanData,
+                    'tahun' => $tahun,
+                    'availableYears' => $availableYears,
                 ])
             </div>
         </div>
@@ -131,32 +120,38 @@
     <div class="modal fade" id="slipGajiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                {{-- Menggunakan variabel yang sudah disiapkan di controller dashboard --}}
                 @include('tenaga_kerja.modals.slip_gaji', ['availableMonths' => $slipTersedia])
             </div>
         </div>
     </div>
 
-    {{-- 5. Modal untuk menampung HASIL simulasi dari redirect --}}
-    @if (session('hasil_simulasi'))
-        <div class="modal fade" id="hasilSimulasiModal" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-                <div class="modal-content">
-                    {{-- Menggunakan data dari session 'hasil_simulasi' --}}
-                    @include('tenaga_kerja.modals.hasil', ['hasil' => session('hasil_simulasi')])
-                </div>
+    {{-- 5. Modal untuk menampung HASIL simulasi (AJAX) --}}
+    {{-- [PERBAIKAN] Blok @if (session(...)) dihapus. Modal ini sekarang 
+         kosong dan siap diisi oleh JavaScript. --}}
+    <div class="modal fade" id="hasilSimulasiModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            {{-- Konten modal (header, body, footer) akan di-render di sini --}}
+            <div class="modal-content" id="hasilSimulasiModalContent">
+                {{-- Dibiarkan kosong --}}
             </div>
         </div>
-    @endif
+    </div>
 @endsection
 
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const urlParams = new URLSearchParams(window.location.search);
+            // Inisialisasi modal Bootstrap
+            const simulasiModalEl = document.getElementById('simulasiModal');
+            const simulasiModal = new bootstrap.Modal(simulasiModalEl);
+
+            const hasilModalEl = document.getElementById('hasilSimulasiModal');
+            const hasilModal = new bootstrap.Modal(hasilModalEl);
+
+            const hasilModalContent = document.getElementById('hasilSimulasiModalContent');
 
             // [PERBAIKAN] Logika untuk menampilkan modal LAPORAN GAJI
-            // jika ada parameter 'tahun' di URL setelah refresh.
+            const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('tahun')) {
                 const laporanModalEl = document.getElementById('laporanGajiModal');
                 if (laporanModalEl) {
@@ -164,19 +159,84 @@
                 }
             }
 
-            // Logika untuk menampilkan modal HASIL SIMULASI setelah redirect
-            const hasilModalEl = document.getElementById('hasilSimulasiModal');
-            if (hasilModalEl) {
-                new bootstrap.Modal(hasilModalEl).show();
-            }
-
-            // Logika untuk auto-submit form tahun pada modal laporan
+            // [PERBAIKAN] Logika auto-submit form tahun
             const tahunSelect = document.getElementById('laporan-tahun-select');
             if (tahunSelect) {
                 tahunSelect.addEventListener('change', function() {
                     this.form.submit();
                 });
             }
+
+            // ===================================================================
+            // [PERBAIKAN BARU: AJAX UNTUK SIMULASI GAJI]
+            // ===================================================================
+            const formSimulasi = document.getElementById('form-simulasi');
+            if (formSimulasi) {
+                formSimulasi.addEventListener('submit', function(e) {
+                    e.preventDefault(); // Hentikan submit form standar
+
+                    const formData = new FormData(this);
+                    const actionUrl = this.getAttribute('action');
+                    const submitButton = this.querySelector('button[type="submit"]');
+                    const originalButtonText = submitButton.innerHTML;
+
+                    // Tampilkan loading
+                    submitButton.disabled = true;
+                    submitButton.innerHTML =
+                        '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menghitung...';
+
+                    fetch(actionUrl, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-CSRF-TOKEN': formData.get('_token'),
+                                'Accept': 'text/html', // Minta HTML sebagai respons
+                                'X-Requested-With': 'XMLHttpRequest' // Tandai sebagai AJAX
+                            }
+                        })
+                        .then(response => {
+                            if (response.status === 422) { // Error validasi
+                                // TODO: Tambahkan penanganan error validasi (misal: alert)
+                                alert('Input tidak valid. Periksa kembali data Anda.');
+                                return response.json().then(err => {
+                                    throw err;
+                                });
+                            }
+                            if (!response.ok) {
+                                alert('Terjadi kesalahan. Silakan coba lagi.');
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.text(); // Ambil HTML sebagai teks
+                        })
+                        .then(html => {
+                            // Suntikkan HTML hasil ke modal hasil
+                            hasilModalContent.innerHTML = html;
+
+                            // Tukar modal
+                            simulasiModal.hide();
+                            hasilModal.show();
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                        })
+                        .finally(() => {
+                            // Kembalikan tombol ke keadaan semula
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = originalButtonText;
+                        });
+                });
+            }
+
+            // Menangani tombol "Hitung Ulang" dari modal hasil
+            // Tombol ini sudah dikonfigurasi di hasil.blade.php
+            // untuk menutup modal hasil dan membuka modal form
+            hasilModalEl.addEventListener('click', function(e) {
+                if (e.target && e.target.matches('[data-bs-target="#simulasiModal"]')) {
+                    hasilModal.hide();
+                    simulasiModal.show();
+                }
+            });
+
         });
     </script>
 @endpush
