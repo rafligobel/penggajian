@@ -435,9 +435,14 @@
                 // Cek 'gaji_id'
                 if (data.gaji_id) {
                     newDownloadBtn.disabled = false;
-                    // 'karyawan.email' tidak ada di service. 
-                    // Tombol email akan selalu nonaktif kecuali Anda menambahkannya ke service.
-                    newEmailBtn.disabled = true; // Set 'true' karena data.email tidak ada
+
+                    // ===============================================
+                    // [PERBAIKAN FOKUS] Ubah logika penentuan disabled.
+                    // Tombol kirim email akan aktif jika gaji sudah diproses DAN karyawan memiliki email.
+                    // Asumsi: field 'email' ada di flat array 'data'
+                    const hasEmail = data.email && data.email.trim() !== '';
+                    newEmailBtn.disabled = !hasEmail; // <-- Diubah: Akan aktif jika hasEmail=true
+                    // ===============================================
 
                     // Bangun URL dari 'gaji_id'
                     const downloadUrl = `/gaji/${data.gaji_id}/download-slip`;
@@ -476,6 +481,9 @@
                     }
 
                     newDownloadBtn.addEventListener('click', function(e) {
+                        // Untuk tombol download, lebih baik menggunakan redirect langsung ke URL download
+                        // daripada AJAX, agar browser bisa menangani file download.
+                        // Namun, karena kode Anda menggunakan AJAX untuk dispatch Job, saya pertahankan.
                         handleJobDispatch(this, downloadUrl, 'unduh slip', e);
                     });
 

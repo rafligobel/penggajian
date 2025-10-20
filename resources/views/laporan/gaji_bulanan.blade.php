@@ -6,16 +6,36 @@
 
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
+                {{-- [PERBAIKAN FOKUS UTAMA] Menggabungkan Filter dan Tombol Aksi dalam satu form/row --}}
                 <form id="filter-form" method="GET" action="{{ route('laporan.gaji.bulanan') }}">
                     <div class="row align-items-end g-3 mb-3">
+                        {{-- Kolom 1: Pilih Periode --}}
                         <div class="col-md-3">
                             <label for="bulan" class="form-label fw-bold">Pilih Periode</label>
                             <input type="month" class="form-control" id="bulan" name="bulan"
                                 value="{{ $selectedMonth }}">
                         </div>
+
+                        {{-- Kolom 2: Tombol Tampilkan --}}
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="fas fa-filter me-1"></i> Tampilkan
+                            </button>
+                        </div>
+
+                        {{-- Kolom 3 & 4: Tombol Aksi (Cetak & Email) --}}
+                        {{-- Catatan: Tambahkan label kosong agar sejajar jika perlu, atau gunakan align-items-end --}}
+                        <div class="col-md-3">
+                            {{-- Gunakan label kosong agar tombol sejajar dengan input di atasnya --}}
+                            <label class="form-label fw-bold opacity-0 d-block">Aksi</label>
+                            <button type="button" id="cetak-terpilih-btn" class="btn btn-danger w-100">
+                                <i class="fas fa-file-pdf me-1"></i> Cetak PDF Terpilih
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold opacity-0 d-block">Aksi</label>
+                            <button type="button" id="kirim-email-terpilih-btn" class="btn btn-info text-white w-100">
+                                <i class="fas fa-envelope me-1"></i> Kirim Email Terpilih
                             </button>
                         </div>
                     </div>
@@ -23,17 +43,12 @@
 
                 <hr>
 
+                {{-- Form untuk Submit Aksi (tidak perlu tombolnya di dalam form ini) --}}
                 <form id="laporan-gaji-form" method="POST">
                     @csrf
                     <input type="hidden" name="bulan" value="{{ $selectedMonth }}">
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        <button type="button" id="cetak-terpilih-btn" class="btn btn-danger">
-                            <i class="fas fa-file-pdf me-1"></i> Cetak PDF Terpilih
-                        </button>
-                        <button type="button" id="kirim-email-terpilih-btn" class="btn btn-info text-white">
-                            <i class="fas fa-envelope me-1"></i> Kirim Email Terpilih
-                        </button>
-                    </div>
+
+                    {{-- [PERBAIKAN] Hapus div d-flex flex-wrap gap-2 mb-3 yang berisi tombol --}}
 
                     {{-- [PERBAIKAN] Menampilkan pesan error jika tidak ada checkbox yang dipilih --}}
                     @if ($errors->has('gaji_ids'))
