@@ -14,7 +14,6 @@ use App\Http\Controllers\SesiAbsensiController;
 use App\Http\Controllers\TandaTanganController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TenagaKerjaController;
-use App\Http\Controllers\SimulasiGajiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -85,7 +84,6 @@ Route::middleware(['auth', 'role:bendahara'])->group(function () {
 
     Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
     Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save');
-    
     Route::post('/gaji/{gaji}/download-slip', [GajiController::class, 'downloadSlip'])->name('gaji.download-slip');
     Route::post('/gaji/{gaji}/send-email', [GajiController::class, 'sendEmail'])->name('gaji.send-email');
 
@@ -126,7 +124,7 @@ Route::middleware(['auth', 'role:tenaga_kerja'])->prefix('tenaga-kerja')->name('
     Route::post('/absensi', [TenagaKerjaController::class, 'prosesAbsensi'])->name('absensi.store');
 
     // Rute untuk fungsionalitas di dashboard tenaga kerja
-    Route::post('/simulasi/hitung', [SimulasiGajiController::class, 'hitung'])->name('simulasi.hitung');
+    Route::post('/simulasi/hitung', [TenagaKerjaController::class, 'hitungSimulasi'])->name('simulasi.hitung');
     Route::get('/laporan-gaji', [TenagaKerjaController::class, 'laporanGaji'])->name('laporan_gaji');
     // Route::post('/slip-gaji/download', [TenagaKerjaController::class, 'downloadSlipGaji'])->name('slip_gaji.download');
 

@@ -46,7 +46,7 @@
                                 <tr>
                                     <th><input type="checkbox" id="select-all" title="Pilih Semua"></th>
                                     <th>No.</th>
-                                    <th>Nama Karyawan</th>
+                                    <th>Nama Pegawai</th>
                                     <th>Jabatan</th>
                                     <th class="text-end fw-bold">Gaji Bersih</th>
                                 </tr>

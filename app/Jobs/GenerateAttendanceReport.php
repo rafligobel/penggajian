@@ -9,14 +9,14 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use App\Models\User;
-use App\Models\TandaTangan; // Tambahkan ini
+use App\Models\TandaTangan;
 use App\Notifications\ReportGenerated;
 use App\Services\AbsensiService;
 use App\Traits\ManagesImageEncoding;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage; // Tambahkan ini
+use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class GenerateAttendanceReport implements ShouldQueue
@@ -42,7 +42,6 @@ class GenerateAttendanceReport implements ShouldQueue
         $karyawan = Karyawan::find($this->karyawanIds);
         $periode = Carbon::create($this->tahun, $this->bulan, 1);
 
-
         try {
             $rekap = $absensiService->getAttendanceRecap($periode, $this->karyawanIds);
 
@@ -50,7 +49,7 @@ class GenerateAttendanceReport implements ShouldQueue
                 throw new \Exception('Tidak ada data absensi untuk karyawan yang dipilih pada periode ini.');
             }
 
-            // [PERBAIKAN UTAMA] Transformasi struktur data agar cocok dengan view
+            // Transformasi struktur data agar cocok dengan view
             $detailAbsensi = [];
             foreach ($rekap['rekapData'] as $dataKaryawan) {
                 $item = new \stdClass();
@@ -59,7 +58,6 @@ class GenerateAttendanceReport implements ShouldQueue
                 $item->total_hadir = $dataKaryawan['summary']['total_hadir'];
                 $item->total_alpha = $dataKaryawan['summary']['total_alpha'];
 
-                // Ubah struktur 'detail' menjadi 'daily_data'
                 $dailyData = [];
                 foreach ($dataKaryawan['detail'] as $day => $statusData) {
                     $dailyData[$day] = $statusData['status'];
@@ -68,18 +66,18 @@ class GenerateAttendanceReport implements ShouldQueue
                 $detailAbsensi[] = $item;
             }
 
-            // [PERBAIKAN] Ambil data Tanda Tangan
+            // Ambil data Tanda Tangan
             $bendahara = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
             $bendaharaNama = $bendahara ? $bendahara->nama : 'Bendahara Belum Diset';
             $tandaTanganBendahara = $bendahara && Storage::disk('public')->exists($bendahara->path)
                 ? $this->getImageAsBase64DataUri(storage_path('app/public/' . $bendahara->path))
                 : null;
 
-            // [PERBAIKAN] Kumpulkan semua data yang dibutuhkan oleh view baru
+            // Kumpulkan semua data yang dibutuhkan oleh view
             $data = [
                 'periode' => $periode,
                 'daysInMonth' => $rekap['daysInMonth'],
-                'detailAbsensi' => $detailAbsensi, // Menggunakan data yang sudah ditransformasi
+                'detailAbsensi' => $detailAbsensi,
                 'logoAlAzhar' => $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png')),
                 'logoYayasan' => $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png')),
                 'bendaharaNama' => $bendaharaNama,

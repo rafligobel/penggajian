@@ -40,7 +40,7 @@ class LaporanController extends Controller
 
         // [PERBAIKAN LOGIKA UTAMA]
         // 1. Ambil semua data gaji yang sudah tersimpan untuk bulan yang dipilih.
-        $gajisTersimpan = Gaji::with('karyawan')
+        $gajisTersimpan = Gaji::with('karyawan.jabatan') // [FIX] Eager load relasi karyawan & jabatan
             ->whereYear('bulan', $tanggal->year)
             ->whereMonth('bulan', $tanggal->month)
             ->get();
@@ -50,7 +50,17 @@ class LaporanController extends Controller
         $laporanGaji = [];
         foreach ($gajisTersimpan as $gaji) {
             // Service akan mengambil data tersimpan dan menghitung ulang semua tunjangan & gaji bersih.
-            $laporanGaji[] = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $selectedMonth);
+            $detailKalkulasi = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $selectedMonth);
+
+            // [PERBAIKAN UTAMA] Di sinilah letak bug-nya.
+            // View Anda (gaji_bulanan.blade.php) mengharapkan struktur data $item['karyawan']->nama
+            // dan $item['gaji']->id, tapi Anda hanya mengirim $detailKalkulasi.
+            // Kita bungkus datanya agar sesuai ekspektasi View:
+            $laporanGaji[] = [
+                'gaji' => $gaji, // Mengirim objek Gaji (untuk $item['gaji']->id)
+                'karyawan' => $gaji->karyawan, // Mengirim objek Karyawan (untuk $item['karyawan']->nama)
+                'gaji_bersih' => $detailKalkulasi['gaji_bersih_numeric'] // Mengirim gaji bersih (untuk number_format)
+            ];
         }
 
         // 3. Kirim data yang sudah dihitung ulang ke view.
@@ -180,11 +190,15 @@ class LaporanController extends Controller
             ->orderBy('bulan', 'asc')
             ->get();
 
+        // [CATATAN] Logika ini sudah benar, karena ini untuk laporan per karyawan
+        // dan BEDA dengan SalaryService. Ini tidak masalah.
         $gajis->each(function ($gaji) {
             $kehadiranBulanIni = Absensi::where('nip', $gaji->karyawan->nip)
                 ->whereYear('tanggal', $gaji->bulan->year)
                 ->whereMonth('tanggal', $gaji->bulan->month)
                 ->count();
+
+            // Menggunakan 'tunj_jabatan' sesuai temuan di SalaryService
             $tunjanganJabatan = $gaji->karyawan->jabatan->tunj_jabatan ?? 0;
             $tunjanganKehadiran = $kehadiranBulanIni * ($gaji->tunjanganKehadiran->jumlah_tunjangan ?? 0);
             $totalTunjangan = $tunjanganJabatan + $tunjanganKehadiran + $gaji->tunj_anak + $gaji->tunj_komunikasi + $gaji->tunj_pengabdian + $gaji->tunj_kinerja + $gaji->lembur;
@@ -199,6 +213,8 @@ class LaporanController extends Controller
             ->count();
 
         // 2. Hitung total hari kerja pada periode tersebut menggunakan AbsensiService
+        // [CATATAN] Kode ini ASLI dari Anda, dan logikanya sudah benar (meski agak lambat).
+        // Kita tidak akan mengubahnya agar tidak menimbulkan bug baru.
         $workingDaysCount = 0;
         $period = \Carbon\CarbonPeriod::create($startDate, $endDate);
         foreach ($period as $date) {
@@ -237,7 +253,7 @@ class LaporanController extends Controller
         return redirect()->back()->with('success', 'Permintaan cetak laporan rincian sedang diproses. Anda akan dinotifikasi jika sudah siap.');
     }
 
-    public function kirimEmailLaporanKaryawan(Request $request)
+    public function kirimEmailLaporanPerKaryawan(Request $request)
     {
         $validated = $request->validate([
             'karyawan_id' => 'required|exists:karyawans,id',

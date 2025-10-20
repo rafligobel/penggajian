@@ -155,7 +155,7 @@
                 <thead>
                     <tr class="text-center">
                         <th style="width: 5%;"><input type="checkbox" id="select-all"></th>
-                        <th class="text-start">Nama Karyawan</th>
+                        <th class="text-start">Nama Pegawai</th>
                         <th style="width: 15%;">NIP</th>
                         <th style="width: 8%;">Hadir</th>
                         <th style="width: 8%;">Alpha</th>

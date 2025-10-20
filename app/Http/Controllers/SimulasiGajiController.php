@@ -43,7 +43,7 @@ class SimulasiGajiController extends Controller
 
         // Gunakan service untuk menghitung simulasi
         // Service akan mengambil $validated sebagai $input
-        $hasilSimulasi = $this->salaryService->calculateSimulation($karyawan, $validated);
+        $hasilSimulasi = $this->salaryService->calculateSimulasi($karyawan, $validated);
 
         $hasil = [
             'karyawan'          => $karyawan,

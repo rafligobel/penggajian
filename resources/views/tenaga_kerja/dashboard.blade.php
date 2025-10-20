@@ -18,14 +18,15 @@
                         <div class="bg-success text-white p-3 rounded-3 me-3"><i class="fas fa-money-bill-wave fa-lg"></i>
                         </div>
                         <div>
-                            <h6 class="card-title text-muted mb-1">Gaji Terakhir Diterima</h6>
-                            @if ($gajiTerbaru)
+                            {{-- [PERUBAHAN] Judul diubah dan variabel $gajiBulanIni dipakai --}}
+                            <h6 class="card-title text-muted mb-1">Gaji Bulan Ini ({{ now()->translatedFormat('F Y') }})
+                            </h6>
+                            @if ($gajiBulanIni)
                                 <p class="card-text fs-5 fw-bold mb-0">Rp
-                                    {{ number_format($gajiTerbaru->gaji_bersih, 0, ',', '.') }}</p>
-                                <small class="text-muted">Periode
-                                    {{ \Carbon\Carbon::parse($gajiTerbaru->bulan)->translatedFormat('F Y') }}</small>
+                                    {{ number_format($gajiBulanIni->gaji_bersih, 0, ',', '.') }}</p>
+                                <small class="text-muted">Status: {{ $gajiBulanIni->status ?? 'Diproses' }}</small>
                             @else
-                                <p class="card-text fs-6 mb-0">Belum ada data gaji.</p>
+                                <p class="card-text fs-6 mb-0">Data gaji bulan ini belum dibuat.</p>
                             @endif
                         </div>
                     </div>
@@ -98,7 +99,7 @@
     <div class="modal fade" id="simulasiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                @include('tenaga_kerja.modals.simulasi', ['gajiTerakhir' => $gajiTerbaru])
+                @include('tenaga_kerja.modals.simulasi', ['gajiTerakhir' => $gajiTerakhir])
             </div>
         </div>
     </div>

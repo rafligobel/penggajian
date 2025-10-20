@@ -20,6 +20,8 @@ class Absensi extends Model
         'tanggal',
         'jam',
         'sesi_absensi_id', // <-- TAMBAHKAN BARIS INI
+        'koordinat', // <-- TAMBAHKAN BARIS INI
+        'jarak',
     ];
 
     /**

@@ -74,7 +74,12 @@ class TenagaKerjaController extends Controller
             ->count();
 
         $gajiTerbaru = $karyawan->gajis()->orderBy('bulan', 'desc')->first();
-
+        $gajiTerakhir = $karyawan->gajis()->orderBy('bulan', 'desc')->first();
+        $gajiBulanIni = $karyawan->gajis()
+            ->whereYear('bulan', now()->year)
+            ->whereMonth('bulan', now()->month)
+            ->first();
+        $tunjanganKehadiranDefault = TunjanganKehadiran::first();
         // --- Logika untuk Modal Laporan Gaji ---
         $tahun = $request->input('tahun', date('Y'));
         $availableYears = Gaji::where('karyawan_id', $karyawan->id)
@@ -95,7 +100,7 @@ class TenagaKerjaController extends Controller
             ->pluck('jumlah_hadir', 'bulan');
 
         foreach ($gajis as $gaji) {
-            $tunjanganDariJabatan = $gaji->karyawan->jabatan->tunjangan_jabatan ?? 0;
+            $tunjanganDariJabatan = $gaji->karyawan->jabatan->tunj_jabatan ?? 0;
             $bulanKey = $gaji->bulan->format('Y-m');
             $totalKehadiran = $rekapAbsensiPerBulan->get($bulanKey, 0);
             $tunjanganPerKehadiran = $gaji->tunjanganKehadiran->jumlah_tunjangan ?? 0;
@@ -114,7 +119,8 @@ class TenagaKerjaController extends Controller
 
         return view('tenaga_kerja.dashboard', compact(
             'karyawan',
-            'gajiTerbaru',
+            'gajiTerakhir',
+            'gajiBulanIni',
             'absensiBulanIni',
             'isSesiDibuka',
             'sudahAbsen',
@@ -122,9 +128,48 @@ class TenagaKerjaController extends Controller
             'laporanData', // ▲▲▲ PERUBAHAN 2: GANTI 'gajis' MENJADI 'laporanData' ▲▲▲
             'tahun',
             'availableYears',
-            'slipTersedia'
+            'slipTersedia',
+            'tunjanganKehadiranDefault'
         ));
     }
+
+
+    public function hitungSimulasi(Request $request)
+    {
+        $validated = $request->validate([
+            'jumlah_hari_masuk' => 'required|integer|min:0|max:31',
+            'tunj_anak'         => 'required|numeric|min:0',
+            'tunj_komunikasi'   => 'required|numeric|min:0',
+            'tunj_pengabdian'   => 'required|numeric|min:0',
+            'tunj_kinerja'      => 'required|numeric|min:0',
+            'lembur'            => 'required|numeric|min:0',
+            'potongan'          => 'required|numeric|min:0',
+            'tunjangan_kehadiran_id' => 'required|exists:tunjangan_kehadirans,id',
+        ]);
+
+        $karyawan = Auth::user()->karyawan->loadMissing('jabatan');
+
+        // Ambil data dasar (Gaji Pokok & Tunj. Jabatan) yang TIDAK ADA di form
+        $gajiTerakhir = $karyawan->gajis()->orderBy('bulan', 'desc')->first();
+
+        // Siapkan data untuk service
+        $data = $validated; // Mulai dengan data tervalidasi dari form
+        $data['jumlah_kehadiran'] = $validated['jumlah_hari_masuk']; // Ganti nama key
+
+        // Tambahkan data non-form (Gaji Pokok & Tunj. Jabatan adalah tetap)
+        // (Ganti 'gaji_pokok_default' jika nama kolom di tabel karyawan Anda berbeda)
+        $data['gaji_pokok'] = $gajiTerakhir->gaji_pokok ?? $karyawan->gaji_pokok_default ?? 0;
+        $data['tunj_jabatan'] = $karyawan->jabatan->tunj_jabatan ?? 0;
+
+        // Panggil service (yang sudah kita perbaiki)
+        $hasil = $this->salaryService->calculateSimulasi($karyawan, $data);
+
+        // [PERBAIKAN UTAMA]
+        // Ganti path view agar sesuai dengan struktur folder Anda
+        return view('tenaga_kerja.modals.hasil', compact('hasil'));
+    }
+
+
 
     public function prosesAbsensi(Request $request)
     {
@@ -133,10 +178,6 @@ class TenagaKerjaController extends Controller
             'longitude' => 'required|numeric|between:-180,180',
         ]);
 
-        // ======================================================================================
-        // [PERBAIKAN 2: BUG LOKASI (0,0)]
-        // Menambahkan validasi untuk menolak koordinat (0,0) jika GPS gagal.
-        // ======================================================================================
         $userLat = (float) $request->latitude;
         $userLon = (float) $request->longitude;
 
@@ -151,6 +192,19 @@ class TenagaKerjaController extends Controller
         $officeLatitude = (float) env('OFFICE_LATITUDE');
         $officeLongitude = (float) env('OFFICE_LONGITUDE');
         $maxRadius = (int) env('MAX_ATTENDANCE_RADIUS', 50);
+
+        if (empty($officeLatitude) || empty($officeLongitude) || ($officeLatitude == 0 && $officeLongitude == 0)) {
+            // Log error ini untuk administrator
+            Log::error('Kesalahan Konfigurasi: OFFICE_LATITUDE atau OFFICE_LONGITUDE tidak diatur dengan benar di file .env.');
+
+            // Tampilkan pesan error yang jelas ke pengguna
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Kesalahan Konfigurasi Server: Lokasi kantor tidak diatur. Harap hubungi administrator.'
+            ], 500); // Server Error
+        }
+        // --- PERBAIKAN SELESAI ---
+
 
         $distance = $this->hitungJarak($userLat, $userLon, $officeLatitude, $officeLongitude);
 
@@ -176,10 +230,21 @@ class TenagaKerjaController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Anda sudah melakukan absensi hari ini.'], 409);
         }
 
-        $sesiAbsensi = SesiAbsensi::where('tanggal', $today->format('Y-m-d'))->first() ?? SesiAbsensi::where('is_default', true)->first();
+        $sesiAbsensi = SesiAbsensi::where('tanggal', $today->toDateString())
+            ->where('is_default', false)
+            ->where('tipe', 'aktif')
+            ->first();
+
+        // 2. Jika tidak ada sesi khusus, gunakan sesi default.
         if (!$sesiAbsensi) {
+            $sesiAbsensi = SesiAbsensi::where('is_default', true)->first();
+        }
+
+        if (!$sesiAbsensi) {
+            Log::error('FATAL: Tidak ada sesi absensi (default atau khusus) yang ditemukan di database.');
             return response()->json(['status' => 'error', 'message' => 'Sistem tidak dapat menemukan sesi absensi yang valid.'], 500);
         }
+        // --- PERBAIKAN SELESAI ---
 
         Absensi::create([
             'sesi_absensi_id' => $sesiAbsensi->id,
@@ -210,12 +275,6 @@ class TenagaKerjaController extends Controller
         return $angle * $earthRadius;
     }
 
-    // ======================================================================================
-    // [PERBAIKAN: FITUR SIMULASI]
-    // Fungsi hitungSimulasi() yang lama (menggunakan redirect) dihapus.
-    // Logika tersebut sekarang ditangani oleh SimulasiGajiController,
-    // yang akan di-rute-kan ke 'tenaga_kerja.simulasi.hitung'.
-    // ======================================================================================
 
     public function downloadSlipGaji(Request $request)
     {

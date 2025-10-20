@@ -93,7 +93,7 @@
                 <td style="width: 15%; text-align: left;"><img src="{{ $logoAlAzhar }}" alt="Logo" class="logo"></td>
                 <td>
                     <h3>SEKOLAH ISLAM AL AZHAR 43 GORONTALO</h3>
-                    <h4>LAPORAN GAJI TENAGA KERJA</h4>
+                    <h4>LAPORAN GAJI PEGAWAI</h4>
                     <span>Periode: {{ \Carbon\Carbon::parse($periode)->translatedFormat('F Y') }}</span>
                 </td>
                 <td style="width: 15%; text-align: right;"><img src="{{ $logoYayasan }}" alt="Logo" class="logo">
@@ -107,8 +107,8 @@
                 <tr>
                     {{-- [PERUBAIKAN] colspan diubah --}}
                     <th rowspan="2" style="width: 3%;">No</th>
-                    <th rowspan="2" class="text-left" style="width: 15%;">Nama Karyawan</th>
-                    <th rowspan="2" class="text-left" style="width: 10%;">NIP</th>
+                    <th rowspan="2" class="text-left" style="width: 15%;">Nama Pegawai</th>
+                    <th rowspan="2" class="text-left" style="width: 10%;">NP</th>
                     <th rowspan="2">Kehadiran</th>
                     <th rowspan="2">Gaji Pokok</th>
                     <th colspan="7">Tunjangan</th>

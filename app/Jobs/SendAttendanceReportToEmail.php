@@ -9,16 +9,16 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use App\Models\Karyawan;
 use App\Models\User;
-use App\Models\TandaTangan; // Tambahkan ini
+use App\Models\TandaTangan;
 use App\Mail\AttendanceReportMail;
 use App\Notifications\ReportGenerated;
-use App\Services\AbsensiService; // Tambahkan ini
+use App\Services\AbsensiService;
 use App\Traits\ManagesImageEncoding;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage; // Tambahkan ini
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -43,7 +43,6 @@ class SendAttendanceReportToEmail implements ShouldQueue
     {
         $user = User::find($this->userId);
         $karyawan = Karyawan::find($this->karyawanId);
-        // [PERBAIKAN] Nama variabel disesuaikan menjadi $periode
         $periode = Carbon::create($this->tahun, $this->bulan, 1);
 
         if (!$karyawan || !$karyawan->email) {
@@ -56,14 +55,12 @@ class SendAttendanceReportToEmail implements ShouldQueue
         }
 
         try {
-            // Ambil data rekap HANYA untuk satu karyawan ini
             $rekap = $absensiService->getAttendanceRecap($periode, [$this->karyawanId]);
 
             if (empty($rekap['rekapData'])) {
                 throw new \Exception("Tidak ada data absensi untuk {$karyawan->nama} pada periode ini.");
             }
 
-            // [PERBAIKAN UTAMA] Transformasi struktur data agar cocok dengan view
             $detailAbsensi = [];
             foreach ($rekap['rekapData'] as $dataKaryawan) {
                 $item = new \stdClass();
@@ -79,14 +76,12 @@ class SendAttendanceReportToEmail implements ShouldQueue
                 $detailAbsensi[] = $item;
             }
 
-            // [PERBAIKAN] Ambil data Tanda Tangan
             $bendahara = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
             $bendaharaNama = $bendahara ? $bendahara->nama : 'Bendahara Belum Diset';
             $tandaTanganBendahara = $bendahara && Storage::disk('public')->exists($bendahara->path)
                 ? $this->getImageAsBase64DataUri(storage_path('app/public/' . $bendahara->path))
                 : null;
 
-            // [PERBAIKAN] Kumpulkan semua data yang dibutuhkan oleh view
             $data = [
                 'periode' => $periode,
                 'daysInMonth' => $rekap['daysInMonth'],
@@ -98,21 +93,18 @@ class SendAttendanceReportToEmail implements ShouldQueue
             ];
 
             $pdf = Pdf::loadView('laporan.pdf.rekap_absensi', $data)->setPaper('a4', 'landscape');
-            $pdfOutput = $pdf->output(); // Ambil konten PDF sekali saja
+            $pdfOutput = $pdf->output();
 
             $safeName = Str::slug($karyawan->nama, '_');
             $filename = "laporan_absensi_{$safeName}_{$periode->format('Y-m')}.pdf";
 
-            // 1. Simpan salinan PDF ke disk agar bisa diunduh oleh admin
             $path = 'sent_attendance_reports/' . $periode->format('Y-m') . '/' . uniqid() . '_' . $filename;
             Storage::disk('local')->put($path, $pdfOutput);
 
-            // 2. Kirim email ke karyawan dengan konten PDF dari memori
             Mail::to($karyawan->email)->send(new AttendanceReportMail($karyawan, $periode, $pdfOutput, $filename));
 
             Log::info("Email laporan absensi untuk {$karyawan->nama} berhasil dikirim.");
 
-            // 3. Kirim notifikasi sukses ke admin dengan PATH file yang sudah disimpan
             $notifMessage = "Laporan absensi {$karyawan->nama} periode {$periode->translatedFormat('F Y')} berhasil dikirim.";
             $user->notify(new ReportGenerated($path, $filename, $periode->format('Y-m'), $notifMessage, false));
         } catch (Throwable $e) {

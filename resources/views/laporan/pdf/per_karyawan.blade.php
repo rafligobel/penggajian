@@ -98,7 +98,7 @@
             <td style="width: 15%;"><img src="{{ $logoYayasan }}" alt="Logo Yayasan" class="logo"></td>
             <td style="width: 70%;" class="kop-surat">
                 <h3>SEKOLAH ISLAM AL AZHAR 43 GORONTALO</h3>
-                <p>LAPORAN RINCIAN KARYAWAN</p>
+                <p>LAPORAN GAJI PEGAWAI</p>
             </td>
             <td style="width: 15%; text-align: right;"><img src="{{ $logoAlAzhar }}" alt="Logo Al-Azhar" class="logo">
             </td>
@@ -107,12 +107,12 @@
     <hr>
     <table class="info-table">
         <tr>
-            <td style="width: 15%;"><strong>Nama Karyawan</strong></td>
+            <td style="width: 15%;"><strong>Nama Pegawai</strong></td>
             <td style="width: 2%;">:</td>
             <td>{{ $karyawan->nama }}</td>
         </tr>
         <tr>
-            <td><strong>NIP</strong></td>
+            <td><strong>NP</strong></td>
             <td>:</td>
             <td>{{ $karyawan->nip }}</td>
         </tr>

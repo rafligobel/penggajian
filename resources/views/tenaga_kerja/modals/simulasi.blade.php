@@ -9,6 +9,7 @@
     <div class="modal-body">
         <p class="text-muted text-center mb-4">
             Ubah nilai di bawah untuk mendapatkan estimasi gaji Anda.
+            {{-- [PERBAIKAN] Pastikan variabel $gajiTerakhir dikirim dari controller --}}
             @if (isset($gajiTerakhir))
                 <br><span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">
                     <i class="fas fa-check-circle me-1"></i>Form ini diisi otomatis dari gaji terakhir Anda.
@@ -16,8 +17,16 @@
             @endif
         </p>
 
-        {{-- Pesan Error Validasi (opsional, untuk AJAX) --}}
-        <div id="simulasi-error-container" class="alert alert-danger d-none"></div>
+        {{-- [PERBAIKAN] Container untuk menampilkan error validasi AJAX --}}
+        <div id="simulasi-error-container" class="alert alert-danger py-2 d-none">
+            <ul class="mb-0 ps-3"></ul>
+        </div>
+
+        {{-- [PERBAIKAN 1: TAMBAHKAN INPUT HIDDEN] 
+             Ini WAJIB ada untuk dikirim ke service kalkulasi --}}
+        <input type="hidden" name="tunjangan_kehadiran_id"
+            value="{{ $gajiTerakhir->tunjangan_kehadiran_id ?? ($tunjanganKehadiranDefault->id ?? 1) }}">
+
 
         {{-- Input Utama (Tidak Tetap) --}}
         <div class="mb-3">
@@ -92,8 +101,109 @@
 
     <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-calculator me-1"></i> Hitung Ulang Simulasi
+        <button type="submit" class="btn btn-primary" id="btn-hitung-simulasi">
+            <i class="fas fa-calculator me-1"></i> Hitung Simulasi
         </button>
     </div>
 </form>
+
+{{-- [PERBAIKAN 2: TAMBAHKAN SCRIPT AJAX] 
+     Ini adalah kunci agar modalnya berfungsi.
+     Letakkan ini di file dashboard utama Anda dalam @push('scripts') --}}
+<script>
+    // Pastikan script ini dijalankan setelah DOM siap
+    document.addEventListener('DOMContentLoaded', function() {
+        const formSimulasi = document.getElementById('form-simulasi');
+        const btnHitung = document.getElementById('btn-hitung-simulasi');
+
+        // Modal Bootstrap
+        // Asumsi ID modal Anda adalah #simulasiModal dan #hasilSimulasiModal
+        const modalSimulasiEl = document.getElementById('simulasiModal');
+        const modalHasilEl = document.getElementById('hasilSimulasiModal');
+
+        if (!formSimulasi || !btnHitung || !modalSimulasiEl || !modalHasilEl) {
+            console.error('Elemen modal simulasi tidak ditemukan. Pastikan ID modal sudah benar.');
+            return;
+        }
+
+        const modalSimulasi = new bootstrap.Modal(modalSimulasiEl);
+        const modalHasil = new bootstrap.Modal(modalHasilEl);
+
+        // Target untuk inject HTML hasil
+        const hasilContent = document.getElementById('hasil-simulasi-content');
+        const errorContainer = document.getElementById('simulasi-error-container');
+        const errorList = errorContainer.querySelector('ul');
+
+        formSimulasi.addEventListener('submit', function(e) {
+            e.preventDefault(); // Hentikan submit form biasa
+
+            // Tampilkan loading
+            btnHitung.disabled = true;
+            btnHitung.innerHTML =
+                '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menghitung...';
+            errorContainer.classList.add('d-none');
+            errorList.innerHTML = '';
+
+            const formData = new FormData(formSimulasi);
+
+            fetch(formSimulasi.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': formData.get('_token'),
+                        'Accept': 'text/html' // Minta HTML sebagai balasan
+                    },
+                    body: formData
+                })
+                .then(response => {
+                    if (response.ok) { // Status 200-299
+                        return response.text();
+                    }
+
+                    // Handle error validasi (status 422)
+                    if (response.status === 422) {
+                        return response.json().then(data => {
+                            throw {
+                                type: 'validation',
+                                errors: data.errors
+                            };
+                        });
+                    }
+                    // Handle error server (status 500)
+                    throw {
+                        type: 'server',
+                        message: 'Terjadi kesalahan pada server.'
+                    };
+                })
+                .then(html => {
+                    // SUKSES: Inject HTML, tutup modal form, buka modal hasil
+                    if (hasilContent) {
+                        hasilContent.innerHTML = html;
+                        modalSimulasi.hide();
+                        modalHasil.show();
+                    } else {
+                        console.error('Target #hasil-simulasi-content tidak ditemukan.');
+                    }
+                })
+                .catch(error => {
+                    // GAGAL: Tampilkan error di modal form
+                    errorContainer.classList.remove('d-none');
+                    if (error.type === 'validation') {
+                        for (const key in error.errors) {
+                            const li = document.createElement('li');
+                            li.textContent = error.errors[key][0];
+                            errorList.appendChild(li);
+                        }
+                    } else {
+                        const li = document.createElement('li');
+                        li.textContent = error.message || 'Gagal memproses permintaan.';
+                        errorList.appendChild(li);
+                    }
+                })
+                .finally(() => {
+                    // Kembalikan tombol ke state normal
+                    btnHitung.disabled = false;
+                    btnHitung.innerHTML = '<i class="fas fa-calculator me-1"></i> Hitung Simulasi';
+                });
+        });
+    });
+</script>

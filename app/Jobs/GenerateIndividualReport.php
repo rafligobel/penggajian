@@ -9,6 +9,8 @@ use App\Models\TandaTangan;
 use App\Models\Absensi;
 use App\Notifications\ReportGenerated;
 use App\Traits\ManagesImageEncoding;
+use App\Services\SalaryService; // [PERBAIKAN] Tambahkan use statement
+use App\Services\AbsensiService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -20,8 +22,6 @@ use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Throwable;
-use App\Services\AbsensiService;
-
 
 class GenerateIndividualReport implements ShouldQueue
 {
@@ -40,7 +40,8 @@ class GenerateIndividualReport implements ShouldQueue
         $this->userId = $userId;
     }
 
-    public function handle(AbsensiService $absensiService): void
+    // [PERBAIKAN] Inject SalaryService
+    public function handle(AbsensiService $absensiService, SalaryService $salaryService): void
     {
         $user = User::find($this->userId);
         $karyawan = Karyawan::findOrFail($this->karyawanId);
@@ -54,17 +55,17 @@ class GenerateIndividualReport implements ShouldQueue
                 ->whereBetween('bulan', [$startDate, $endDate])
                 ->orderBy('bulan', 'asc')->get();
 
-            // [PERBAIKAN UTAMA] Hitung absensi & gaji per bulan
-            $gajis->each(function ($gaji) use ($absensiService) {
+            // [PERBAIKAN UTAMA] Gunakan Service untuk kalkulasi (DRY)
+            $gajis->each(function ($gaji) use ($absensiService, $salaryService) {
                 $bulanGaji = $gaji->bulan;
 
-                // Hitung kehadiran per bulan
-                $kehadiranBulanIni = Absensi::where('nip', $gaji->karyawan->nip)
-                    ->whereYear('tanggal', $bulanGaji->year)
-                    ->whereMonth('tanggal', $bulanGaji->month)
-                    ->count();
+                // 1. Panggil SalaryService untuk semua detail gaji & kehadiran
+                $detailGaji = $salaryService->calculateDetailsForForm($gaji->karyawan, $bulanGaji->format('Y-m'));
 
-                // Hitung hari kerja per bulan
+                // 2. Lampirkan data absensi
+                $gaji->hadir = $detailGaji['total_kehadiran'];
+
+                // 3. Hitung hari kerja & alpha (Logika spesifik dari AbsensiService)
                 $workingDaysCount = 0;
                 $period = \Carbon\CarbonPeriod::create($bulanGaji->copy()->startOfMonth(), $bulanGaji->copy()->endOfMonth());
                 foreach ($period as $date) {
@@ -72,18 +73,18 @@ class GenerateIndividualReport implements ShouldQueue
                         $workingDaysCount++;
                     }
                 }
-                $alphaBulanIni = $workingDaysCount - $kehadiranBulanIni;
-
-                // Lampirkan data absensi ke objek gaji
-                $gaji->hadir = $kehadiranBulanIni;
+                $alphaBulanIni = $workingDaysCount - $gaji->hadir;
                 $gaji->alpha = $alphaBulanIni > 0 ? $alphaBulanIni : 0;
 
-                // Hitung rincian gaji
-                $tunjanganJabatan = $gaji->karyawan->jabatan->tunj_jabatan ?? 0;
-                $tunjanganKehadiran = $kehadiranBulanIni * ($gaji->tunjanganKehadiran->jumlah_tunjangan ?? 0);
-                $totalTunjangan = $tunjanganJabatan + $tunjanganKehadiran + $gaji->tunj_anak + $gaji->tunj_komunikasi + $gaji->tunj_pengabdian + $gaji->tunj_kinerja + $gaji->lembur;
-                $gaji->total_tunjangan = $totalTunjangan;
-                $gaji->gaji_bersih = ($gaji->gaji_pokok + $totalTunjangan) - $gaji->potongan;
+                // 4. Lampirkan rincian gaji dari service
+                $gaji->total_tunjangan = $detailGaji['tunj_jabatan'] +
+                    $detailGaji['tunj_kehadiran'] +
+                    $detailGaji['tunj_anak'] +
+                    $detailGaji['tunj_komunikasi'] +
+                    $detailGaji['tunj_pengabdian'] +
+                    $detailGaji['tunj_kinerja'] +
+                    $detailGaji['lembur'];
+                $gaji->gaji_bersih = $detailGaji['gaji_bersih_numeric'];
             });
 
             // Ambil data tanda tangan & logo
@@ -93,10 +94,9 @@ class GenerateIndividualReport implements ShouldQueue
                 ? $this->getImageAsBase64DataUri(storage_path('app/public/' . $bendahara->path))
                 : null;
 
-            // Kumpulkan semua data untuk PDF
             $data = [
                 'karyawan' => $karyawan,
-                'gajis' => $gajis, // Data gaji kini sudah lengkap dengan absensi bulanan
+                'gajis' => $gajis,
                 'tanggalMulai' => $startDate,
                 'tanggalSelesai' => $endDate,
                 'bendaharaNama' => $bendaharaNama,

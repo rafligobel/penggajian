@@ -2,7 +2,7 @@
 
 @section('content')
     <div class="container py-4">
-        <h3 class="mb-4 fw-bold text-primary">Laporan Rincian per Karyawan</h3>
+        <h3 class="mb-4 fw-bold text-primary">Laporan Rincian per Pegawai</h3>
 
         {{-- Form Filter --}}
         <div class="card shadow-sm mb-4 border-0">
@@ -10,7 +10,7 @@
                 <form method="GET" action="{{ route('laporan.per.karyawan') }}">
                     <div class="row align-items-end">
                         <div class="col-md-4">
-                            <label for="karyawan_id" class="form-label fw-bold">Pilih Karyawan</label>
+                            <label for="karyawan_id" class="form-label fw-bold">Pilih Pegawai</label>
                             <select name="karyawan_id" id="karyawan_id" class="form-select" required>
                                 <option value="">-- Silakan Pilih --</option>
                                 @foreach ($karyawans as $karyawan)

@@ -110,7 +110,7 @@
                     class="header-img"></td>
             <td style="width: 60%;" class="header-text">
                 <h3>SEKOLAH ISLAM AL AZHAR 43 GORONTALO</h3>
-                <h4>LAPORAN RINCIAN ABSENSI KARYAWAN</h4>
+                <h4>LAPORAN RINCIAN ABSENSI PEGAWAI</h4>
                 <p>Periode: {{ $periode->translatedFormat('F Y') }}</p>
             </td>
             <td style="width: 20%; text-align: center;"><img src="{{ $logoYayasan }}" alt="Logo Yayasan"
@@ -122,8 +122,8 @@
         <thead>
             <tr>
                 <th rowspan="2" style="width: 3%;">No</th>
-                <th rowspan="2" style="width: 15%;" class="karyawan-name">Nama Karyawan</th>
-                <th rowspan="2" style="width: 10%;">NIP</th>
+                <th rowspan="2" style="width: 15%;" class="karyawan-name">Nama Pegawai</th>
+                <th rowspan="2" style="width: 10%;">NP</th>
                 <th colspan="{{ $daysInMonth }}">Tanggal</th>
                 <th colspan="2">Total</th>
             </tr>

@@ -3,8 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Slip Gaji - {{ $data['karyawan']->nama }} -
-        {{ \Carbon\Carbon::parse($data['bulan'])->translatedFormat('F Y') }}</title>
+    <title>Slip Gaji - {{ $gaji->karyawan->nama ?? 'N/A' }} -
+        {{ $gaji->bulan->translatedFormat('F Y') }}</title>
     <style>
         /* CSS styles (tidak ada perubahan signifikan, hanya memastikan konsistensi) */
         @page {
@@ -143,7 +143,7 @@
                 <td style="width: 20%; text-align: left;"><img src="{{ $logoAlAzhar }}" alt="Logo" class="logo"></td>
                 <td class="title-container">
                     <h3>SEKOLAH ISLAM AL AZHAR 43 GORONTALO</h3>
-                    <h4>SLIP GAJI TENAGA KERJA</h4>
+                    <h4>SLIP GAJI PEGAWAI</h4>
                 </td>
                 <td style="width: 20%; text-align: right;"><img src="{{ $logoYayasan }}" alt="Logo" class="logo">
                 </td>
@@ -151,18 +151,26 @@
         </table>
 
         <div class="employee-details">
-            <table>
+            <table class="info-section">
                 <tr>
-                    <td width="15%"><strong>NAMA</strong></td>
-                    <td width="35%">: {{ $data['karyawan']->nama }}</td>
-                    <td width="15%"><strong>PERIODE</strong></td>
-                    <td width="35%">: {{ \Carbon\Carbon::parse($data['bulan'])->translatedFormat('F Y') }}</td>
+                    <td style="width: 35%;">Periode Gaji</td>
+                    {{-- [PERBAIKAN WAJIB] Gunakan objek $gaji --}}
+                    <td style="width: 65%;">: {{ $gaji->bulan->translatedFormat('F Y') }}</td>
                 </tr>
                 <tr>
-                    <td><strong>NIP</strong></td>
-                    <td>: {{ $data['karyawan']->nip }}</td>
-                    <td><strong>JABATAN</strong></td>
-                    <td>: {{ $data['karyawan']->jabatan?->nama_jabatan ?? 'Jabatan Belum Diatur' }}</td>
+                    <td>Nama Karyawan</td>
+                    {{-- [PERBAIKAN WAJIB] Gunakan objek $gaji dan relasinya --}}
+                    <td style="width: 65%;">: {{ $gaji->karyawan->nama ?? 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td>NP</td>
+                    {{-- [PERBAIKAN WAJIB] Gunakan objek $gaji dan relasinya --}}
+                    <td style="width: 65%;">: {{ $gaji->karyawan->nip ?? 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td>Jabatan</td>
+                    {{-- [PERBAIKAN WAJIB] Gunakan objek $gaji dan relasinya --}}
+                    <td style="width: 65%;">: {{ $gaji->karyawan->jabatan->nama_jabatan ?? 'N/A' }}</td>
                 </tr>
             </table>
         </div>

@@ -7,7 +7,8 @@ use App\Models\User;
 use App\Models\Absensi;
 use App\Models\TandaTangan;
 use App\Notifications\ReportGenerated;
-use App\Traits\ManagesImageEncoding; // DIbutuhkan untuk logo & ttd
+use App\Traits\ManagesImageEncoding;
+use App\Services\SalaryService; // [PERBAIKAN] Tambahkan use statement
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -21,7 +22,6 @@ use Carbon\Carbon;
 
 class GenerateMonthlySalaryReport implements ShouldQueue
 {
-    // [PERBAIKAN] Tambahkan trait untuk mengubah gambar menjadi base64
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, ManagesImageEncoding;
 
     protected string $bulan;
@@ -35,7 +35,8 @@ class GenerateMonthlySalaryReport implements ShouldQueue
         $this->gajiIds = $gajiIds;
     }
 
-    public function handle(): void
+    // [PERBAIKAN] Inject SalaryService untuk konsistensi data
+    public function handle(SalaryService $salaryService): void
     {
         $user = $this->user;
         $periode = null;
@@ -60,41 +61,46 @@ class GenerateMonthlySalaryReport implements ShouldQueue
                 'tunj_komunikasi' => 0,
                 'tunj_pengabdian' => 0,
                 'tunj_kinerja' => 0,
+                'lembur' => 0, // [PERBAIKAN] Tambahkan lembur
                 'total_tunjangan' => 0,
                 'potongan' => 0,
                 'gaji_bersih' => 0,
             ];
 
+            // [PERBAIKAN UTAMA] Gunakan SalaryService, hapus kalkulasi manual
             foreach ($gajis as $gaji) {
-                $jumlahKehadiran = Absensi::where('nip', $gaji->karyawan->nip)
-                    ->whereYear('tanggal', $periode->year)
-                    ->whereMonth('tanggal', $periode->month)
-                    ->count();
-                $kehadiranData[$gaji->id] = $jumlahKehadiran;
+                // Panggil service untuk menghitung detail
+                $detailGaji = $salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan->format('Y-m'));
 
-                $tunjanganJabatan = $gaji->karyawan->jabatan->tunj_jabatan ?? 0;
-                $tunjanganKehadiran = $jumlahKehadiran * ($gaji->tunjanganKehadiran->jumlah_tunjangan ?? 0);
-                $totalTunjangan = $tunjanganJabatan + $tunjanganKehadiran + $gaji->tunj_anak + $gaji->tunj_komunikasi + $gaji->tunj_pengabdian + $gaji->tunj_kinerja + $gaji->lembur;
-                $gajiBersih = ($gaji->gaji_pokok + $totalTunjangan) - $gaji->potongan;
+                // Ambil data yang sudah dihitung oleh service
+                $kehadiranData[$gaji->id] = $detailGaji['jumlah_kehadiran'];
 
-                $totals['gaji_pokok'] += $gaji->gaji_pokok;
-                $totals['tunj_jabatan'] += $tunjanganJabatan;
-                $totals['tunj_kehadiran'] += $tunjanganKehadiran;
-                $totals['tunj_anak'] += $gaji->tunj_anak;
-                $totals['tunj_komunikasi'] += $gaji->tunj_komunikasi;
-                $totals['tunj_pengabdian'] += $gaji->tunj_pengabdian;
-                $totals['tunj_kinerja'] += $gaji->tunj_kinerja;
+                $totalTunjangan = $detailGaji['tunj_jabatan'] +
+                    $detailGaji['tunj_kehadiran'] +
+                    $detailGaji['tunj_anak'] +
+                    $detailGaji['tunj_komunikasi'] +
+                    $detailGaji['tunj_pengabdian'] +
+                    $detailGaji['tunj_kinerja'] +
+                    $detailGaji['lembur'];
+
+                // Akumulasi total dari data service
+                $totals['gaji_pokok'] += $detailGaji['gaji_pokok_numeric'];
+                $totals['tunj_jabatan'] += $detailGaji['tunj_jabatan'];
+                $totals['tunj_kehadiran'] += $detailGaji['tunj_kehadiran'];
+                $totals['tunj_anak'] += $detailGaji['tunj_anak'];
+                $totals['tunj_komunikasi'] += $detailGaji['tunj_komunikasi'];
+                $totals['tunj_pengabdian'] += $detailGaji['tunj_pengabdian'];
+                $totals['tunj_kinerja'] += $detailGaji['tunj_kinerja'];
+                $totals['lembur'] += $detailGaji['lembur'];
                 $totals['total_tunjangan'] += $totalTunjangan;
-                $totals['potongan'] += $gaji->potongan;
-                $totals['gaji_bersih'] += $gajiBersih;
+                $totals['potongan'] += $detailGaji['potongan'];
+                $totals['gaji_bersih'] += $detailGaji['gaji_bersih_numeric'];
 
-                $gaji->gaji_bersih = $gajiBersih;
+                $gaji->gaji_bersih = $detailGaji['gaji_bersih_numeric'];
             }
 
-            // [PERBAIKAN UTAMA DI SINI]
-            // Menggunakan kolom 'key' bukan 'jabatan'
+            // Logika aset (logo & ttd) sudah benar
             $bendahara = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
-
             $bendaharaNama = $bendahara ? $bendahara->nama : 'Bendahara Belum Diset';
             $tandaTanganBendahara = $bendahara && Storage::disk('public')->exists($bendahara->path)
                 ? $this->getImageAsBase64DataUri(storage_path('app/public/' . $bendahara->path))
