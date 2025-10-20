@@ -41,20 +41,15 @@ class SalaryService
         if ($gajiTersimpan && $gajiTersimpan->tunjanganKehadiran) {
             $tunjanganPerKehadiran = $gajiTersimpan->tunjanganKehadiran->jumlah_tunjangan;
             $tunjanganKehadiranId = $gajiTersimpan->tunjangan_kehadiran_id;
-        } else {
-            // Fallback jika gaji belum diset, gunakan tunjangan default
-            $defaultTunjangan = TunjanganKehadiran::first();
-            if ($defaultTunjangan) {
-                $tunjanganKehadiranId = $defaultTunjangan->id;
-                // [FIX] Logika fallback tunjangan per kehadiran (jika perlu)
-                // $tunjanganPerKehadiran = $defaultTunjangan->jumlah_tunjangan; 
-            }
         }
-        $totalTunjanganKehadiran = $jumlahKehadiran * $tunjanganPerKehadiran;
 
-
+        // Ambil nilai Gaji Pokok
         $gajiPokok = $gajiTersimpan->gaji_pokok ?? $karyawan->gaji_pokok_default ?? 0;
-        $tunjanganJabatan = $karyawan->jabatan->tunj_jabatan ?? 0;
+
+        // Ambil nilai Tunjangan Jabatan
+        $tunjJabatan = $karyawan->jabatan->tunj_jabatan ?? 0; // Ambil dari relasi Jabatan Karyawan
+
+        // Ambil rincian tunjangan/potongan dari gaji tersimpan atau default 0
         $tunjAnak = $gajiTersimpan->tunj_anak ?? 0;
         $tunjKomunikasi = $gajiTersimpan->tunj_komunikasi ?? 0;
         $tunjPengabdian = $gajiTersimpan->tunj_pengabdian ?? 0;
@@ -62,58 +57,49 @@ class SalaryService
         $lembur = $gajiTersimpan->lembur ?? 0;
         $potongan = $gajiTersimpan->potongan ?? 0;
 
-        $totalTunjangan = $tunjanganJabatan + $tunjAnak + $tunjKomunikasi + $tunjPengabdian + $tunjKinerja + $totalTunjanganKehadiran + $lembur;
-        $gajiKotor = $gajiPokok + $totalTunjangan;
-        $gajiBersih = $gajiKotor - $potongan;
+        // Hitung Tunjangan Kehadiran
+        $tunjKehadiran = $jumlahKehadiran * $tunjanganPerKehadiran;
 
-        // [PERBAIKAN UTAMA DIMULAI DI SINI]
-        return [
-            // Data Info
-            'karyawan_id' => $karyawan->id,
-            'nama' => $karyawan->nama,
-            'jabatan' => $karyawan->jabatan->nama_jabatan ?? 'N/A',
-            'bulan' => $tanggal->format('Y-m'),
+        // Hitung Gaji Bersih (Numerik)
+        $gajiBersihNumeric = ($gajiPokok + $tunjJabatan + $tunjKehadiran + $tunjAnak + $tunjKomunikasi + $tunjPengabdian + $tunjKinerja + $lembur) - $potongan;
+
+        // Siapkan array hasil (semua dalam bentuk numerik untuk perhitungan)
+        $result = [
             'gaji_id' => $gajiTersimpan->id ?? null,
+            'karyawan_id' => $karyawan->id,
             'nip' => $karyawan->nip,
-            'email' => $karyawan->email,
+            'nama' => $karyawan->nama,
+            'email' => $karyawan->email, // <--- KODE PERBAIKAN DITAMBAH
+            'jabatan' => $karyawan->jabatan->nama_jabatan ?? 'Tidak Ada Jabatan',
+            'bulan' => $tanggal->format('Y-m'),
 
-            // Data Teks (untuk form admin)
-            'gaji_pokok_string' => 'Rp ' . number_format($gajiPokok, 0, ',', '.'),
+            // Komponen Numerik
+            'gaji_pokok_numeric' => (float) $gajiPokok,
+            'tunj_jabatan' => (float) $tunjJabatan,
+            'tunj_anak' => (float) $tunjAnak,
+            'tunj_komunikasi' => (float) $tunjKomunikasi,
+            'tunj_pengabdian' => (float) $tunjPengabdian,
+            'tunj_kinerja' => (float) $tunjKinerja,
+            'lembur' => (float) $lembur,
+            'potongan' => (float) $potongan,
             'total_kehadiran' => $jumlahKehadiran,
-            'tunjangan_per_kehadiran_string' => 'Rp ' . number_format($tunjanganPerKehadiran, 0, ',', '.'),
-            'total_tunjangan_kehadiran_string' => 'Rp ' . number_format($totalTunjanganKehadiran, 0, ',', '.'),
-            'total_tunjangan_string' => 'Rp ' . number_format($totalTunjangan, 0, ',', '.'),
-            'total_potongan_string' => 'Rp ' . number_format($potongan, 0, ',', '.'),
-            'gaji_kotor_string' => 'Rp ' . number_format($gajiKotor, 0, ',', '.'),
-            'gaji_bersih_string' => 'Rp ' . number_format($gajiBersih, 0, ',', '.'),
-
-            // Data Numeric (untuk input form admin)
-            'gaji_pokok_numeric' => $gajiPokok,
-            'gaji_bersih_numeric' => $gajiBersih,
-            'tunj_jabatan' => $tunjanganJabatan,
-            'tunj_anak' => $tunjAnak,
-            'tunj_komunikasi' => $tunjKomunikasi,
-            'tunj_pengabdian' => $tunjPengabdian,
-            'tunj_kinerja' => $tunjKinerja,
-            'lembur' => $lembur,
-            'potongan' => $potongan,
             'tunjangan_kehadiran_id' => $tunjanganKehadiranId,
+            'gaji_bersih_numeric' => $gajiBersihNumeric,
 
-            // =================================================================
-            // [PERBAIKAN WAJIB] Key untuk slip_pdf.blade.php
-            // =================================================================
-            'gaji_pokok' => $gajiPokok,
-            'jumlah_kehadiran' => $jumlahKehadiran,
-            'tunj_kehadiran' => $totalTunjanganKehadiran,
-            // 'tunj_jabatan' -> sudah ada di atas
-            // 'tunj_anak' -> sudah ada di atas
-            // 'tunj_komunikasi' -> sudah ada di atas
-            // 'tunj_pengabdian' -> sudah ada di atas
-            // 'tunj_kinerja' -> sudah ada di atas
-            // 'lembur' -> sudah ada di atas
-            // 'potongan' -> sudah ada di atas
-            'gaji_bersih' => $gajiBersih,
+            // Komponen String/Formatted
+            'gaji_pokok_string' => 'Rp ' . number_format($gajiPokok, 0, ',', '.'),
+            'tunj_jabatan_string' => 'Rp ' . number_format($tunjJabatan, 0, ',', '.'),
+            'total_tunjangan_kehadiran_string' => 'Rp ' . number_format($tunjKehadiran, 0, ',', '.'),
+            'gaji_bersih_string' => 'Rp ' . number_format($gajiBersihNumeric, 0, ',', '.'),
+            // Tambahkan rincian TK dan Gaji Bersih untuk slip
+            'tunj_kehadiran_rincian' => [
+                'per_hari' => $tunjanganPerKehadiran,
+                'total' => $tunjKehadiran,
+                'total_string' => 'Rp ' . number_format($tunjKehadiran, 0, ',', '.'),
+            ],
         ];
+
+        return $result;
     }
 
     /**

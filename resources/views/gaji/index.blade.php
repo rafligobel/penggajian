@@ -64,11 +64,8 @@
                                         {{ $gajiData['gaji_pokok_string'] }}
                                     </td>
                                     <td class="text-end tunj-jabatan-col">
-                                        {{-- 'tunj_jabatan' tidak ada di SalaryService. 
-                                             Ini harus ditambahkan di SalaryService agar muncul di sini.
-                                             Untuk sementara, kita tampilkan Rp 0 --}}
-                                        Rp 0
-                                        {{-- TODO: Tambahkan 'tunj_jabatan' ke array return di SalaryService.php --}}
+                                        {{-- Ambil 'tunj_jabatan_string' dari service --}}
+                                        {{ $gajiData['tunj_jabatan_string'] }}
                                     </td>
                                     <td class="text-end fw-bold gaji-bersih-col">
                                         {{-- Ambil 'gaji_bersih_string' dan cek 'gaji_id' --}}
@@ -218,7 +215,7 @@
 
                 // 'tunj_jabatan' tidak ada di service, jadi tetap 0
                 // row.querySelector('.tunj-jabatan-col').textContent = formatRupiah(newData.tunj_jabatan).replace('Rp', 'Rp ');
-
+                row.querySelector('.tunj-jabatan-col').textContent = newData.tunj_jabatan_string;
                 row.querySelector('.gaji-bersih-col').innerHTML =
                     `<span class="badge bg-success">${newData.gaji_bersih_string}</span>`;
                 row.querySelector('.status-col').innerHTML =
@@ -322,6 +319,11 @@
                 // Sesuaikan nama field dengan key di flat array
                 const fields = [{
                     // 'gaji_pokok_numeric' dari service
+
+                    name: 'tunj_jabatan',
+                    label: 'Tunjangan Jabatan',
+                    value: data.tunj_jabatan
+                }, {
                     name: 'gaji_pokok',
                     label: 'Gaji Pokok',
                     value: data.gaji_pokok_numeric
@@ -353,8 +355,7 @@
 
                 // 'tunj_jabatan' tidak ada di service
                 let fieldsHtml =
-                    `<div class="col-md-6 mb-3"><label class="form-label">Tunjangan Jabatan (Otomatis)</label><input type="text" class="form-control" value="${formatRupiah(0)}" readonly></div>`;
-
+                    `<div class="col-md-6 mb-3"><label class="form-label">Tunjangan Jabatan (Otomatis)</label><input type="text" class="form-control" value="${formatRupiah(data.tunj_jabatan)}" readonly></div>`;
                 fieldsHtml += fields.map(f =>
                     // Gunakan f.value untuk mengisi nilai
                     `<div class="col-md-6 mb-3"><label class="form-label">${f.label}</label><input type="number" name="${f.name}" class="form-control" value="${parseFloat(f.value || 0)}" required></div>`
@@ -377,7 +378,7 @@
                     value: formatRupiah(data.gaji_pokok_numeric)
                 }, {
                     label: 'Tunjangan Jabatan',
-                    value: formatRupiah(0) // Tidak ada di service
+                    value: formatRupiah(data.tunj_jabatan)
                 }, {
                     label: 'Tunjangan Anak',
                     value: formatRupiah(data.tunj_anak)

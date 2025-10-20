@@ -4,17 +4,32 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use App\Models\Karyawan;
 use App\Models\Gaji;
 use App\Models\Absensi;
 use App\Models\SesiAbsensi;
 use App\Models\Jabatan;
 use App\Models\TunjanganKehadiran;
+use App\Models\User;
 use Carbon\Carbon;
 use Exception;
 
 class ImportGajiCommand extends Command
 {
+    // [MASTER DATA] Definisi Tunjangan Kehadiran dan Jabatan
+    const TK_MASTERS = [
+        ['name' => 'Level 1: Kehadiran', 'amount' => 37500],
+        ['name' => 'Level 2: Kehadiran', 'amount' => 47500],
+        ['name' => 'Level 3: Kehadiran', 'amount' => 50000],
+    ];
+
+    const JABATAN_MASTERS = [
+        ['name' => 'Kurikulum', 'tunjangan' => 100000],
+        ['name' => 'Ekstrakulikuler', 'tunjangan' => 100000],
+        ['name' => 'Sumber Daya Manusia', 'tunjangan' => 500000],
+    ];
+
     protected $signature = 'import:gaji {bulan} {tahun} {--file=} {--update-karyawan}';
     protected $description = 'Import data karyawan, absensi, dan gaji MENTAH dari file CSV.';
 
@@ -47,28 +62,69 @@ class ImportGajiCommand extends Command
             return 1;
         }
 
-        $defaultTunjangan = TunjanganKehadiran::firstOrCreate(
-            ['id' => 1],
-            ['jenis_tunjangan' => 'Standar (Otomatis)', 'jumlah_tunjangan' => 25000]
-        );
-        $defaultTunjanganId = $defaultTunjangan->id;
-        $this->info("-> Menggunakan Tunjangan Kehadiran Default (ID: {$defaultTunjanganId})");
+        // ====================================================================
+        // [FOKUS 1: SETUP MASTER DATA]
+        // ====================================================================
 
+        // 1. Setup Tunjangan Kehadiran (Level 1, 2, 3)
+        $this->info("-> Setup Tunjangan Kehadiran Master (3 Level)...");
+        $tkLookup = [];
+        $defaultTunjanganId = 1;
+        foreach (self::TK_MASTERS as $tk) {
+            $tunjangan = TunjanganKehadiran::firstOrCreate(
+                ['jumlah_tunjangan' => $tk['amount']],
+                ['jenis_tunjangan' => $tk['name'], 'nama_tunjangan' => $tk['name']]
+            );
+            $tkLookup[$tk['amount']] = $tunjangan->id;
+
+            // Set ID level 1 sebagai default jika belum ada ID 1
+            if ($tk['amount'] == 37500) {
+                $defaultTunjanganId = $tunjangan->id;
+            }
+        }
+        $this->info("-> Tunjangan Kehadiran Master dibuat/ditemukan.");
+
+        // 2. Setup Jabatan Master (Kurikulum, SDM, dst.)
+        $this->info("-> Setup Jabatan Master...");
+        $jabatanLookup = [];
+        foreach (self::JABATAN_MASTERS as $j) {
+            // Kita menggunakan tunjangan dan nama jabatan untuk memastikan keunikan master
+            $jabatan = Jabatan::firstOrCreate(
+                ['tunj_jabatan' => $j['tunjangan'], 'nama_jabatan' => $j['name']],
+                ['tunj_jabatan' => $j['tunjangan'], 'nama_jabatan' => $j['name']]
+            );
+            // Simpan ID Jabatan berdasarkan nilai tunjangan untuk lookup cepat
+            $jabatanLookup[$j['tunjangan']][$jabatan->id] = $j['name'];
+        }
+        $this->line("-> Jabatan Master berhasil dibuat/ditemukan.");
+
+        // 3. Sesi Absensi Default (untuk constraint DB)
+        $sesiAbsensiDefault = SesiAbsensi::firstOrCreate(
+            ['is_default' => true],
+            [
+                'tanggal' => '1970-01-01', // Wajib ada untuk default
+                'tipe' => 'aktif',
+                'jam_buka' => '07:00:00',
+                'jam_tutup' => '17:00:00'
+            ]
+        );
+        $sesiAbsensiId = $sesiAbsensiDefault->id;
+
+        // ====================================================================
+        // [FOKUS 2: LOOPING DATA CSV]
+        // ====================================================================
         DB::beginTransaction();
         try {
             foreach ($dataCsv as $row) {
-                $tunjanganJabatanValue = (int) $this->cleanNumeric($row['TJ. Jabatan'] ?? 0);
-                $jabatan = Jabatan::firstOrCreate(
-                    ['tunj_jabatan' => $tunjanganJabatanValue],
-                    ['nama_jabatan' => 'Jabatan Otomatis ' . number_format($tunjanganJabatanValue)]
-                );
-
-                $karyawan = $this->prosesKaryawan($row, $jabatan->id, $shouldUpdateKaryawan);
+                // 1. Proses User & Karyawan (termasuk Jabatan ID)
+                $karyawan = $this->prosesKaryawan($row, $jabatanLookup, $shouldUpdateKaryawan);
                 $this->info("Memproses: '{$karyawan->nama}' (NIP: {$karyawan->nip})");
 
-                $this->prosesAbsensi($karyawan, (int)($row['Jumlah Kehadiran'] ?? 0), $bulanAngka, $tahun);
+                // 2. Proses Absensi
+                $this->prosesAbsensi($karyawan, (int)($row['Jumlah Kehadiran'] ?? 0), $bulanAngka, $tahun, $sesiAbsensiId);
 
-                $gajiData = $this->prepareGajiData($row, $defaultTunjanganId);
+                // 3. Proses Gaji (menentukan tunjangan kehadiran ID berdasarkan perhitungan)
+                $gajiData = $this->prepareGajiData($row, $tkLookup, $defaultTunjanganId);
 
                 Gaji::updateOrCreate(
                     ['karyawan_id' => $karyawan->id, 'bulan' => $bulanString],
@@ -86,72 +142,92 @@ class ImportGajiCommand extends Command
         return 0;
     }
 
-    private function prosesKaryawan(array $data, int $jabatanId, bool $shouldUpdate): Karyawan
+    // ====================================================================
+    // [HELPER BARU DAN MODIFIKASI]
+    // ====================================================================
+
+    private function prosesKaryawan(array $data, array $jabatanLookup, bool $shouldUpdate): Karyawan
     {
+        $nip = trim($data['NIP']);
+        $nama = trim($data['Nama']);
+        $email = trim($data['Email'] ?? null);
+        $gajiPokokValue = (int) $this->cleanNumeric($data['Gaji Pokok'] ?? 0);
+        $tunjanganJabatanValue = (int) $this->cleanNumeric($data['TJ. Jabatan'] ?? 0);
+
+        // 1. Membuat User Otomatis
+        $user = $this->prosesUser($nama, $email);
+        $this->line("-> Akun user dibuat/ditemukan untuk {$user->email}");
+
+        // 2. Menentukan Jabatan ID (Bisa NULL)
+        $jabatanId = $this->getJabatanId($tunjanganJabatanValue, $jabatanLookup);
+
         $karyawanData = [
-            'nama' => trim($data['Nama']),
-            'email' => trim($data['Email'] ?? null),
+            'nama' => $nama,
+            'email' => $email,
             'telepon' => trim($data['Telepon'] ?? null),
             'alamat' => trim($data['Alamat'] ?? null),
-            'jabatan_id' => trim($jabatanId ?? null),
+            'jabatan_id' => $jabatanId, // <-- Bisa NULL
+            'user_id' => $user->id,
+            'gaji_pokok_default' => $gajiPokokValue,
         ];
-        return Karyawan::updateOrCreate(['nip' => trim($data['NIP'])], $karyawanData);
-    }
 
-    /**
-     * @param Karyawan $karyawan
-     * @param int $jumlahHari
-     * @param int $bulan
-     * @param int $tahun
-     */
-    private function prosesAbsensi(Karyawan $karyawan, int $jumlahHari, int $bulan, int $tahun)
-    {
-        $tanggalAwal = Carbon::create($tahun, $bulan, 1);
-        $hariAbsenDibuat = 0;
+        $findData = ['nip' => $nip];
 
-        for ($i = 0; $i < $tanggalAwal->daysInMonth && $hariAbsenDibuat < $jumlahHari; $i++) {
-            $tanggalCek = $tanggalAwal->copy()->addDays($i);
-
-            if ($tanggalCek->isWeekday() || $tanggalCek->isSaturday()) {
-
-                // **KUNCI PERBAIKAN ADA DI SINI**
-                // Langkah 1: Buat sesi absensi 'masuk' jika belum ada.
-                $sesi = SesiAbsensi::firstOrCreate(
-                    [
-                        'tanggal' => $tanggalCek->toDateString(),
-                        'tipe'    => 'masuk',
-                    ],
-                    [
-                        'jam_buka' => '07:00:00',
-                        'jam_tutup' => '17:00:00',
-                    ]
-                );
-
-                // Langkah 2: Buat array data untuk absensi secara eksplisit.
-                $dataAbsensi = [
-                    'nip'             => $karyawan->nip,
-                    'nama'            => $karyawan->nama,
-                    'tanggal'         => $tanggalCek->toDateString(),
-                    'jam'             => '07:30:00',
-                    'sesi_absensi_id' => $sesi->id,
-                ];
-
-                // Langkah 3: Gunakan 'firstOrCreate' dengan data yang sudah lengkap.
-                Absensi::firstOrCreate(
-                    [
-                        'nip'     => $karyawan->nip,
-                        'tanggal' => $tanggalCek->toDateString(),
-                    ],
-                    $dataAbsensi // Gunakan array data yang sudah lengkap di sini
-                );
-
-                $hariAbsenDibuat++;
-            }
+        if (!$shouldUpdate) {
+            return Karyawan::firstOrCreate($findData, $karyawanData);
         }
-        $this->line("-> Absensi ({$hariAbsenDibuat} hari) berhasil diproses untuk {$karyawan->nama}.");
+
+        return Karyawan::updateOrCreate($findData, $karyawanData);
     }
 
-    private function prepareGajiData(array $data, int $defaultTunjanganId): array
+    // [FUNGSI YANG DIPERBAIKI FOKUS] Mengembalikan NULL jika tunjangan 0
+    private function getJabatanId(int $tunjanganJabatanValue, array $jabatanLookup): ?int
+    {
+        // [PERBAIKAN FOKUS] Jika tunjangan 0, kembalikan NULL (tanpa membuat Jabatan Otomatis Rp 0)
+        if ($tunjanganJabatanValue === 0) {
+            return null;
+        }
+
+        // Cek apakah nilai tunjangan ada di master map (Kurikulum, SDM, dll.)
+        if (isset($jabatanLookup[$tunjanganJabatanValue])) {
+            return array_key_first($jabatanLookup[$tunjanganJabatanValue]);
+        }
+
+        // Jika tidak ada di lookup master, buat Jabatan Otomatis
+        $calculatedName = 'Jabatan Otomatis Rp ' . number_format($tunjanganJabatanValue, 0, ',', '.');
+
+        // Gunakan NAMA dan TUNJANGAN yang unik sebagai Kriteria Pencarian
+        $jabatan = Jabatan::firstOrCreate(
+            [
+                'tunj_jabatan' => $tunjanganJabatanValue,
+                'nama_jabatan' => $calculatedName
+            ],
+            ['tunj_jabatan' => $tunjanganJabatanValue]
+        );
+
+        return $jabatan->id;
+    }
+
+    // [FUNGSI BARU] Membuat atau menemukan akun User
+    private function prosesUser(string $name, ?string $email): User
+    {
+        if (empty($email)) {
+            throw new Exception("Gagal membuat akun user: Kolom Email kosong untuk karyawan bernama {$name}.");
+        }
+
+        // Password default: "password"
+        // Default role untuk karyawan di aplikasi penggajian biasanya adalah 'tenaga_kerja'
+        return User::firstOrCreate(
+            ['email' => $email],
+            [
+                'name' => $name,
+                'role' => 'tenaga_kerja', // Asumsi role default
+                'password' => Hash::make('password'),
+            ]
+        );
+    }
+
+    private function prepareGajiData(array $data, array $tkLookup, int $defaultTkId): array
     {
         $columnMap = [
             'Gaji Pokok' => 'gaji_pokok',
@@ -164,10 +240,93 @@ class ImportGajiCommand extends Command
         ];
         $gajiData = [];
         foreach ($columnMap as $csvHeader => $dbColumn) {
-            $gajiData[$dbColumn] = $this->cleanNumeric($data[$csvHeader] ?? 0);
+            $gajiData[$dbColumn] = (int) $this->cleanNumeric($data[$csvHeader] ?? 0);
         }
-        $gajiData['tunjangan_kehadiran_id'] = $defaultTunjanganId;
+
+        // 1. Ambil nilai TK dari CSV
+        $tunjanganKehadiranCsv = (int) $this->cleanNumeric($data['Kehadiran'] ?? 0);
+        $jumlahKehadiran = (int) $this->cleanNumeric($data['Jumlah Kehadiran'] ?? 0);
+
+        // 2. Hitung Allowance Per Hari dari CSV
+        $perDayAllowance = ($jumlahKehadiran > 0)
+            ? round($tunjanganKehadiranCsv / $jumlahKehadiran)
+            : 0;
+
+        // 3. Temukan TK ID berdasarkan Level yang paling dekat
+        $matchedTkId = $this->matchTunjanganKehadiranLevel($perDayAllowance, $tkLookup);
+
+        $gajiData['tunjangan_kehadiran_id'] = $matchedTkId;
         return $gajiData;
+    }
+
+    // Mencocokkan allowance per hari ke level master yang paling dekat
+    private function matchTunjanganKehadiranLevel(float $amount, array $tkLookup): int
+    {
+        $levels = array_keys($tkLookup);
+
+        // Cari perbedaan terkecil
+        $closestAmount = null;
+        $minDifference = PHP_INT_MAX;
+
+        foreach ($levels as $levelAmount) {
+            $difference = abs($amount - $levelAmount);
+            if ($difference < $minDifference) {
+                $minDifference = $difference;
+                $closestAmount = $levelAmount;
+            }
+        }
+
+        // Jika ditemukan kecocokan, kembalikan ID level tersebut, jika tidak, kembalikan ID 1 (default)
+        return $tkLookup[$closestAmount] ?? 1;
+    }
+
+    /**
+     * @param Karyawan $karyawan
+     * @param int $jumlahHari
+     * @param int $bulan
+     * @param int $tahun
+     * @param int $sesiAbsensiId // <-- Tambahkan Sesi ID
+     */
+    private function prosesAbsensi(Karyawan $karyawan, int $jumlahHari, int $bulan, int $tahun, int $sesiAbsensiId)
+    {
+        $tanggalAwal = Carbon::create($tahun, $bulan, 1);
+        $hariAbsenDibuat = 0;
+
+        // Hapus Absensi lama di bulan ini untuk memastikan data bersih
+        Absensi::where('nip', $karyawan->nip)
+            ->whereYear('tanggal', $tahun)
+            ->whereMonth('tanggal', $bulan)
+            ->delete();
+
+        for ($i = 0; $i < $tanggalAwal->daysInMonth && $hariAbsenDibuat < $jumlahHari; $i++) {
+            $tanggalCek = $tanggalAwal->copy()->addDays($i);
+
+            // Cek hari kerja (Senin s/d Sabtu)
+            if ($tanggalCek->isWeekday() || $tanggalCek->isSaturday()) {
+
+                // Data absensi sudah disederhanakan
+                $dataAbsensi = [
+                    'sesi_absensi_id' => $sesiAbsensiId, // <-- Gunakan ID sesi yang sudah diambil
+                    'nip'             => $karyawan->nip,
+                    'nama'            => $karyawan->nama,
+                    'tanggal'         => $tanggalCek->toDateString(),
+                    'jam'             => '07:30:00',
+                    'koordinat'       => '0,0', // <-- Tambahkan default koordinat
+                    'jarak'           => 0,     // <-- Tambahkan default jarak
+                ];
+
+                Absensi::firstOrCreate(
+                    [
+                        'nip'     => $karyawan->nip,
+                        'tanggal' => $tanggalCek->toDateString(),
+                    ],
+                    $dataAbsensi
+                );
+
+                $hariAbsenDibuat++;
+            }
+        }
+        $this->line("-> Absensi ({$hariAbsenDibuat} hari) berhasil diproses untuk {$karyawan->nama}.");
     }
 
     private function readCsv(string $filePath): array
@@ -187,6 +346,7 @@ class ImportGajiCommand extends Command
 
     private function cleanNumeric($value)
     {
+        // Menghapus semua karakter kecuali digit (0-9)
         return preg_replace('/[^0-9]/', '', $value);
     }
 
