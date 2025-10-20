@@ -41,9 +41,8 @@ class TenagaKerjaController extends Controller
         $karyawan = $user->karyawan;
 
         // ======================================================================================
-        // [PERBAIKAN 1: LOGIKA ABSENSI DASHBOARD]
-        // Logika disederhanakan untuk selalu menggunakan service, yang sudah
-        // menangani kasus sesi default vs. sesi spesifik hari ini.
+        // [LOGIKA ABSENSI DASHBOARD]
+        // Menentukan status sesi absensi hari ini.
         // ======================================================================================
         $today = today();
         $statusInfo = $this->absensiService->getSessionStatus($today);
@@ -67,7 +66,7 @@ class TenagaKerjaController extends Controller
 
         $sudahAbsen = Absensi::where('nip', $karyawan->nip)->whereDate('tanggal', $today)->exists();
 
-        // [PERBAIKAN: Tambah whereYear untuk akurasi]
+        // Jumlah kehadiran bulan ini
         $absensiBulanIni = Absensi::where('nip', $karyawan->nip)
             ->whereYear('tanggal', now()->year)
             ->whereMonth('tanggal', now()->month)
@@ -79,6 +78,17 @@ class TenagaKerjaController extends Controller
             ->whereYear('bulan', now()->year)
             ->whereMonth('bulan', now()->month)
             ->first();
+
+        // [PERBAIKAN FOKUS: Memperbarui nilai gaji_bersih menggunakan SalaryService]
+        if ($gajiBulanIni) {
+            // Ambil rincian perhitungan lengkap dari service
+            $details = $this->salaryService->calculateDetailsForForm($gajiBulanIni->karyawan, $gajiBulanIni->bulan->format('Y-m-d'));
+
+            // Timpa gaji_bersih dengan hasil perhitungan numerik yang akurat
+            $gajiBulanIni->gaji_bersih = $details['gaji_bersih_numeric'];
+        }
+        // [PERBAIKAN FOKUS SELESAI]
+
         $tunjanganKehadiranDefault = TunjanganKehadiran::first();
         // --- Logika untuk Modal Laporan Gaji ---
         $tahun = $request->input('tahun', date('Y'));
@@ -125,14 +135,13 @@ class TenagaKerjaController extends Controller
             'isSesiDibuka',
             'sudahAbsen',
             'pesanSesi',
-            'laporanData', // ▲▲▲ PERUBAHAN 2: GANTI 'gajis' MENJADI 'laporanData' ▲▲▲
+            'laporanData',
             'tahun',
             'availableYears',
             'slipTersedia',
             'tunjanganKehadiranDefault'
         ));
     }
-
 
     public function hitungSimulasi(Request $request)
     {
@@ -189,18 +198,22 @@ class TenagaKerjaController extends Controller
         }
         // --- PERBAIKAN SELESAI ---
 
-        $officeLatitude = (float) env('OFFICE_LATITUDE');
-        $officeLongitude = (float) env('OFFICE_LONGITUDE');
+        $officeLatEnv = env('OFFICE_LATITUDE');
+        $officeLonEnv = env('OFFICE_LONGITUDE');
+
+        // Konversi ke float dengan pengecekan is_numeric untuk mencegah string kosong di-cast ke 0
+        $officeLatitude = is_numeric($officeLatEnv) ? (float) $officeLatEnv : 0.0;
+        $officeLongitude = is_numeric($officeLonEnv) ? (float) $officeLonEnv : 0.0;
+
         $maxRadius = (int) env('MAX_ATTENDANCE_RADIUS', 50);
 
-        if (empty($officeLatitude) || empty($officeLongitude) || ($officeLatitude == 0 && $officeLongitude == 0)) {
-            // Log error ini untuk administrator
-            Log::error('Kesalahan Konfigurasi: OFFICE_LATITUDE atau OFFICE_LONGITUDE tidak diatur dengan benar di file .env.');
+        if ($officeLatitude == 0.0 || $officeLongitude == 0.0) {
+            // Jika salah satu (atau keduanya) bernilai 0, anggap konfigurasi gagal
+            Log::error('Kesalahan Konfigurasi: OFFICE_LATITUDE atau OFFICE_LONGITUDE tidak diatur dengan benar atau bernilai nol. Periksa file .env Anda.');
 
-            // Tampilkan pesan error yang jelas ke pengguna
             return response()->json([
                 'status' => 'error',
-                'message' => 'Kesalahan Konfigurasi Server: Lokasi kantor tidak diatur. Harap hubungi administrator.'
+                'message' => 'Kesalahan Konfigurasi Server: Lokasi kantor (Latitude/Longitude) tidak dapat dibaca dengan benar. Harap hubungi administrator.'
             ], 500); // Server Error
         }
         // --- PERBAIKAN SELESAI ---

@@ -18,7 +18,7 @@
                         <div class="bg-success text-white p-3 rounded-3 me-3"><i class="fas fa-money-bill-wave fa-lg"></i>
                         </div>
                         <div>
-                            {{-- [PERUBAHAN] Judul diubah dan variabel $gajiBulanIni dipakai --}}
+                            {{-- [PERBAIKAN SINTAKS BLADE FOKUS] Memastikan blok @if tertutup dengan benar --}}
                             <h6 class="card-title text-muted mb-1">Gaji Bulan Ini ({{ now()->translatedFormat('F Y') }})
                             </h6>
                             @if ($gajiBulanIni)
@@ -26,7 +26,7 @@
                                     {{ number_format($gajiBulanIni->gaji_bersih, 0, ',', '.') }}</p>
                                 <small class="text-muted">Status: {{ $gajiBulanIni->status ?? 'Diproses' }}</small>
                             @else
-                                <p class="card-text fs-6 mb-0">Data gaji bulan ini belum dibuat.</p>
+                                <p class="card-text fs-6 mb-0">Data gaji bulan ini belum tersedia.</p>
                             @endif
                         </div>
                     </div>
