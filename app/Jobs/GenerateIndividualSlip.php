@@ -37,7 +37,12 @@ class GenerateIndividualSlip implements ShouldQueue
         $user = User::find($this->userId);
         try {
             $gaji = Gaji::with('karyawan.jabatan')->findOrFail($this->gajiId);
-            $data = $salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan);
+            $data = $salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan->format('Y-m')); // Pastikan format bulan benar
+            $data['gaji_pokok'] = $data['gaji_pokok_numeric'] ?? 0;
+            $data['jumlah_kehadiran'] = $data['total_kehadiran'] ?? 0;
+            $data['tunj_kehadiran'] = $data['tunj_kehadiran'] ?? 0; 
+            $data['gaji_bersih'] = $data['gaji_bersih_numeric'] ?? 0;
+        
 
             $logoAlAzhar = $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png'));
             $logoYayasan = $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png'));

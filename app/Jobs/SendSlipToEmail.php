@@ -62,6 +62,10 @@ class SendSlipToEmail implements ShouldQueue
                 // [FIXED] Panggilan ini sekarang mengembalikan key yang benar
                 $dataSlip = $salaryService->calculateDetailsForForm($karyawan, $periode->format('Y-m'));
 
+                $dataSlip['jumlah_kehadiran'] = $dataSlip['total_kehadiran'] ?? 0;
+                $dataSlip['gaji_pokok'] = $dataSlip['gaji_pokok_numeric'] ?? 0;
+                $dataSlip['tunj_kehadiran'] = $dataSlip['tunj_kehadiran'] ?? 0; // Tambahkan ini untuk mengatasi error terbaru
+                $dataSlip['gaji_bersih'] = $dataSlip['gaji_bersih_numeric'] ?? 0; // <<< FIX TERBARU
                 // [FIXED] View ini sekarang akan me-render tanpa error
                 $pdf = Pdf::loadView('gaji.slip_pdf', [
                     'data' => $dataSlip,

@@ -60,15 +60,15 @@
                                         <small class="text-muted nip-karyawan">NP: {{ $gajiData['nip'] }}</small>
                                     </td>
                                     <td class="text-end gaji-pokok-col">
-                                        {{-- Ambil 'gaji_pokok_string' dari service --}}
+                                        {{-- Ambil 'gaji_pokok_string' dari service, sudah termasuk Rp --}}
                                         {{ $gajiData['gaji_pokok_string'] }}
                                     </td>
                                     <td class="text-end tunj-jabatan-col">
-                                        {{-- Ambil 'tunj_jabatan_string' dari service --}}
+                                        {{-- Ambil 'tunj_jabatan_string' dari service, sudah termasuk Rp --}}
                                         {{ $gajiData['tunj_jabatan_string'] }}
                                     </td>
                                     <td class="text-end fw-bold gaji-bersih-col">
-                                        {{-- Ambil 'gaji_bersih_string' dan cek 'gaji_id' --}}
+                                        {{-- Ambil 'gaji_bersih_string' dan cek 'gaji_id', sudah termasuk Rp --}}
                                         <span
                                             class="badge {{ $gajiData['gaji_id'] ? 'bg-success' : 'bg-light text-dark' }}">{{ $gajiData['gaji_bersih_string'] }}</span>
                                     </td>
@@ -316,50 +316,79 @@
                 modal.querySelector('#tunjangan_kehadiran_id_modal').value = data.tunjangan_kehadiran_id;
                 const formContent = modal.querySelector('#edit-form-content');
 
-                // Sesuaikan nama field dengan key di flat array
+                // Siapkan data field dengan properti tambahan untuk kontrol
                 const fields = [{
-                    // 'gaji_pokok_numeric' dari service
-
                     name: 'tunj_jabatan',
                     label: 'Tunjangan Jabatan',
-                    value: data.tunj_jabatan
+                    value: data.tunj_jabatan,
+                    readonly: true, // Ditambahkan: Status readonly
+                    isNumeric: false // Ditambahkan: Gunakan type="text"
                 }, {
                     name: 'gaji_pokok',
                     label: 'Gaji Pokok',
-                    value: data.gaji_pokok_numeric
+                    value: data.gaji_pokok_numeric,
+                    readonly: false,
+                    isNumeric: true // Ditambahkan: Gunakan type="number"
                 }, {
                     name: 'tunj_anak',
                     label: 'Tunjangan Anak',
-                    value: data.tunj_anak
+                    value: data.tunj_anak,
+                    readonly: false,
+                    isNumeric: true
                 }, {
                     name: 'tunj_komunikasi',
                     label: 'Tunj. Komunikasi',
-                    value: data.tunj_komunikasi
+                    value: data.tunj_komunikasi,
+                    readonly: false,
+                    isNumeric: true
                 }, {
                     name: 'tunj_pengabdian',
                     label: 'Tunj. Pengabdian',
-                    value: data.tunj_pengabdian
+                    value: data.tunj_pengabdian,
+                    readonly: false,
+                    isNumeric: true
                 }, {
                     name: 'tunj_kinerja',
                     label: 'Tunj. Kinerja',
-                    value: data.tunj_kinerja
+                    value: data.tunj_kinerja,
+                    readonly: false,
+                    isNumeric: true
                 }, {
                     name: 'lembur',
                     label: 'Lembur',
-                    value: data.lembur
+                    value: data.lembur,
+                    readonly: false,
+                    isNumeric: true
                 }, {
                     name: 'potongan',
                     label: 'Potongan',
-                    value: data.potongan
+                    value: data.potongan,
+                    readonly: false,
+                    isNumeric: true
                 }];
 
-                // 'tunj_jabatan' tidak ada di service
-                let fieldsHtml =
-                    `<div class="col-md-6 mb-3"><label class="form-label">Tunjangan Jabatan (Otomatis)</label><input type="text" class="form-control" value="${formatRupiah(data.tunj_jabatan)}" readonly></div>`;
-                fieldsHtml += fields.map(f =>
-                    // Gunakan f.value untuk mengisi nilai
-                    `<div class="col-md-6 mb-3"><label class="form-label">${f.label}</label><input type="number" name="${f.name}" class="form-control" value="${parseFloat(f.value || 0)}" required></div>`
-                ).join('');
+                // Map field menjadi HTML, menggunakan input-group untuk prefix "Rp"
+                let fieldsHtml = fields.map(f => {
+                    const inputType = f.isNumeric ? 'number' : 'text';
+                    const readonlyAttr = f.readonly ? 'readonly' : '';
+                    const inputName = f.readonly ? '' : `name="${f.name}"`;
+                    const requiredAttr = f.readonly ? '' : 'required';
+
+                    // Untuk readonly, tampilkan nilai yang sudah diformat Rupiah (lalu hapus "Rp" agar tidak double dengan input-group-text)
+                    // Untuk editable, tampilkan nilai numerik murni agar type="number" berfungsi
+                    const displayValue = f.readonly ? formatRupiah(f.value).replace('Rp', '').trim() :
+                        parseFloat(f.value || 0);
+
+                    return `
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">${f.label} ${f.readonly ? '(Otomatis)' : ''}</label>
+                        <div class="input-group">
+                            <span class="input-group-text">Rp</span>
+                            <input type="${inputType}" ${inputName} class="form-control" value="${displayValue}" ${readonlyAttr} ${requiredAttr}>
+                        </div>
+                    </div>`;
+                }).join('');
+
                 formContent.innerHTML = fieldsHtml;
             }
 
@@ -374,28 +403,35 @@
                 ).join('');
 
                 const pendapatanItems = [{
+                    // Sudah menggunakan formatRupiah
                     label: 'Gaji Pokok',
                     value: formatRupiah(data.gaji_pokok_numeric)
                 }, {
+                    // Sudah menggunakan formatRupiah
                     label: 'Tunjangan Jabatan',
                     value: formatRupiah(data.tunj_jabatan)
                 }, {
+                    // Sudah menggunakan formatRupiah
                     label: 'Tunjangan Anak',
                     value: formatRupiah(data.tunj_anak)
                 }, {
+                    // Sudah menggunakan formatRupiah
                     label: 'Tunjangan Komunikasi',
                     value: formatRupiah(data.tunj_komunikasi)
                 }, {
+                    // Sudah menggunakan formatRupiah
                     label: 'Tunjangan Pengabdian',
                     value: formatRupiah(data.tunj_pengabdian)
                 }, {
+                    // Sudah menggunakan formatRupiah
                     label: 'Tunjangan Kinerja',
                     value: formatRupiah(data.tunj_kinerja)
                 }, {
-                    // Gunakan 'total_kehadiran' dan 'total_tunjangan_kehadiran_string'
+                    // Gunakan 'total_kehadiran' dan 'total_tunjangan_kehadiran_string' (Diasumsikan sudah ber-Rp)
                     label: `Tunj. Kehadiran (${data.total_kehadiran} hari)`,
                     value: data.total_tunjangan_kehadiran_string
                 }, {
+                    // Sudah menggunakan formatRupiah
                     label: 'Lembur',
                     value: formatRupiah(data.lembur)
                 }, ];
@@ -417,7 +453,7 @@
                 <div class="bg-light p-3 rounded">
                     <div class="row align-items-center">
                         <div class="col-7"><h5 class="mb-0">GAJI BERSIH (A - B)</h5></div>
-                        {{-- Gunakan 'gaji_bersih_string' --}}
+                        {{-- Gunakan 'gaji_bersih_string' (Diasumsikan sudah ber-Rp) --}}
                         <div class="col-5 text-end"><h5 class="mb-0 fw-bold text-success">${data.gaji_bersih_string}</h5></div>
                     </div>
                 </div>
@@ -437,13 +473,10 @@
                 if (data.gaji_id) {
                     newDownloadBtn.disabled = false;
 
-                    // ===============================================
-                    // [PERBAIKAN FOKUS] Ubah logika penentuan disabled.
                     // Tombol kirim email akan aktif jika gaji sudah diproses DAN karyawan memiliki email.
                     // Asumsi: field 'email' ada di flat array 'data'
                     const hasEmail = data.email && data.email.trim() !== '';
-                    newEmailBtn.disabled = !hasEmail; // <-- Diubah: Akan aktif jika hasEmail=true
-                    // ===============================================
+                    newEmailBtn.disabled = !hasEmail;
 
                     // Bangun URL dari 'gaji_id'
                     const downloadUrl = `/gaji/${data.gaji_id}/download-slip`;

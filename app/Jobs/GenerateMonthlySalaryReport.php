@@ -71,32 +71,31 @@ class GenerateMonthlySalaryReport implements ShouldQueue
             foreach ($gajis as $gaji) {
                 // Panggil service untuk menghitung detail
                 $detailGaji = $salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan->format('Y-m'));
-
+                $kehadiranData[$gaji->id] = $detailGaji['total_kehadiran'] ?? 0; // Baris 76 yang menyebabkan error
                 // Ambil data yang sudah dihitung oleh service
-                $kehadiranData[$gaji->id] = $detailGaji['jumlah_kehadiran'];
+                $kehadiranData[$gaji->id] = $detailGaji['total_kehadiran'] ?? 0; // Menggunakan total_kehadiran
+                $totalTunjangan = ($detailGaji['tunj_jabatan'] ?? 0) +
+                    ($detailGaji['tunj_kehadiran'] ?? 0) +
+                    ($detailGaji['tunj_anak'] ?? 0) +
+                    ($detailGaji['tunj_komunikasi'] ?? 0) +
+                    ($detailGaji['tunj_pengabdian'] ?? 0) +
+                    ($detailGaji['tunj_kinerja'] ?? 0) +
+                    ($detailGaji['lembur'] ?? 0);
 
-                $totalTunjangan = $detailGaji['tunj_jabatan'] +
-                    $detailGaji['tunj_kehadiran'] +
-                    $detailGaji['tunj_anak'] +
-                    $detailGaji['tunj_komunikasi'] +
-                    $detailGaji['tunj_pengabdian'] +
-                    $detailGaji['tunj_kinerja'] +
-                    $detailGaji['lembur'];
-
-                // Akumulasi total dari data service
-                $totals['gaji_pokok'] += $detailGaji['gaji_pokok_numeric'];
-                $totals['tunj_jabatan'] += $detailGaji['tunj_jabatan'];
-                $totals['tunj_kehadiran'] += $detailGaji['tunj_kehadiran'];
-                $totals['tunj_anak'] += $detailGaji['tunj_anak'];
-                $totals['tunj_komunikasi'] += $detailGaji['tunj_komunikasi'];
-                $totals['tunj_pengabdian'] += $detailGaji['tunj_pengabdian'];
-                $totals['tunj_kinerja'] += $detailGaji['tunj_kinerja'];
-                $totals['lembur'] += $detailGaji['lembur'];
+                // Akumulasi total dari data service (Semua sudah menggunakan ?? 0)
+                $totals['gaji_pokok'] += $detailGaji['gaji_pokok_numeric'] ?? 0;
+                $totals['tunj_jabatan'] += $detailGaji['tunj_jabatan'] ?? 0;
+                $totals['tunj_kehadiran'] += $detailGaji['tunj_kehadiran'] ?? 0;
+                $totals['tunj_anak'] += $detailGaji['tunj_anak'] ?? 0;
+                $totals['tunj_komunikasi'] += $detailGaji['tunj_komunikasi'] ?? 0;
+                $totals['tunj_pengabdian'] += $detailGaji['tunj_pengabdian'] ?? 0;
+                $totals['tunj_kinerja'] += $detailGaji['tunj_kinerja'] ?? 0;
+                $totals['lembur'] += $detailGaji['lembur'] ?? 0;
                 $totals['total_tunjangan'] += $totalTunjangan;
-                $totals['potongan'] += $detailGaji['potongan'];
-                $totals['gaji_bersih'] += $detailGaji['gaji_bersih_numeric'];
+                $totals['potongan'] += $detailGaji['potongan'] ?? 0;
+                $totals['gaji_bersih'] += $detailGaji['gaji_bersih_numeric'] ?? 0;
 
-                $gaji->gaji_bersih = $detailGaji['gaji_bersih_numeric'];
+                $gaji->gaji_bersih = $detailGaji['gaji_bersih_numeric'] ?? 0;
             }
 
             // Logika aset (logo & ttd) sudah benar

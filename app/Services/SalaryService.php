@@ -47,7 +47,7 @@ class SalaryService
         $gajiPokok = $gajiTersimpan->gaji_pokok ?? $karyawan->gaji_pokok_default ?? 0;
 
         // Ambil nilai Tunjangan Jabatan
-        $tunjJabatan = $karyawan->jabatan->tunj_jabatan ?? 0; // Ambil dari relasi Jabatan Karyawan
+        $tunjJabatan = $karyawan->jabatan->tunj_jabatan ?? 0;
 
         // Ambil rincian tunjangan/potongan dari gaji tersimpan atau default 0
         $tunjAnak = $gajiTersimpan->tunj_anak ?? 0;
@@ -61,6 +61,7 @@ class SalaryService
         $tunjKehadiran = $jumlahKehadiran * $tunjanganPerKehadiran;
 
         // Hitung Gaji Bersih (Numerik)
+        // Dihitung dengan Tunj. Jabatan yang sudah dimasukkan
         $gajiBersihNumeric = ($gajiPokok + $tunjJabatan + $tunjKehadiran + $tunjAnak + $tunjKomunikasi + $tunjPengabdian + $tunjKinerja + $lembur) - $potongan;
 
         // Siapkan array hasil (semua dalam bentuk numerik untuk perhitungan)
@@ -69,7 +70,7 @@ class SalaryService
             'karyawan_id' => $karyawan->id,
             'nip' => $karyawan->nip,
             'nama' => $karyawan->nama,
-            'email' => $karyawan->email, // <--- KODE PERBAIKAN DITAMBAH
+            'email' => $karyawan->email, // KEY WAJIB untuk tombol Kirim Email
             'jabatan' => $karyawan->jabatan->nama_jabatan ?? 'Tidak Ada Jabatan',
             'bulan' => $tanggal->format('Y-m'),
 
@@ -86,12 +87,20 @@ class SalaryService
             'tunjangan_kehadiran_id' => $tunjanganKehadiranId,
             'gaji_bersih_numeric' => $gajiBersihNumeric,
 
-            // Komponen String/Formatted
+            // Komponen String/Formatted (Semua Tunjangan menggunakan format Rp)
             'gaji_pokok_string' => 'Rp ' . number_format($gajiPokok, 0, ',', '.'),
             'tunj_jabatan_string' => 'Rp ' . number_format($tunjJabatan, 0, ',', '.'),
+            'tunj_anak_string' => 'Rp ' . number_format($tunjAnak, 0, ',', '.'),
+            'tunj_komunikasi_string' => 'Rp ' . number_format($tunjKomunikasi, 0, ',', '.'),
+            'tunj_pengabdian_string' => 'Rp ' . number_format($tunjPengabdian, 0, ',', '.'),
+            'tunj_kinerja_string' => 'Rp ' . number_format($tunjKinerja, 0, ',', '.'),
+            'lembur_string' => 'Rp ' . number_format($lembur, 0, ',', '.'),
+            'potongan_string' => 'Rp ' . number_format($potongan, 0, ',', '.'),
+
             'total_tunjangan_kehadiran_string' => 'Rp ' . number_format($tunjKehadiran, 0, ',', '.'),
             'gaji_bersih_string' => 'Rp ' . number_format($gajiBersihNumeric, 0, ',', '.'),
-            // Tambahkan rincian TK dan Gaji Bersih untuk slip
+
+            // Rincian Kehadiran
             'tunj_kehadiran_rincian' => [
                 'per_hari' => $tunjanganPerKehadiran,
                 'total' => $tunjKehadiran,
@@ -101,7 +110,6 @@ class SalaryService
 
         return $result;
     }
-
     /**
      * [PERBAIKAN] Menyimpan atau update data gaji.
      * Menggunakan format Y-m untuk input $data['bulan']

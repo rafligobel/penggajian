@@ -92,13 +92,13 @@ class SendIndividualReportToEmail implements ShouldQueue
                 $gaji->alpha = $alphaBulanIni > 0 ? $alphaBulanIni : 0;
 
                 // 4. Lampirkan rincian gaji dari service
-                $gaji->total_tunjangan = $detailGaji['tunj_jabatan'] +
-                    $detailGaji['tunj_kehadiran'] +
-                    $detailGaji['tunj_anak'] +
-                    $detailGaji['tunj_komunikasi'] +
-                    $detailGaji['tunj_pengabdian'] +
-                    $detailGaji['tunj_kinerja'] +
-                    $detailGaji['lembur'];
+                $gaji->total_tunjangan = ($detailGaji['tunj_jabatan'] ?? 0) +
+                    ($detailGaji['tunj_kehadiran'] ?? 0) + // [PERBAIKAN ROBUSTNESS - FIX UNDEFINED ARRAY KEY]
+                    ($detailGaji['tunj_anak'] ?? 0) +
+                    ($detailGaji['tunj_komunikasi'] ?? 0) +
+                    ($detailGaji['tunj_pengabdian'] ?? 0) +
+                    ($detailGaji['tunj_kinerja'] ?? 0) +
+                    ($detailGaji['lembur'] ?? 0);
                 $gaji->gaji_bersih = $detailGaji['gaji_bersih_numeric'];
             });
 
