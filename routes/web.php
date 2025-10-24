@@ -14,7 +14,8 @@ use App\Http\Controllers\SesiAbsensiController;
 use App\Http\Controllers\TandaTanganController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TenagaKerjaController;
-
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -30,7 +31,35 @@ Route::get('/', function () {
 // --- RUTE UNTUK SEMUA USER YANG SUDAH LOGIN ---
 Route::middleware('auth')->group(function () {
     // Hanya satu definisi untuk route 'dashboard' utama
+    Route::get('/dashboard', function () {
 
+        // Cek dulu apakah user benar-benar ada (meski di dalam middleware 'auth')
+        if (!Auth::check()) {
+            // Seharusnya tidak tercapai, tapi ini validasi ekstra
+            return redirect('/login');
+        }
+
+        // Ambil User object melalui Facade
+        $user = Auth::user();
+
+        // TIDAK PERLU DocBlock jika IDE Helper sudah dijalankan,
+        // tapi jika ingin menambahkan untuk kepastian, gunakan:
+        /** @var User $user */
+        // $user = Auth::user();
+
+        $role = $user->role;
+
+        switch ($role) {
+            case 'superadmin':
+            case 'admin':
+            case 'bendahara':
+                return redirect()->route('dashboard.main');
+            case 'tenaga_kerja':
+                return redirect()->route('tenaga_kerja.dashboard');
+            default:
+                abort(403, 'Akses ditolak. Peran pengguna tidak valid.');
+        }
+    })->name('dashboard');
     // Profile & Notifikasi
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -47,11 +76,6 @@ Route::middleware('auth')->group(function () {
 // --- RUTE KHUSUS ADMIN & SUPERADMIN ---
 Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
 
-    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-    Route::delete('/notifications/delete-selected', [NotificationController::class, 'deleteSelected'])->name('notifications.deleteSelected');
-    Route::delete('/notifications/delete-all', [NotificationController::class, 'deleteAll'])->name('notifications.deleteAll');
-    Route::get('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
-    Route::get('/notifications/mark-as-read/{id}', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
 
     Route::resource('users', UserController::class);
     Route::resource('jabatan', JabatanController::class);
@@ -68,18 +92,13 @@ Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
 Route::middleware(['auth', 'role:superadmin,admin,bendahara'])->group(function () {
     Route::get('karyawan', [KaryawanController::class, 'index'])->name('karyawan.index');
     Route::get('karyawan/{karyawan}', [KaryawanController::class, 'show'])->name('karyawan.show');
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard-main', [DashboardController::class, 'index'])->name('dashboard.main');
 });
 
 // --- RUTE KHUSUS BENDAHARA ---
 Route::middleware(['auth', 'role:bendahara'])->group(function () {
     // Kelola Gaji
 
-    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-    Route::delete('/notifications/delete-selected', [NotificationController::class, 'deleteSelected'])->name('notifications.deleteSelected');
-    Route::delete('/notifications/delete-all', [NotificationController::class, 'deleteAll'])->name('notifications.deleteAll');
-    Route::get('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
-    Route::get('/notifications/mark-as-read/{id}', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
 
 
     Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
