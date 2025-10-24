@@ -71,9 +71,11 @@ class ImportGajiCommand extends Command
         $tkLookup = [];
         $defaultTunjanganId = 1;
         foreach (self::TK_MASTERS as $tk) {
+            // Mengganti nama kolom 'nama_tunjangan' karena tidak ada di tabel yang diberikan.
+            // Gunakan hanya 'jenis_tunjangan' yang ada di tabel.
             $tunjangan = TunjanganKehadiran::firstOrCreate(
                 ['jumlah_tunjangan' => $tk['amount']],
-                ['jenis_tunjangan' => $tk['name'], 'nama_tunjangan' => $tk['name']]
+                ['jenis_tunjangan' => $tk['name']]
             );
             $tkLookup[$tk['amount']] = $tunjangan->id;
 
@@ -104,8 +106,10 @@ class ImportGajiCommand extends Command
             [
                 'tanggal' => '1970-01-01', // Wajib ada untuk default
                 'tipe' => 'aktif',
-                'jam_buka' => '07:00:00',
-                'jam_tutup' => '17:00:00'
+                // 'jam_buka' diubah menjadi 'waktu_mulai'
+                'waktu_mulai' => '07:00:00',
+                // 'jam_tutup' diubah menjadi 'waktu_selesai'
+                'waktu_selesai' => '17:00:00'
             ]
         );
         $sesiAbsensiId = $sesiAbsensiDefault->id;
@@ -120,7 +124,7 @@ class ImportGajiCommand extends Command
                 $karyawan = $this->prosesKaryawan($row, $jabatanLookup, $shouldUpdateKaryawan);
                 $this->info("Memproses: '{$karyawan->nama}' (NIP: {$karyawan->nip})");
 
-                // 2. Proses Absensi
+                // 2. Proses Absensi (menggunakan karyawan_id)
                 $this->prosesAbsensi($karyawan, (int)($row['Jumlah Kehadiran'] ?? 0), $bulanAngka, $tahun, $sesiAbsensiId);
 
                 // 3. Proses Gaji (menentukan tunjangan kehadiran ID berdasarkan perhitungan)
@@ -168,6 +172,8 @@ class ImportGajiCommand extends Command
             'alamat' => trim($data['Alamat'] ?? null),
             'jabatan_id' => $jabatanId, // <-- Bisa NULL
             'user_id' => $user->id,
+            // 'gaji_pokok_default' tidak ada di skema yang diunggah, tapi biarkan jika itu kolom lokal.
+            // Jika ada di skema Anda, biarkan. Jika tidak, hapus atau ganti dengan gaji_pokok di Gaji
             'gaji_pokok_default' => $gajiPokokValue,
         ];
 
@@ -293,7 +299,8 @@ class ImportGajiCommand extends Command
         $hariAbsenDibuat = 0;
 
         // Hapus Absensi lama di bulan ini untuk memastikan data bersih
-        Absensi::where('nip', $karyawan->nip)
+        // PERBAIKAN: Mengganti 'nip' dengan 'karyawan_id'
+        Absensi::where('karyawan_id', $karyawan->id)
             ->whereYear('tanggal', $tahun)
             ->whereMonth('tanggal', $bulan)
             ->delete();
@@ -305,10 +312,10 @@ class ImportGajiCommand extends Command
             if ($tanggalCek->isWeekday() || $tanggalCek->isSaturday()) {
 
                 // Data absensi sudah disederhanakan
+                // PERBAIKAN: Mengganti 'nip' dan 'nama' dengan 'karyawan_id'
                 $dataAbsensi = [
                     'sesi_absensi_id' => $sesiAbsensiId, // <-- Gunakan ID sesi yang sudah diambil
-                    'nip'             => $karyawan->nip,
-                    'nama'            => $karyawan->nama,
+                    'karyawan_id'     => $karyawan->id, // BARU & KONSISTEN
                     'tanggal'         => $tanggalCek->toDateString(),
                     'jam'             => '07:30:00',
                     'koordinat'       => '0,0', // <-- Tambahkan default koordinat
@@ -317,8 +324,9 @@ class ImportGajiCommand extends Command
 
                 Absensi::firstOrCreate(
                     [
-                        'nip'     => $karyawan->nip,
-                        'tanggal' => $tanggalCek->toDateString(),
+                        // PERBAIKAN: Mengganti 'nip' dengan 'karyawan_id'
+                        'karyawan_id' => $karyawan->id,
+                        'tanggal'     => $tanggalCek->toDateString(),
                     ],
                     $dataAbsensi
                 );

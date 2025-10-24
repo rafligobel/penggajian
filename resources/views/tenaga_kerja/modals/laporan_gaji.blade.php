@@ -36,15 +36,18 @@
             <tbody>
                 @forelse ($laporanData['gajis'] as $gaji)
                     <tr>
-                        <td>{{ \Carbon\Carbon::parse($gaji->bulan)->translatedFormat('F Y') }}</td>
+                        <td class="text-center">
+                            {{ \Carbon\Carbon::parse($gaji->bulan)->translatedFormat('F Y') }}</td>
                         <td class="text-end">Rp {{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
-                        <td class="text-end">Rp {{ number_format($gaji->total_tunjangan, 0, ',', '.') }}</td>
-                        <td class="text-end text-danger">(Rp {{ number_format($gaji->total_potongan, 0, ',', '.') }})
+                        <td class="text-end">Rp {{ number_format($gaji->total_tunjangan, 0, ',', '.') }}
                         </td>
-                        <td class="text-end fw-bold">Rp {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
+                        <td class="text-end text-danger">(Rp
+                            {{ number_format($gaji->potongan, 0, ',', '.') }})</td>
+                        <td class="text-end fw-bold">Rp
+                            {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
                         <td class="text-center">
                             {{-- [PERBAIKAN] Mengubah dari <form> menjadi <a> untuk metode GET --}}
-                            <a href="{{ route('tenaga_kerja.laporan_gaji.cetak', $gaji->id) }}"
+                            <a href="{{ route('tenaga_kerja.laporan_gaji.cetak', $gaji) }}"
                                 class="btn btn-sm btn-success" title="Cetak Slip Gaji" target="_blank">
                                 <i class="fas fa-print"></i> Cetak
                             </a>

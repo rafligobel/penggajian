@@ -107,7 +107,7 @@
                         <div class="col-md-8">
                             <label for="periode" class="form-label fw-bold">Pilih Periode</label>
                             <input type="month" class="form-control" id="periode" name="periode"
-                                value="{{ $selectedMonth->format('Y-m') }}">
+                                value="{{ $tanggal->format('Y-m') }}">
                         </div>
                         <div class="col-md-4">
                             <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search me-1"></i>
@@ -137,11 +137,10 @@
         {{-- Form Aksi Utama --}}
         <form id="laporan-absensi-form" method="POST">
             @csrf
-            <input type="hidden" name="periode" value="{{ $selectedMonth->format('Y-m') }}">
-
+            <input type="hidden" name="periode" value="{{ $tanggal->format('Y-m') }}">
             <div class="card shadow-sm border-0 mb-3">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Data Rekap untuk {{ $selectedMonth->translatedFormat('F Y') }}</h5>
+                    <h5 class="mb-0">Data Rekap untuk {{ $tanggal->translatedFormat('F Y') }}</h5>
                     <div>
                         <button type="button" id="cetak-terpilih-btn" class="btn btn-danger btn-sm"> <i
                                 class="fas fa-file-pdf me-1"></i> Cetak PDF Terpilih </button>
@@ -163,7 +162,7 @@
                 </thead>
                 <tbody id="rekap-tbody">
                     @forelse ($rekapData as $data)
-                        <tr class="summary-row" data-bs-toggle="collapse" data-bs-target="#detail-row-{{ $data['nip'] }}"
+                        <tr class="summary-row" data-bs-toggle="collapse" data-bs-target="#detail-row-{{ $data['id'] }}"
                             aria-expanded="false">
                             <td class="text-center">
                                 <input type="checkbox" name="karyawan_ids[]" value="{{ $data['id'] }}"
@@ -174,7 +173,7 @@
                             <td class="text-center text-success fw-bold">{{ $data['summary']['total_hadir'] }}</td>
                             <td class="text-center text-danger fw-bold">{{ $data['summary']['total_alpha'] }}</td>
                         </tr>
-                        <tr id="detail-row-{{ $data['nip'] }}" class="collapse detail-row">
+                        <tr id="detail-row-{{ $data['id'] }}" class="collapse detail-row">
                             <td colspan="5" class="detail-cell">
                                 <div class="detail-grid">
                                     @for ($day = 1; $day <= $daysInMonth; $day++)

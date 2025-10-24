@@ -13,22 +13,24 @@
                             <label for="karyawan_id" class="form-label fw-bold">Pilih Pegawai</label>
                             <select name="karyawan_id" id="karyawan_id" class="form-select" required>
                                 <option value="">-- Silakan Pilih --</option>
-                                @foreach ($karyawans as $karyawan)
-                                    <option value="{{ $karyawan->id }}" @selected($karyawan->id == $selectedKaryawanId)>
-                                        {{ $karyawan->nama }} (NIP: {{ $karyawan->nip }})
+                                @foreach ($karyawans as $karyawan_item)
+                                    <option value="{{ $karyawan_item->id }}" @selected($karyawan_item->id == $selectedKaryawanId)>
+                                        {{ $karyawan_item->nama }} (NIP: {{ $karyawan_item->nip }})
                                     </option>
                                 @endforeach
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label for="tanggal_mulai" class="form-label fw-bold">Dari Bulan</label>
-                            <input type="month" class="form-control" id="tanggal_mulai" name="tanggal_mulai"
-                                value="{{ $tanggalMulai }}">
+                            {{-- PERBAIKAN: Mengganti name ke bulan_mulai --}}
+                            <label for="bulan_mulai" class="form-label fw-bold">Dari Bulan</label>
+                            <input type="month" class="form-control" id="bulan_mulai" name="bulan_mulai"
+                                value="{{ $bulanMulai }}" required>
                         </div>
                         <div class="col-md-3">
-                            <label for="tanggal_selesai" class="form-label fw-bold">Sampai Bulan</label>
-                            <input type="month" class="form-control" id="tanggal_selesai" name="tanggal_selesai"
-                                value="{{ $tanggalSelesai }}">
+                            {{-- PERBAIKAN: Mengganti name ke bulan_selesai --}}
+                            <label for="bulan_selesai" class="form-label fw-bold">Sampai Bulan</label>
+                            <input type="month" class="form-control" id="bulan_selesai" name="bulan_selesai"
+                                value="{{ $bulanSelesai }}" required>
                         </div>
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search me-1"></i>
@@ -46,23 +48,23 @@
             <div class="alert alert-danger">{{ session('error') }}</div>
         @endif
 
-        @if ($selectedKaryawan)
+        @if ($karyawan)
             <div class="card shadow-sm border-0">
                 {{-- CARD HEADER DENGAN TOMBOL AKSI --}}
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="mb-0">Laporan untuk: <strong>{{ $selectedKaryawan->nama }}</strong></h4>
+                        <h4 class="mb-0">Laporan untuk: <strong>{{ $karyawan->nama }}</strong></h4>
                         <p class="mb-0 text-muted">Periode:
-                            {{ \Carbon\Carbon::parse($tanggalMulai)->translatedFormat('F Y') }}
-                            s.d. {{ \Carbon\Carbon::parse($tanggalSelesai)->translatedFormat('F Y') }}</p>
+                            {{ \Carbon\Carbon::createFromFormat('Y-m', $bulanMulai)->translatedFormat('F Y') }}
+                            s.d. {{ \Carbon\Carbon::createFromFormat('Y-m', $bulanSelesai)->translatedFormat('F Y') }}</p>
                     </div>
                     <div>
-                        {{-- [PERBAIKAN BUG] Form dipisahkan untuk aksi Cetak dan Kirim --}}
+                        {{-- Form dipisahkan untuk aksi Cetak dan Kirim --}}
                         <form id="laporan-karyawan-form" method="POST" class="d-inline">
                             @csrf
-                            <input type="hidden" name="karyawan_id" value="{{ $selectedKaryawan->id }}">
-                            <input type="hidden" name="tanggal_mulai" value="{{ $tanggalMulai }}">
-                            <input type="hidden" name="tanggal_selesai" value="{{ $tanggalSelesai }}">
+                            <input type="hidden" name="karyawan_id" value="{{ $karyawan->id }}">
+                            <input type="hidden" name="bulan_mulai" value="{{ $bulanMulai }}">
+                            <input type="hidden" name="bulan_selesai" value="{{ $bulanSelesai }}">
 
                             <button type="button" id="cetak-pdf-btn" class="btn btn-danger">
                                 <i class="fas fa-file-pdf me-1"></i> Cetak PDF
@@ -78,11 +80,27 @@
                     {{-- Ringkasan Absensi --}}
                     <h5 class="mb-3">Ringkasan Absensi Periode Ini</h5>
                     <div class="row mb-4">
+                        {{-- LOGIKA PERBAIKAN SINTAKS ALPHA CALCULATION --}}
+                        @php
+                            // Perhitungan hari hadir dan total hari kalender
+                            try {
+                                $start = \Carbon\Carbon::createFromFormat('Y-m', $bulanMulai)->startOfMonth();
+                                $end = \Carbon\Carbon::createFromFormat('Y-m', $bulanSelesai)->endOfMonth();
+                                $totalDaysInPeriod = $start->diffInDays($end) + 1;
+                                $totalHadir = $laporanData['absensi_summary']['total_hadir_periode'] ?? 0;
+
+                                // PERBAIKAN KRITIS: Menggunakan round() untuk menghilangkan presisi float
+                                $totalAlpha = round($totalDaysInPeriod - $totalHadir);
+                            } catch (\Throwable $e) {
+                                $totalAlpha = 0;
+                            }
+                        @endphp
+
                         <div class="col-md-4">
                             <div class="card text-center text-bg-success">
                                 <div class="card-body">
                                     <h6 class="card-title">Total Kehadiran</h6>
-                                    <p class="card-text fs-4 fw-bold">{{ $laporanData['absensi_summary']['hadir'] }} Hari
+                                    <p class="card-text fs-4 fw-bold">{{ $totalHadir }} Hari
                                     </p>
                                 </div>
                             </div>
@@ -91,7 +109,9 @@
                             <div class="card text-center text-bg-danger">
                                 <div class="card-body">
                                     <h6 class="card-title">Total Alpha</h6>
-                                    <p class="card-text fs-4 fw-bold">{{ $laporanData['absensi_summary']['alpha'] }} Hari
+                                    <p class="card-text fs-4 fw-bold">
+                                        {{-- Menggunakan variabel yang sudah dihitung dan dibulatkan --}}
+                                        {{ $totalAlpha }} Hari
                                     </p>
                                 </div>
                             </div>
@@ -119,10 +139,11 @@
                                         <td class="text-center">
                                             {{ \Carbon\Carbon::parse($gaji->bulan)->translatedFormat('F Y') }}</td>
                                         <td class="text-end">Rp {{ number_format($gaji->gaji_pokok, 0, ',', '.') }}</td>
-                                        <td class="text-end">Rp {{ number_format($gaji->total_tunjangan, 0, ',', '.') }}
+                                        <td class="text-end">Rp
+                                            {{ number_format($gaji->total_tunjangan_custom, 0, ',', '.') }}
                                         </td>
                                         <td class="text-end text-danger">(Rp
-                                            {{ number_format($gaji->potongan, 0, ',', '.') }})</td>
+                                            {{ number_format($gaji->total_potongan_custom, 0, ',', '.') }})</td>
                                         <td class="text-end fw-bold">Rp
                                             {{ number_format($gaji->gaji_bersih, 0, ',', '.') }}</td>
                                     </tr>

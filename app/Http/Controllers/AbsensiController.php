@@ -21,6 +21,7 @@ class AbsensiController extends Controller
 
     public function index()
     {
+        // Menggunakan today() untuk mendapatkan Carbon object hari ini (start of day)
         $today = today();
         $statusInfo = $this->absensiService->getSessionStatus($today);
         $isSesiDibuka = false;
@@ -29,6 +30,7 @@ class AbsensiController extends Controller
 
         if ($statusInfo['is_active']) {
             $now = now();
+            // Carbon::parse() dari string waktu di DB
             $waktuMulai = Carbon::parse($statusInfo['waktu_mulai']);
             $waktuSelesai = Carbon::parse($statusInfo['waktu_selesai']);
 
@@ -48,12 +50,19 @@ class AbsensiController extends Controller
             ];
         }
 
+        // PERHATIAN: Di controller ini, list data absensi tidak dimuat di index
+        // Pastikan di view 'absensi.index' list absensi tidak ditampilkan
         return view('absensi.index', compact('sesiHariIni', 'isSesiDibuka', 'pesanSesi'));
     }
 
     public function store(Request $request)
     {
-        $request->validate(['identifier' => 'required|string']);
+        // Menambahkan validasi untuk koordinat dan jarak (konsisten dengan skema DB)
+        $request->validate([
+            'identifier' => 'required|string',
+            'koordinat' => 'nullable|string',
+            'jarak' => 'nullable|numeric',
+        ]);
 
         $karyawan = Karyawan::where('nip', $request->identifier)
             ->orWhere('nama', 'like', '%' . $request->identifier . '%')
@@ -66,7 +75,11 @@ class AbsensiController extends Controller
         }
 
         $now = now();
-        $today = $now->copy()->startOfDay();
+        // Variabel konsisten untuk tanggal hari ini (string) untuk query
+        $todayDate = $now->toDateString();
+
+        // Menggunakan today() untuk mendapatkan Carbon object tanggal hari ini untuk service
+        $today = today();
         $statusInfo = $this->absensiService->getSessionStatus($today);
 
         if (!$statusInfo['is_active']) {
@@ -80,8 +93,8 @@ class AbsensiController extends Controller
             return redirect()->back()->with('info', 'Sesi absensi sedang ditutup. Sesi berlaku dari jam ' . $waktuMulai->format('H:i') . ' hingga ' . $waktuSelesai->format('H:i') . '.');
         }
 
-        // Logika pengambilan ID Sesi yang sudah diperbaiki
-        $sesiAbsensi = SesiAbsensi::where('tanggal', $today->toDateString())->where('is_default', false)->where('tipe', 'aktif')->first();
+        // Logika pengambilan ID Sesi (menggunakan variabel $todayDate yang konsisten)
+        $sesiAbsensi = SesiAbsensi::where('tanggal', $todayDate)->where('is_default', false)->where('tipe', 'aktif')->first();
         if (!$sesiAbsensi) {
             $sesiAbsensi = SesiAbsensi::where('is_default', true)->first();
         }
@@ -90,20 +103,23 @@ class AbsensiController extends Controller
             return redirect()->back()->with('info', 'FATAL: Sistem tidak dapat menemukan ID sesi absensi yang valid.');
         }
 
-        $sudahAbsen = Absensi::where('nip', $karyawan->nip)
-            ->whereDate('tanggal', $today)
+        // PERBAIKAN KONSISTENSI RELASI: Menggunakan karyawan_id
+        $sudahAbsen = Absensi::where('karyawan_id', $karyawan->id)
+            ->where('tanggal', $todayDate) // Menggunakan $todayDate yang konsisten
             ->exists();
 
         if ($sudahAbsen) {
             return redirect()->back()->with('info', 'Anda (' . $karyawan->nama . ') sudah melakukan absensi hari ini.');
         }
 
+        // PERBAIKAN KONSISTENSI RELASI: Menggunakan karyawan_id untuk penyimpanan
         Absensi::create([
             'sesi_absensi_id' => $sesiAbsensi->id,
-            'nip' => $karyawan->nip,
-            'nama' => $karyawan->nama,
-            'tanggal' => $now->toDateString(),
+            'karyawan_id' => $karyawan->id, // MENGGANTI 'nip' dan 'nama'
+            'tanggal' => $todayDate, // Menggunakan $todayDate yang konsisten
             'jam' => $now->toTimeString(),
+            'koordinat' => $request->koordinat,
+            'jarak' => $request->jarak ?? 0,
         ]);
 
         return redirect()->back()->with('success', 'Absensi untuk ' . $karyawan->nama . ' berhasil dicatat. Terima kasih!');

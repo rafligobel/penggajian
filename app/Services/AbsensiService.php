@@ -25,13 +25,19 @@ class AbsensiService
             $karyawanQuery->whereIn('id', $karyawanIds);
         }
         $karyawans = $karyawanQuery->get();
+
         $rekapData = [];
         $period = CarbonPeriod::create($startOfMonth, $endOfMonth);
 
+        // PERBAIKAN KRITIS (1): Ambil ID Karyawan untuk whereIn
+        $validKaryawanIds = $karyawans->pluck('id');
+
+        // PERBAIKAN KRITIS (2): Query Absensi menggunakan karyawan_id
         $absensiBulanan = Absensi::whereBetween('tanggal', [$startOfMonth, $endOfMonth])
-            ->whereIn('nip', $karyawans->pluck('nip'))
+            ->whereIn('karyawan_id', $validKaryawanIds)
             ->get()
-            ->groupBy('nip');
+            // PERBAIKAN KRITIS (3): Grouping menggunakan karyawan_id
+            ->groupBy('karyawan_id');
 
         // Menghitung hari kerja efektif dalam sebulan
         $workingDaysCount = 0;
@@ -42,7 +48,8 @@ class AbsensiService
         }
 
         foreach ($karyawans as $karyawan) {
-            $absensiKaryawan = $absensiBulanan->get($karyawan->nip, collect())->keyBy(function ($item) {
+            // PERBAIKAN KRITIS (4): Akses data absensi menggunakan $karyawan->id
+            $absensiKaryawan = $absensiBulanan->get($karyawan->id, collect())->keyBy(function ($item) {
                 return Carbon::parse($item->tanggal)->format('Y-m-d');
             });
 
@@ -56,12 +63,13 @@ class AbsensiService
                 $dateString = $date->toDateString();
                 $dayIndex = $date->day;
 
+                $statusSesi = $this->getSessionStatus($date);
+
                 if ($absensiKaryawan->has($dateString)) {
                     $totalHadir++;
                     $jamMasuk = $absensiKaryawan[$dateString]->jam;
                     $detailHarian[$dayIndex] = ['status' => 'H', 'jam' => Carbon::parse($jamMasuk)->format('H:i')];
                 } else {
-                    $statusSesi = $this->getSessionStatus($date);
                     if ($statusSesi['is_active']) {
                         // Hanya hitung Alpha jika sesi seharusnya aktif
                         $totalAlpha++;

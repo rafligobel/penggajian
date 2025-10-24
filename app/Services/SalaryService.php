@@ -19,7 +19,6 @@ class SalaryService
         $karyawan->loadMissing('jabatan');
 
         try {
-            // [PERBAIKAN] Pastikan $bulan diparsing dengan benar
             $tanggal = Carbon::parse($bulan)->startOfMonth();
         } catch (\Exception $e) {
             $tanggal = Carbon::now()->startOfMonth();
@@ -30,7 +29,8 @@ class SalaryService
             ->whereMonth('bulan', $tanggal->month)
             ->first();
 
-        $jumlahKehadiran = Absensi::where('nip', $karyawan->nip)
+        // Menggunakan karyawan_id untuk query absensi
+        $jumlahKehadiran = Absensi::where('karyawan_id', $karyawan->id)
             ->whereYear('tanggal', $tanggal->year)
             ->whereMonth('tanggal', $tanggal->month)
             ->count();
@@ -43,13 +43,9 @@ class SalaryService
             $tunjanganKehadiranId = $gajiTersimpan->tunjangan_kehadiran_id;
         }
 
-        // Ambil nilai Gaji Pokok
         $gajiPokok = $gajiTersimpan->gaji_pokok ?? $karyawan->gaji_pokok_default ?? 0;
-
-        // Ambil nilai Tunjangan Jabatan
         $tunjJabatan = $karyawan->jabatan->tunj_jabatan ?? 0;
 
-        // Ambil rincian tunjangan/potongan dari gaji tersimpan atau default 0
         $tunjAnak = $gajiTersimpan->tunj_anak ?? 0;
         $tunjKomunikasi = $gajiTersimpan->tunj_komunikasi ?? 0;
         $tunjPengabdian = $gajiTersimpan->tunj_pengabdian ?? 0;
@@ -57,25 +53,23 @@ class SalaryService
         $lembur = $gajiTersimpan->lembur ?? 0;
         $potongan = $gajiTersimpan->potongan ?? 0;
 
-        // Hitung Tunjangan Kehadiran
         $tunjKehadiran = $jumlahKehadiran * $tunjanganPerKehadiran;
 
-        // Hitung Gaji Bersih (Numerik)
-        // Dihitung dengan Tunj. Jabatan yang sudah dimasukkan
         $gajiBersihNumeric = ($gajiPokok + $tunjJabatan + $tunjKehadiran + $tunjAnak + $tunjKomunikasi + $tunjPengabdian + $tunjKinerja + $lembur) - $potongan;
+        $gajiBersihString = 'Rp ' . number_format($gajiBersihNumeric, 0, ',', '.'); // Definisi string formatted
 
-        // Siapkan array hasil (semua dalam bentuk numerik untuk perhitungan)
+        // Siapkan array hasil
         $result = [
             'gaji_id' => $gajiTersimpan->id ?? null,
             'karyawan_id' => $karyawan->id,
             'nip' => $karyawan->nip,
             'nama' => $karyawan->nama,
-            'email' => $karyawan->email, // KEY WAJIB untuk tombol Kirim Email
+            'email' => $karyawan->email,
             'jabatan' => $karyawan->jabatan->nama_jabatan ?? 'Tidak Ada Jabatan',
             'bulan' => $tanggal->format('Y-m'),
 
-            // Komponen Numerik
-            'gaji_pokok_numeric' => (float) $gajiPokok,
+            // Kunci yang dibutuhkan View PDF (Sudah diperbaiki di langkah sebelumnya)
+            'gaji_pokok' => (float) $gajiPokok,
             'tunj_jabatan' => (float) $tunjJabatan,
             'tunj_anak' => (float) $tunjAnak,
             'tunj_komunikasi' => (float) $tunjKomunikasi,
@@ -83,11 +77,18 @@ class SalaryService
             'tunj_kinerja' => (float) $tunjKinerja,
             'lembur' => (float) $lembur,
             'potongan' => (float) $potongan,
+            'jumlah_kehadiran' => $jumlahKehadiran,
+            'tunj_kehadiran' => (float) $tunjKehadiran,
+
+            // PERBAIKAN KRITIS: Menambahkan kunci array yang hilang
+            'gaji_bersih' => $gajiBersihString,
+
+            // Kunci yang sudah ada
             'total_kehadiran' => $jumlahKehadiran,
             'tunjangan_kehadiran_id' => $tunjanganKehadiranId,
             'gaji_bersih_numeric' => $gajiBersihNumeric,
 
-            // Komponen String/Formatted (Semua Tunjangan menggunakan format Rp)
+            // Komponen String/Formatted
             'gaji_pokok_string' => 'Rp ' . number_format($gajiPokok, 0, ',', '.'),
             'tunj_jabatan_string' => 'Rp ' . number_format($tunjJabatan, 0, ',', '.'),
             'tunj_anak_string' => 'Rp ' . number_format($tunjAnak, 0, ',', '.'),
@@ -98,7 +99,7 @@ class SalaryService
             'potongan_string' => 'Rp ' . number_format($potongan, 0, ',', '.'),
 
             'total_tunjangan_kehadiran_string' => 'Rp ' . number_format($tunjKehadiran, 0, ',', '.'),
-            'gaji_bersih_string' => 'Rp ' . number_format($gajiBersihNumeric, 0, ',', '.'),
+            'gaji_bersih_string' => $gajiBersihString, // Menggunakan variabel yang sudah didefinisikan
 
             // Rincian Kehadiran
             'tunj_kehadiran_rincian' => [

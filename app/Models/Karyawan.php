@@ -32,9 +32,9 @@ class Karyawan extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function absensi(): HasMany
+    public function absensis(): HasMany
     {
-        return $this->hasMany(Absensi::class, 'nip', 'nip');
+        return $this->hasMany(Absensi::class);
     }
 
     public function jabatan(): BelongsTo

@@ -6,7 +6,7 @@
 
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
-                {{-- [PERBAIKAN FOKUS UTAMA] Menggabungkan Filter dan Tombol Aksi dalam satu form/row --}}
+                {{-- Form Filter yang Menggunakan Metode GET --}}
                 <form id="filter-form" method="GET" action="{{ route('laporan.gaji.bulanan') }}">
                     <div class="row align-items-end g-3 mb-3">
                         {{-- Kolom 1: Pilih Periode --}}
@@ -24,9 +24,7 @@
                         </div>
 
                         {{-- Kolom 3 & 4: Tombol Aksi (Cetak & Email) --}}
-                        {{-- Catatan: Tambahkan label kosong agar sejajar jika perlu, atau gunakan align-items-end --}}
                         <div class="col-md-3">
-                            {{-- Gunakan label kosong agar tombol sejajar dengan input di atasnya --}}
                             <label class="form-label fw-bold opacity-0 d-block">Aksi</label>
                             <button type="button" id="cetak-terpilih-btn" class="btn btn-danger w-100">
                                 <i class="fas fa-file-pdf me-1"></i> Cetak PDF Terpilih
@@ -43,14 +41,12 @@
 
                 <hr>
 
-                {{-- Form untuk Submit Aksi (tidak perlu tombolnya di dalam form ini) --}}
+                {{-- Form untuk Submit Aksi (mempertahankan struktur Form asli) --}}
                 <form id="laporan-gaji-form" method="POST">
                     @csrf
                     <input type="hidden" name="bulan" value="{{ $selectedMonth }}">
 
-                    {{-- [PERBAIKAN] Hapus div d-flex flex-wrap gap-2 mb-3 yang berisi tombol --}}
-
-                    {{-- [PERBAIKAN] Menampilkan pesan error jika tidak ada checkbox yang dipilih --}}
+                    {{-- Menampilkan pesan error jika ada --}}
                     @if ($errors->has('gaji_ids'))
                         <div class="alert alert-danger py-2 small">{{ $errors->first('gaji_ids') }}</div>
                     @endif
@@ -67,16 +63,18 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($laporanGaji as $item)
+                                {{-- PERBAIKAN KRITIS: Mengganti variabel loop $laporanGaji dengan $gajis --}}
+                                @forelse ($gajis as $gaji)
                                     <tr>
-                                        {{-- Kunci fungsionalitas: name="gaji_ids[]" mengirim ID sebagai array --}}
-                                        <td><input type="checkbox" name="gaji_ids[]" value="{{ $item['gaji']->id }}"
+                                        <td><input type="checkbox" name="gaji_ids[]" value="{{ $gaji->id }}"
                                                 class="gaji-checkbox"></td>
                                         <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $item['karyawan']->nama }}</td>
-                                        <td>{{ $item['karyawan']->jabatan?->nama_jabatan ?? '-' }}</td>
+                                        <td>{{ $gaji->karyawan->nama }}</td>
+                                        {{-- Mengakses jabatan melalui relasi $gaji->karyawan->jabatan --}}
+                                        <td>{{ $gaji->karyawan->jabatan?->nama_jabatan ?? '-' }}</td>
                                         <td class="text-end fw-bold">Rp
-                                            {{ number_format($item['gaji_bersih'], 0, ',', '.') }}
+                                            {{-- Menggunakan variabel hasil perhitungan dari Controller --}}
+                                            {{ number_format($gaji->gaji_bersih_perhitungan, 0, ',', '.') }}
                                         </td>
                                     </tr>
                                 @empty
@@ -97,31 +95,46 @@
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 const form = document.getElementById('laporan-gaji-form');
-                const cetakBtn = document.getElementById('cetak-terpilih-btn');
-                const kirimEmailBtn = document.getElementById('kirim-email-terpilih-btn');
-
-                if (cetakBtn) {
-                    cetakBtn.addEventListener('click', function() {
-                        form.method = 'POST';
-                        form.action = "{{ route('laporan.gaji.cetak') }}";
-                        form.submit();
-                    });
-                }
-
-                if (kirimEmailBtn) {
-                    kirimEmailBtn.addEventListener('click', function() {
-                        form.method = 'POST';
-                        form.action = "{{ route('laporan.gaji.kirim-email-terpilih') }}";
-                        form.submit();
-                    });
-                }
+                const cetakTerpilihBtn = document.getElementById('cetak-terpilih-btn');
+                const kirimEmailTerpilihBtn = document.getElementById('kirim-email-terpilih-btn');
 
                 const selectAllCheckbox = document.getElementById('select-all');
                 const gajiCheckboxes = document.querySelectorAll('.gaji-checkbox');
 
+                function updateActionButtons() {
+                    const checkedCount = document.querySelectorAll('.gaji-checkbox:checked').length;
+                    cetakTerpilihBtn.disabled = checkedCount === 0;
+                    kirimEmailTerpilihBtn.disabled = checkedCount === 0;
+                }
+
+                // --- Listener untuk Aksi Terpilih (Memicu Job) ---
+                cetakTerpilihBtn.addEventListener('click', function() {
+                    if (document.querySelectorAll('.gaji-checkbox:checked').length === 0) return;
+
+                    form.method = 'POST';
+                    form.action = "{{ route('laporan.gaji.cetak') }}"; // Route Job Cetak
+                    form.submit();
+                });
+
+                kirimEmailTerpilihBtn.addEventListener('click', function() {
+                    if (document.querySelectorAll('.gaji-checkbox:checked').length === 0) return;
+
+                    form.method = 'POST';
+                    // PERBAIKAN KRITIS: Menggunakan route yang sudah ada
+                    form.action = "{{ route('laporan.gaji.kirim-email-terpilih') }}";
+                    form.submit();
+                });
+
+                // Listener untuk checkbox dan select-all
+                gajiCheckboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', updateActionButtons);
+                });
+
                 if (selectAllCheckbox) {
                     selectAllCheckbox.addEventListener('change', e => {
+                        // Update semua checkbox sesuai status selectAll
                         gajiCheckboxes.forEach(checkbox => checkbox.checked = e.target.checked);
+                        updateActionButtons();
                     });
                 }
             });

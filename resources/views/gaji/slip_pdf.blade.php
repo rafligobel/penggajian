@@ -154,22 +154,18 @@
             <table class="info-section">
                 <tr>
                     <td style="width: 35%;">Periode Gaji</td>
-                    {{-- [PERBAIKAN WAJIB] Gunakan objek $gaji --}}
                     <td style="width: 65%;">: {{ $gaji->bulan->translatedFormat('F Y') }}</td>
                 </tr>
                 <tr>
                     <td>Nama Karyawan</td>
-                    {{-- [PERBAIKAN WAJIB] Gunakan objek $gaji dan relasinya --}}
                     <td style="width: 65%;">: {{ $gaji->karyawan->nama ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td>NP</td>
-                    {{-- [PERBAIKAN WAJIB] Gunakan objek $gaji dan relasinya --}}
                     <td style="width: 65%;">: {{ $gaji->karyawan->nip ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td>Jabatan</td>
-                    {{-- [PERBAIKAN WAJIB] Gunakan objek $gaji dan relasinya --}}
                     <td style="width: 65%;">: {{ $gaji->karyawan->jabatan->nama_jabatan ?? 'N/A' }}</td>
                 </tr>
             </table>
@@ -188,44 +184,54 @@
                 </tr>
                 <tr>
                     <td>Gaji Pokok</td>
-                    <td class="text-right">{{ number_format($data['gaji_pokok'], 0, ',', '.') }}</td>
+                    <td class="text-right">{{ $data['gaji_pokok_string'] }}</td>
                 </tr>
                 <tr>
-                    <td>Tunjangan Kehadiran ({{ $data['jumlah_kehadiran'] }} hari)</td>
-                    <td class="text-right">{{ number_format($data['tunj_kehadiran'], 0, ',', '.') }}</td>
+                    <td>Tunjangan Kehadiran ({{ $data['total_kehadiran'] }} hari)</td>
+                    <td class="text-right">{{ $data['total_tunjangan_kehadiran_string'] }}</td>
                 </tr>
                 <tr>
                     <td>Tunjangan Jabatan</td>
-                    <td class="text-right">{{ number_format($data['tunj_jabatan'], 0, ',', '.') }}</td>
+                    <td class="text-right">{{ $data['tunj_jabatan_string'] }}</td>
                 </tr>
                 <tr>
                     <td>Tunjangan Kinerja</td>
-                    <td class="text-right">{{ number_format($data['tunj_kinerja'], 0, ',', '.') }}</td>
+                    <td class="text-right">{{ $data['tunj_kinerja_string'] }}</td>
                 </tr>
                 <tr>
                     <td>Tunjangan Anak</td>
-                    <td class="text-right">{{ number_format($data['tunj_anak'], 0, ',', '.') }}</td>
+                    <td class="text-right">{{ $data['tunj_anak_string'] }}</td>
                 </tr>
                 <tr>
                     <td>Tunjangan Komunikasi</td>
-                    <td class="text-right">{{ number_format($data['tunj_komunikasi'], 0, ',', '.') }}</td>
+                    <td class="text-right">{{ $data['tunj_komunikasi_string'] }}</td>
                 </tr>
                 <tr>
                     <td>Tunjangan Pengabdian</td>
-                    <td class="text-right">{{ number_format($data['tunj_pengabdian'], 0, ',', '.') }}</td>
+                    <td class="text-right">{{ $data['tunj_pengabdian_string'] }}</td>
                 </tr>
                 <tr>
                     <td>Lembur</td>
-                    <td class="text-right">{{ number_format($data['lembur'], 0, ',', '.') }}</td>
+                    <td class="text-right">{{ $data['lembur_string'] }}</td>
                 </tr>
 
                 @php
-                    // Total pendapatan dihitung dari gaji bersih + potongan untuk akurasi
-                    $totalPendapatan = $data['gaji_bersih'] + $data['potongan'];
+                    // PERBAIKAN KRITIS: MENGHITUNG GROSS SALARY DARI KOMPONEN NUMERIK
+                    // TOTAL PENDAPATAN (Gaji Kotor) = Semua Komponen Positif
+                    $totalPendapatan =
+                        (float) $data['gaji_pokok'] +
+                        (float) $data['tunj_jabatan'] +
+                        (float) $data['tunj_kehadiran'] +
+                        (float) $data['tunj_anak'] +
+                        (float) $data['tunj_komunikasi'] +
+                        (float) $data['tunj_pengabdian'] +
+                        (float) $data['tunj_kinerja'] +
+                        (float) $data['lembur'];
                 @endphp
                 <tr class="total-row">
                     <td class="text-right">TOTAL PENDAPATAN</td>
-                    <td class="text-right">{{ number_format($totalPendapatan, 0, ',', '.') }}</td>
+                    {{-- Tampilkan hasil perhitungan, lalu format --}}
+                    <td class="text-right">Rp {{ number_format($totalPendapatan, 0, ',', '.') }}</td>
                 </tr>
 
                 <tr class="section-header">
@@ -233,16 +239,19 @@
                 </tr>
                 <tr>
                     <td>Potongan Lain-lain</td>
-                    <td class="text-right">{{ number_format($data['potongan'], 0, ',', '.') }}</td>
+                    {{-- Menggunakan kunci string yang benar --}}
+                    <td class="text-right">{{ $data['potongan_string'] }}</td>
                 </tr>
                 <tr class="total-row">
                     <td class="text-right">TOTAL POTONGAN</td>
-                    <td class="text-right">{{ number_format($data['potongan'], 0, ',', '.') }}</td>
+                    {{-- Menggunakan kunci string yang benar --}}
+                    <td class="text-right">{{ $data['potongan_string'] }}</td>
                 </tr>
 
                 <tr class="grand-total-row">
                     <td class="text-right">GAJI BERSIH</td>
-                    <td class="text-right">Rp {{ number_format($data['gaji_bersih'], 0, ',', '.') }}</td>
+                    {{-- TAMPILKAN STRING FINAL YANG SUDAH DIFORMAT --}}
+                    <td class="text-right">{{ $data['gaji_bersih_string'] }}</td>
                 </tr>
             </tbody>
         </table>

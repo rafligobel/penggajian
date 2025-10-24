@@ -17,6 +17,7 @@ use App\Jobs\SendAttendanceReportToEmail;
 use App\Services\AbsensiService;
 use App\Services\SalaryService; // [TAMBAHKAN] Import SalaryService
 use Illuminate\Support\Facades\Validator;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 
 
@@ -38,33 +39,33 @@ class LaporanController extends Controller
         $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
         $tanggal = Carbon::createFromFormat('Y-m', $selectedMonth);
 
-        // [PERBAIKAN LOGIKA UTAMA]
-        // 1. Ambil semua data gaji yang sudah tersimpan untuk bulan yang dipilih.
-        $gajisTersimpan = Gaji::with('karyawan.jabatan') // [FIX] Eager load relasi karyawan & jabatan
-            ->whereYear('bulan', $tanggal->year)
+        $gajis = Gaji::whereYear('bulan', $tanggal->year)
             ->whereMonth('bulan', $tanggal->month)
+            ->with('karyawan.jabatan', 'tunjanganKehadiran')
+            ->orderBy('karyawan_id')
             ->get();
 
-        // 2. Gunakan SalaryService untuk menghitung ulang detail setiap gaji.
-        //    Ini akan menghasilkan 'gaji_bersih' dan data lengkap lainnya.
-        $laporanGaji = [];
-        foreach ($gajisTersimpan as $gaji) {
-            // Service akan mengambil data tersimpan dan menghitung ulang semua tunjangan & gaji bersih.
-            $detailKalkulasi = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $selectedMonth);
+        $absensi = Absensi::whereYear('tanggal', $tanggal->year)
+            ->whereMonth('tanggal', $tanggal->month)
+            // Menggunakan karyawan_id untuk grouping dan select
+            ->groupBy('karyawan_id')
+            ->selectRaw('karyawan_id, count(*) as jumlah_hadir')
+            ->pluck('jumlah_hadir', 'karyawan_id');
 
-            // [PERBAIKAN UTAMA] Di sinilah letak bug-nya.
-            // View Anda (gaji_bulanan.blade.php) mengharapkan struktur data $item['karyawan']->nama
-            // dan $item['gaji']->id, tapi Anda hanya mengirim $detailKalkulasi.
-            // Kita bungkus datanya agar sesuai ekspektasi View:
-            $laporanGaji[] = [
-                'gaji' => $gaji, // Mengirim objek Gaji (untuk $item['gaji']->id)
-                'karyawan' => $gaji->karyawan, // Mengirim objek Karyawan (untuk $item['karyawan']->nama)
-                'gaji_bersih' => $detailKalkulasi['gaji_bersih_numeric'] // Mengirim gaji bersih (untuk number_format)
-            ];
-        }
+        $totalHariKerja = $this->absensiService->getAttendanceRecap($tanggal)['workingDaysCount'];
 
-        // 3. Kirim data yang sudah dihitung ulang ke view.
-        return view('laporan.gaji_bulanan', compact('laporanGaji', 'selectedMonth'));
+        $gajis->each(function ($gaji) use ($absensi, $totalHariKerja) {
+            $gaji->jumlah_hadir = $absensi->get($gaji->karyawan_id, 0);
+            $gaji->gaji_bersih_perhitungan = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan->format('Y-m-d'))['gaji_bersih_numeric'];
+        });
+
+        // PERBAIKAN: Mengganti DISTINCT dan ORDER BY yang bermasalah dengan GROUP BY
+        $availableMonths = Gaji::selectRaw('DATE_FORMAT(bulan, "%Y-%m") as bulan_ym')
+            ->groupBy('bulan_ym')
+            ->orderBy('bulan_ym', 'desc')
+            ->pluck('bulan_ym');
+
+        return view('laporan.gaji_bulanan', compact('gajis', 'tanggal', 'selectedMonth', 'availableMonths', 'totalHariKerja'));
     }
 
 
@@ -100,15 +101,23 @@ class LaporanController extends Controller
     // --- LAPORAN ABSENSI ---
     public function rekapAbsensi(Request $request)
     {
-        $selectedMonthStr = $request->input('periode', Carbon::now()->format('Y-m'));
-        $selectedMonth = Carbon::parse($selectedMonthStr);
+        $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
+        $tanggal = Carbon::createFromFormat('Y-m', $selectedMonth);
 
-        // [ASUMSI] Nama method di service adalah getAttendanceRecap
-        $rekap = $this->absensiService->getAttendanceRecap($selectedMonth);
-        $rekapData = $rekap['rekapData'];
-        $daysInMonth = $rekap['daysInMonth'];
+        // PERBAIKAN KRITIS A: Panggil service dan simpan hasilnya
+        $result = $this->absensiService->getAttendanceRecap($tanggal);
 
-        return view('laporan.laporan_absensi', compact('rekapData', 'selectedMonth', 'daysInMonth'));
+        // PERBAIKAN KRITIS B: Ekstrak data yang dibutuhkan view
+        $rekapData = $result['rekapData'];
+        $daysInMonth = $result['daysInMonth'];
+
+        $availableMonths = Absensi::selectRaw('DATE_FORMAT(tanggal, "%Y-%m") as bulan_ym')
+            ->groupBy('bulan_ym')
+            ->orderBy('bulan_ym', 'desc')
+            ->pluck('bulan_ym');
+
+        // PERBAIKAN KRITIS C: Leewatkan semua variabel penting ke view
+        return view('laporan.laporan_absensi', compact('rekapData', 'tanggal', 'selectedMonth', 'availableMonths', 'daysInMonth'));
     }
 
     public function cetakRekapAbsensi(Request $request)
@@ -164,74 +173,77 @@ class LaporanController extends Controller
     public function perKaryawan(Request $request)
     {
         $karyawans = Karyawan::orderBy('nama')->get();
+
+        // PERBAIKAN: Mendefinisikan variabel ini yang dibutuhkan View
         $selectedKaryawanId = $request->input('karyawan_id');
-        $selectedKaryawan = null;
+
+        $karyawan = null;
         $laporanData = null;
 
-        $tanggalMulai = $request->input('tanggal_mulai', Carbon::now()->subMonths(2)->format('Y-m'));
-        $tanggalSelesai = $request->input('tanggal_selesai', Carbon::now()->format('Y-m'));
+        $availableMonths = Gaji::selectRaw('DATE_FORMAT(bulan, "%Y-%m") as bulan_ym')
+            ->groupBy('bulan_ym') // PERBAIKAN: Mengganti DISTINCT
+            ->orderBy('bulan_ym', 'desc')
+            ->pluck('bulan_ym');
+
+        $bulanMulai = $request->input('bulan_mulai', $availableMonths->first() ?? Carbon::now()->format('Y-m'));
+        $bulanSelesai = $request->input('bulan_selesai', Carbon::now()->format('Y-m'));
+
 
         if ($selectedKaryawanId) {
-            $selectedKaryawan = Karyawan::findOrFail($selectedKaryawanId);
-            $laporanData = $this->getLaporanData($selectedKaryawan, $tanggalMulai, $tanggalSelesai);
+            $karyawan = Karyawan::findOrFail($selectedKaryawanId);
+            $laporanData = $this->getLaporanData($karyawan, $bulanMulai, $bulanSelesai);
         }
 
-        return view('laporan.per_karyawan', compact('karyawans', 'selectedKaryawanId', 'selectedKaryawan', 'tanggalMulai', 'tanggalSelesai', 'laporanData'));
+        // PERBAIKAN: Melewatkan $selectedKaryawanId ke view
+        return view('laporan.per_karyawan', compact('karyawans', 'karyawan', 'laporanData', 'bulanMulai', 'bulanSelesai', 'availableMonths', 'selectedKaryawanId'));
     }
-
-    private function getLaporanData(Karyawan $karyawan, string $startMonth, string $endMonth)
+    private function getLaporanData(Karyawan $karyawan, string $bulanMulai, string $bulanSelesai): array
     {
-        $startDate = Carbon::createFromFormat('Y-m', $startMonth)->startOfMonth();
-        $endDate = Carbon::createFromFormat('Y-m', $endMonth)->endOfMonth();
+        $start = Carbon::createFromFormat('Y-m', $bulanMulai)->startOfMonth();
+        $end = Carbon::createFromFormat('Y-m', $bulanSelesai)->endOfMonth();
 
-        $gajis = Gaji::with('karyawan.jabatan', 'tunjanganKehadiran')
-            ->where('karyawan_id', $karyawan->id)
-            ->whereBetween('bulan', [$startDate, $endDate])
+        $gajis = Gaji::where('karyawan_id', $karyawan->id)
+            ->whereBetween('bulan', [$start, $end])
+            ->with('tunjanganKehadiran')
             ->orderBy('bulan', 'asc')
             ->get();
 
-        // [CATATAN] Logika ini sudah benar, karena ini untuk laporan per karyawan
-        // dan BEDA dengan SalaryService. Ini tidak masalah.
-        $gajis->each(function ($gaji) {
-            $kehadiranBulanIni = Absensi::where('nip', $gaji->karyawan->nip)
-                ->whereYear('tanggal', $gaji->bulan->year)
-                ->whereMonth('tanggal', $gaji->bulan->month)
-                ->count();
-
-            // Menggunakan 'tunj_jabatan' sesuai temuan di SalaryService
-            $tunjanganJabatan = $gaji->karyawan->jabatan->tunj_jabatan ?? 0;
-            $tunjanganKehadiran = $kehadiranBulanIni * ($gaji->tunjanganKehadiran->jumlah_tunjangan ?? 0);
-            $totalTunjangan = $tunjanganJabatan + $tunjanganKehadiran + $gaji->tunj_anak + $gaji->tunj_komunikasi + $gaji->tunj_pengabdian + $gaji->tunj_kinerja + $gaji->lembur;
-            $gaji->total_tunjangan = $totalTunjangan;
-            $gaji->gaji_bersih = ($gaji->gaji_pokok + $totalTunjangan) - $gaji->potongan;
-        });
-
-        // [PERBAIKAN UTAMA] Logika baru untuk menghitung absensi
-        // 1. Hitung total kehadiran (ini sudah benar)
-        $totalHadir = Absensi::where('nip', $karyawan->nip)
-            ->whereBetween('tanggal', [$startDate, $endDate])
+        // Mengambil Total Kehadiran untuk seluruh periode
+        $totalKehadiranPeriode = Absensi::where('karyawan_id', $karyawan->id)
+            ->whereBetween('tanggal', [$start, $end])
             ->count();
 
-        // 2. Hitung total hari kerja pada periode tersebut menggunakan AbsensiService
-        // [CATATAN] Kode ini ASLI dari Anda, dan logikanya sudah benar (meski agak lambat).
-        // Kita tidak akan mengubahnya agar tidak menimbulkan bug baru.
-        $workingDaysCount = 0;
-        $period = \Carbon\CarbonPeriod::create($startDate, $endDate);
-        foreach ($period as $date) {
-            if ($this->absensiService->getSessionStatus($date)['is_active']) {
-                $workingDaysCount++;
-            }
-        }
 
-        // 3. Hitung alpha
-        $totalAlpha = $workingDaysCount - $totalHadir;
+        $gajis->each(function ($gaji) {
+            $bulan = $gaji->bulan->month;
+            $tahun = $gaji->bulan->year;
+
+            // PERBAIKAN KRITIS (1): Mengganti 'nip' dengan 'karyawan_id'
+            $jumlahKehadiran = Absensi::where('karyawan_id', $gaji->karyawan_id) // Menggunakan variabel yang ada ($gaji->karyawan_id)
+                ->whereYear('tanggal', $tahun)
+                ->whereMonth('tanggal', $bulan)
+                ->count();
+
+            $tunjanganPerKehadiran = $gaji->tunjanganKehadiran->jumlah_tunjangan ?? 0;
+            $tunjanganJabatan = $gaji->karyawan->jabatan->tunj_jabatan ?? 0;
+
+            $totalTunjanganKehadiran = $jumlahKehadiran * $tunjanganPerKehadiran;
+
+            $totalTunjangan = $totalTunjanganKehadiran + $tunjanganJabatan + $gaji->tunj_anak + $gaji->tunj_komunikasi + $gaji->tunj_pengabdian + $gaji->tunj_kinerja + $gaji->lembur;
+            $totalPotongan = $gaji->potongan;
+
+            $gaji->total_tunjangan_custom = $totalTunjangan;
+            $gaji->total_potongan_custom = $totalPotongan;
+            $gaji->gaji_bersih = ($gaji->gaji_pokok + $totalTunjangan) - $totalPotongan;
+            $gaji->jumlah_hadir = $jumlahKehadiran;
+        });
 
         return [
             'gajis' => $gajis,
+            // PERBAIKAN KRITIS: Menambahkan kunci yang dibutuhkan View
             'absensi_summary' => [
-                'hadir' => $totalHadir,
-                'alpha' => $totalAlpha > 0 ? $totalAlpha : 0, // Pastikan tidak negatif
-            ],
+                'total_hadir_periode' => $totalKehadiranPeriode
+            ]
         ];
     }
 
@@ -239,14 +251,14 @@ class LaporanController extends Controller
     {
         $validated = $request->validate([
             'karyawan_id' => 'required|exists:karyawans,id',
-            'tanggal_mulai' => 'required|date_format:Y-m',
-            'tanggal_selesai' => 'required|date_format:Y-m|after_or_equal:tanggal_mulai',
+            'bulan_mulai' => 'required|date_format:Y-m',
+            'bulan_selesai' => 'required|date_format:Y-m|after_or_equal:bulan_mulai',
         ]);
 
         GenerateIndividualReport::dispatch(
             $validated['karyawan_id'],
-            $validated['tanggal_mulai'],
-            $validated['tanggal_selesai'],
+            $validated['bulan_mulai'], // Menggunakan bulan_mulai
+            $validated['bulan_selesai'], // Menggunakan bulan_selesai
             Auth::id()
         );
 
@@ -257,14 +269,16 @@ class LaporanController extends Controller
     {
         $validated = $request->validate([
             'karyawan_id' => 'required|exists:karyawans,id',
-            'tanggal_mulai' => 'required|date_format:Y-m',
-            'tanggal_selesai' => 'required|date_format:Y-m|after_or_equal:tanggal_mulai',
+            // PERBAIKAN KRITIS: Mengganti 'tanggal_mulai' menjadi 'bulan_mulai'
+            'bulan_mulai' => 'required|date_format:Y-m',
+            // PERBAIKAN KRITIS: Mengganti 'tanggal_selesai' menjadi 'bulan_selesai'
+            'bulan_selesai' => 'required|date_format:Y-m|after_or_equal:bulan_mulai',
         ]);
 
         SendIndividualReportToEmail::dispatch(
             $validated['karyawan_id'],
-            $validated['tanggal_mulai'],
-            $validated['tanggal_selesai'],
+            $validated['bulan_mulai'], // Menggunakan bulan_mulai
+            $validated['bulan_selesai'], // Menggunakan bulan_selesai
             Auth::id()
         );
 

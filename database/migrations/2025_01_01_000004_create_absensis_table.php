@@ -13,14 +13,21 @@ return new class extends Migration
     {
         Schema::create('absensis', function (Blueprint $table) {
             $table->id();
-            // Menambahkan foreign key ke tabel sesi_absensis
+
             $table->foreignId('sesi_absensi_id')->constrained('sesi_absensis')->onDelete('cascade');
-            $table->string('nip');
-            $table->string('nama');
+
+            // Kolom Foreign Key yang BARU dan BENAR (menggantikan NIP dan Nama)
+            $table->foreignId('karyawan_id')->constrained('karyawans')->onDelete('cascade');
+
             $table->date('tanggal');
             $table->time('jam');
+            $table->string('koordinat')->nullable();
+            $table->double('jarak')->nullable();
+
+            // Kunci unik yang penting: karyawan_id dan tanggal
+            $table->unique(['karyawan_id', 'tanggal']);
+
             $table->timestamps();
-            $table->unique(['nip', 'tanggal']);
         });
     }
 

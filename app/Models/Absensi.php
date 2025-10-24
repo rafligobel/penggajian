@@ -15,8 +15,7 @@ class Absensi extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'nip',
-        'nama',
+        'karyawan_id',
         'tanggal',
         'jam',
         'sesi_absensi_id', // <-- TAMBAHKAN BARIS INI
@@ -30,5 +29,22 @@ class Absensi extends Model
     public function sesiAbsensi()
     {
         return $this->belongsTo(SesiAbsensi::class);
+    }
+
+    public function karyawan(): BelongsTo
+    {
+        return $this->belongsTo(Karyawan::class);
+    }
+
+    // Accessor untuk kompatibilitas: ambil nip dari relasi karyawan
+    public function getNipAttribute()
+    {
+        return $this->karyawan->nip ?? null;
+    }
+
+    // Accessor untuk kompatibilitas: ambil nama dari relasi karyawan
+    public function getNamaAttribute()
+    {
+        return $this->karyawan->nama ?? null;
     }
 }

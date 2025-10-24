@@ -132,7 +132,7 @@ Route::middleware(['auth', 'role:tenaga_kerja'])->prefix('tenaga-kerja')->name('
     Route::get('/modal/laporan-gaji', [TenagaKerjaController::class, 'getModalLaporanGaji'])->name('modal.laporan_gaji');
     Route::get('/modal/slip-gaji', [TenagaKerjaController::class, 'getModalSlipGaji'])->name('modal.slip_gaji');
 
-    Route::post('/slip-gaji/download', [TenagaKerjaController::class, 'downloadSlipGaji'])
+    Route::get('/slip-gaji/download', [TenagaKerjaController::class, 'downloadSlipGaji'])
         ->name('slip_gaji.download'); // <-- Nama route yang benar: 'tenaga_kerja.slip_gaji.download'
     Route::get('/laporan-gaji/{gaji}/cetak', [TenagaKerjaController::class, 'cetakLaporanGaji'])
         ->name('laporan_gaji.cetak');
