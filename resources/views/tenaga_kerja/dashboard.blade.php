@@ -83,17 +83,11 @@
     {{-- =================================================================== --}}
 
     {{-- 1. Modal Absensi (Statis) --}}
-    <div class="modal fade" id="absensiModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                @include('tenaga_kerja.modals.absensi', [
-                    'isSesiDibuka' => $isSesiDibuka,
-                    'sudahAbsen' => $sudahAbsen,
-                    'pesanSesi' => $pesanSesi,
-                ])
-            </div>
-        </div>
-    </div>
+    @include('tenaga_kerja.modals.absensi', [
+        'isSesiDibuka' => $isSesiDibuka,
+        'sudahAbsen' => $sudahAbsen,
+        'pesanSesi' => $pesanSesi,
+    ])
 
     {{-- 2. Modal Simulasi Gaji (Form) --}}
     <div class="modal fade" id="simulasiModal" tabindex="-1">

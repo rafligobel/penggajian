@@ -39,8 +39,11 @@
                                 $hariMapping = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
                                 $hariKerjaAktif = [];
                                 if (is_array($defaultTimes['hari_kerja'])) {
-                                    foreach ($defaultTimes['hari_kerja'] as $hari) {
-                                        // Pastikan index ada sebelum diakses
+                                    // [FIX] Urutkan hari agar tampilan konsisten (Sen, Sel, Rab...)
+                                    $hariKerjaTersortir = $defaultTimes['hari_kerja'];
+                                    sort($hariKerjaTersortir);
+                                    foreach ($hariKerjaTersortir as $hari) {
+                                        // Pastikan index ada sebelum diakses (hari 1-7, index 0-6)
                                         if (isset($hariMapping[$hari - 1])) {
                                             $hariKerjaAktif[] = $hariMapping[$hari - 1];
                                         }
@@ -82,11 +85,17 @@
                                 @if ($day['status_info']['is_active'])
                                     <span class="badge bg-success rounded-pill">Aktif</span>
                                 @else
-                                    {{-- [PERBAIKAN TAMPILAN] Beri warna berbeda untuk libur vs dinonaktifkan --}}
-                                    @if (str_contains($day['status_info']['status'], 'Dinonaktifkan'))
+                                    {{-- [FIX] Logika badge diubah total untuk mencocokkan status dari service --}}
+                                    @if ($day['status_info']['status'] == 'Libur Spesifik')
+                                        {{-- 'Libur Spesifik' berarti hari itu sengaja di-nonaktifkan --}}
                                         <span class="badge bg-danger rounded-pill">Non-Aktif</span>
-                                    @else
+                                    @elseif ($day['status_info']['status'] == 'Libur Default')
+                                        {{-- 'Libur Default' berarti libur reguler (Sabtu/Minggu) --}}
                                         <span class="badge bg-secondary rounded-pill">Libur</span>
+                                    @else
+                                        {{-- Fallback untuk 'Tidak Ada Sesi' --}}
+                                        <span
+                                            class="badge bg-secondary rounded-pill">{{ $day['status_info']['status'] }}</span>
                                     @endif
                                 @endif
                             </div>
@@ -177,7 +186,7 @@
                                 </option>
                             </select>
                         </div>
-                        <div id="waktu-container-exception">
+                        <div id="waktu-container-exception" style="display: none;"> {{-- [FIX] Pastikan display none by default --}}
                             <p class="text-muted small">Atur waktu khusus untuk sesi yang diaktifkan ini.</p>
                             <div class="row">
                                 <div class="col-6">
@@ -268,7 +277,10 @@
                         },
                         // [PERBAIKAN TAMPILAN] Refresh events saat navigasi bulan
                         datesSet: function() {
-                            calendar.refetchEvents();
+                            // [FIX] Pastikan kalender sudah ada sebelum refetch
+                            if (calendar) {
+                                calendar.refetchEvents();
+                            }
                         }
                     });
                     calendar.render();
@@ -279,10 +291,10 @@
             // [BUG FIX] Jika ada error validasi, buka kembali modal yang sesuai
             @if ($errors->any())
                 // Cek apakah error berasal dari form default time
-                @if ($errors->has('hari_kerja') || ($errors->has('waktu_mulai') && old('update_default')))
+                @if (old('update_default') == '1')
                     new bootstrap.Modal(document.getElementById('defaultTimeModal')).show();
-                    // Jika tidak, asumsikan dari form pengecualian
                 @else
+                    // Asumsikan dari form pengecualian jika bukan dari default
                     new bootstrap.Modal(document.getElementById('exceptionModal')).show();
                 @endif
             @endif

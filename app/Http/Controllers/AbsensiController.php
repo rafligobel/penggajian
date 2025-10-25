@@ -5,23 +5,29 @@ namespace App\Http\Controllers;
 use App\Models\Absensi;
 use App\Models\Karyawan;
 use App\Models\SesiAbsensi;
-use App\Services\AbsensiService;
+use App\Services\AbsensiService; // Pastikan AbsensiService di-import
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Exception;
+use Exception; // Import Exception untuk error handling
+// [PERBAIKAN] Tambahkan Log jika diperlukan untuk error
+use Illuminate\Support\Facades\Log;
 
 class AbsensiController extends Controller
 {
     protected $absensiService;
 
+    // Inject AbsensiService melalui constructor
     public function __construct(AbsensiService $absensiService)
     {
         $this->absensiService = $absensiService;
     }
 
+    /**
+     * Menampilkan halaman utama absensi.
+     * (Tidak ada perubahan, sudah benar)
+     */
     public function index()
     {
-        // Menggunakan today() untuk mendapatkan Carbon object hari ini (start of day)
         $today = today();
         $statusInfo = $this->absensiService->getSessionStatus($today);
         $isSesiDibuka = false;
@@ -30,7 +36,6 @@ class AbsensiController extends Controller
 
         if ($statusInfo['is_active']) {
             $now = now();
-            // Carbon::parse() dari string waktu di DB
             $waktuMulai = Carbon::parse($statusInfo['waktu_mulai']);
             $waktuSelesai = Carbon::parse($statusInfo['waktu_selesai']);
 
@@ -43,25 +48,24 @@ class AbsensiController extends Controller
                 $pesanSesi = 'Sesi absensi hari ini belum dibuka.';
             }
 
-
             $sesiHariIni = (object) [
                 'waktu_mulai' => $waktuMulai->format('H:i'),
                 'waktu_selesai' => $waktuSelesai->format('H:i'),
             ];
         }
 
-        // PERHATIAN: Di controller ini, list data absensi tidak dimuat di index
-        // Pastikan di view 'absensi.index' list absensi tidak ditampilkan
         return view('absensi.index', compact('sesiHariIni', 'isSesiDibuka', 'pesanSesi'));
     }
 
+    /**
+     * Menyimpan data absensi baru.
+     * [PERBAIKAN] Menghapus logika pencarian sesi manual dan menggunakan sesi_id dari service.
+     */
     public function store(Request $request)
     {
-        // Menambahkan validasi untuk koordinat dan jarak (konsisten dengan skema DB)
         $request->validate([
             'identifier' => 'required|string',
-            'koordinat' => 'nullable|string',
-            'jarak' => 'nullable|numeric',
+            'koordinat' => 'required|string|regex:/^[-]?\d+(\.\d+)?,[-]?\d+(\.\d+)?$/',
         ]);
 
         $karyawan = Karyawan::where('nip', $request->identifier)
@@ -74,12 +78,44 @@ class AbsensiController extends Controller
                 ->withInput();
         }
 
-        $now = now();
-        // Variabel konsisten untuk tanggal hari ini (string) untuk query
-        $todayDate = $now->toDateString();
+        // --- Validasi Jarak ---
+        $office_lat = env('OFFICE_LATITUDE');
+        $office_lon = env('OFFICE_LONGITUDE');
+        $max_radius = (float) env('MAX_ATTENDANCE_RADIUS', 50);
 
-        // Menggunakan today() untuk mendapatkan Carbon object tanggal hari ini untuk service
+        if (!$office_lat || !$office_lon) {
+            return redirect()->back()->with('info', 'Konfigurasi lokasi kantor belum lengkap. Silakan hubungi administrator.');
+        }
+
+        $koordinat_parts = explode(',', $request->koordinat);
+        $lat_karyawan = isset($koordinat_parts[0]) ? (float) trim($koordinat_parts[0]) : null;
+        $lon_karyawan = isset($koordinat_parts[1]) ? (float) trim($koordinat_parts[1]) : null;
+
+        $jarak = 0;
+        if ($lat_karyawan !== null && $lon_karyawan !== null) {
+            try {
+                $jarak = $this->absensiService->calculateDistance(
+                    $lat_karyawan,
+                    $lon_karyawan,
+                    (float) $office_lat,
+                    (float) $office_lon
+                );
+            } catch (Exception $e) {
+                return redirect()->back()->with('info', 'Terjadi kesalahan saat menghitung jarak: ' . $e->getMessage());
+            }
+        } else {
+            return redirect()->back()->with('info', 'Format koordinat tidak valid. Pastikan izin lokasi aktif dan coba lagi.');
+        }
+
+        if ($jarak > $max_radius) {
+            return redirect()->back()->with('info', "Anda berada di luar area kantor! Jarak Anda sekitar " . round($jarak) . " meter dari kantor. Maksimal jarak yang diizinkan adalah {$max_radius} meter.");
+        }
+        // --- Akhir Validasi Jarak ---
+
+        $now = now();
+        $todayDate = $now->toDateString();
         $today = today();
+
         $statusInfo = $this->absensiService->getSessionStatus($today);
 
         if (!$statusInfo['is_active']) {
@@ -93,44 +129,50 @@ class AbsensiController extends Controller
             return redirect()->back()->with('info', 'Sesi absensi sedang ditutup. Sesi berlaku dari jam ' . $waktuMulai->format('H:i') . ' hingga ' . $waktuSelesai->format('H:i') . '.');
         }
 
-        // Logika pengambilan ID Sesi (menggunakan variabel $todayDate yang konsisten)
-        $sesiAbsensi = SesiAbsensi::where('tanggal', $todayDate)->where('is_default', false)->where('tipe', 'aktif')->first();
-        if (!$sesiAbsensi) {
-            $sesiAbsensi = SesiAbsensi::where('is_default', true)->first();
+        // [PERBAIKAN] Menggunakan sesi_id dari service, hapus pencarian manual
+        if (empty($statusInfo['sesi_id'])) {
+            // Ini seharusnya tidak terjadi jika is_active true, tapi sebagai pengaman
+            Log::warning('AbsensiController@store: Sesi aktif tetapi sesi_id tidak ditemukan.', ['statusInfo' => $statusInfo]);
+            return redirect()->back()->with('info', 'Tidak ditemukan ID sesi absensi yang valid untuk hari ini.');
         }
 
-        if (!$sesiAbsensi) {
-            return redirect()->back()->with('info', 'FATAL: Sistem tidak dapat menemukan ID sesi absensi yang valid.');
-        }
+        $sesiAbsensiId = $statusInfo['sesi_id'];
 
-        // PERBAIKAN KONSISTENSI RELASI: Menggunakan karyawan_id
+        // Cek apakah karyawan sudah melakukan absensi pada tanggal ini
         $sudahAbsen = Absensi::where('karyawan_id', $karyawan->id)
-            ->where('tanggal', $todayDate) // Menggunakan $todayDate yang konsisten
+            ->where('tanggal', $todayDate)
             ->exists();
 
         if ($sudahAbsen) {
             return redirect()->back()->with('info', 'Anda (' . $karyawan->nama . ') sudah melakukan absensi hari ini.');
         }
 
-        // PERBAIKAN KONSISTENSI RELASI: Menggunakan karyawan_id untuk penyimpanan
         Absensi::create([
-            'sesi_absensi_id' => $sesiAbsensi->id,
-            'karyawan_id' => $karyawan->id, // MENGGANTI 'nip' dan 'nama'
-            'tanggal' => $todayDate, // Menggunakan $todayDate yang konsisten
+            'sesi_absensi_id' => $sesiAbsensiId, // [PERBAIKAN] Menggunakan ID dari service
+            'karyawan_id' => $karyawan->id,
+            'tanggal' => $todayDate,
             'jam' => $now->toTimeString(),
             'koordinat' => $request->koordinat,
-            'jarak' => $request->jarak ?? 0,
+            'jarak' => round($jarak),
         ]);
 
-        return redirect()->back()->with('success', 'Absensi untuk ' . $karyawan->nama . ' berhasil dicatat. Terima kasih!');
+        return redirect()->back()->with('success', 'Absensi untuk ' . $karyawan->nama . ' berhasil dicatat. Jarak Anda: ' . round($jarak) . ' meter. Terima kasih!');
     }
 
+    /**
+     * Menampilkan halaman rekap absensi per bulan.
+     * (Tidak ada perubahan)
+     */
     public function rekapPerBulan(Request $request)
     {
         $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
         return view('absensi.rekap', compact('selectedMonth'));
     }
 
+    /**
+     * Mengambil data rekap absensi untuk bulan tertentu (API endpoint untuk AJAX).
+     * (Tidak ada perubahan)
+     */
     public function fetchRekapData(Request $request)
     {
         try {
@@ -145,8 +187,9 @@ class AbsensiController extends Controller
                 'total_hari_kerja' => $rekap['workingDaysCount'],
             ]);
         } catch (Exception $e) {
+            // Log::error("Error fetching rekap data: " . $e->getMessage());
             return response()->json([
-                'error' => 'Terjadi kesalahan saat memuat rekap.',
+                'error' => 'Terjadi kesalahan saat memuat data rekap absensi.',
                 'message' => $e->getMessage()
             ], 500);
         }
