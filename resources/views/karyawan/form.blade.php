@@ -26,7 +26,24 @@
         <div class="invalid-feedback">{{ $message }}</div>
     @enderror
 </div>
+<div class="mb-3">
+    <label for="tanggal_masuk" class="form-label">Tanggal Masuk (Utk Tunj. Pengabdian)</label>
+    <input type="date" class="form-control @error('tanggal_masuk') is-invalid @enderror" id="tanggal_masuk"
+        name="tanggal_masuk"
+        value="{{ old('tanggal_masuk', $karyawan->tanggal_masuk ? $karyawan->tanggal_masuk->format('Y-m-d') : '') }}">
+    @error('tanggal_masuk')
+        <div class="invalid-feedback">{{ $message }}</div>
+    @enderror
+</div>
 
+<div class="mb-3">
+    <label for="jumlah_anak" class="form-label">Jumlah Anak (Utk Tunj. Anak)</label>
+    <input type="number" class="form-control @error('jumlah_anak') is-invalid @enderror" id="jumlah_anak"
+        name="jumlah_anak" value="{{ old('jumlah_anak', $karyawan->jumlah_anak ?? 0) }}" min="0">
+    @error('jumlah_anak')
+        <div class="invalid-feedback">{{ $message }}</div>
+    @enderror
+</div>
 <div class="mb-3">
     <label for="jabatan_id">Jabatan</label>
     <select name="jabatan_id" id="jabatan_id" class="form-control @error('jabatan_id') is-invalid @enderror">

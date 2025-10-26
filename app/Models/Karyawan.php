@@ -23,9 +23,14 @@ class Karyawan extends Model
         'telepon',
         'jabatan_id',
         'user_id',
+        'tanggal_masuk', // <-- REVISI DITAMBAHKAN
+        'jumlah_anak',   // <-- REVISI DITAMBAHKAN
     ];
 
-    protected $casts = ['status_aktif' => 'boolean'];
+    protected $casts = [
+        'status_aktif' => 'boolean',
+        'tanggal_masuk' => 'date', // <-- REVISI DITAMBAHKAN
+    ];
 
     public function user(): BelongsTo
     {

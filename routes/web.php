@@ -16,6 +16,8 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TenagaKerjaController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\AturanTunjanganAnakController;
+use App\Http\Controllers\AturanTunjanganPengabdianController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -87,6 +89,12 @@ Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
     Route::get('karyawan/{karyawan}/edit', [KaryawanController::class, 'edit'])->name('karyawan.edit');
     Route::put('karyawan/{karyawan}', [KaryawanController::class, 'update'])->name('karyawan.update');
     Route::delete('karyawan/{karyawan}', [KaryawanController::class, 'destroy'])->name('karyawan.destroy');
+
+    Route::get('aturan-anak', [AturanTunjanganAnakController::class, 'index'])->name('aturan-anak.index'); // Diubah dari edit ke index
+    Route::put('aturan-anak', [AturanTunjanganAnakController::class, 'update'])->name('aturan-anak.update');
+
+    // Rute untuk Tunjangan Pengabdian (Hapus 'create' dan 'edit')
+    Route::resource('aturan-pengabdian', AturanTunjanganPengabdianController::class)->except(['show', 'create', 'edit']);
 });
 
 Route::middleware(['auth', 'role:superadmin,admin,bendahara'])->group(function () {
@@ -98,9 +106,6 @@ Route::middleware(['auth', 'role:superadmin,admin,bendahara'])->group(function (
 // --- RUTE KHUSUS BENDAHARA ---
 Route::middleware(['auth', 'role:bendahara'])->group(function () {
     // Kelola Gaji
-
-
-
     Route::get('gaji', [GajiController::class, 'index'])->name('gaji.index');
     Route::post('gaji/save', [GajiController::class, 'saveOrUpdate'])->name('gaji.save');
     Route::post('/gaji/{gaji}/download-slip', [GajiController::class, 'downloadSlip'])->name('gaji.download-slip');

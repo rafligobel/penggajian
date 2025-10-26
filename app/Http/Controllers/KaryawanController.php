@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Karyawan;
 use App\Models\Jabatan;
-use App\Models\User; // <-- Tambahkan ini
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash; // <-- Tambahkan ini
-use Illuminate\Validation\Rule; // <-- Tambahkan ini
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class KaryawanController extends Controller
 {
@@ -35,6 +35,10 @@ class KaryawanController extends Controller
             'jabatan_id' => 'nullable|exists:jabatans,id',
             'user_email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
+            // --- AWAL REVISI (store) ---
+            'tanggal_masuk' => 'nullable|date',
+            'jumlah_anak' => 'nullable|integer|min:0',
+            // --- AKHIR REVISI (store) ---
         ]);
 
         // 1. Buat Akun User terlebih dahulu
@@ -42,7 +46,7 @@ class KaryawanController extends Controller
             'name' => $validated['nama'],
             'email' => $validated['user_email'],
             'password' => Hash::make($validated['password']),
-            'role' => 'tenaga_kerja',
+            'role' => 'tenaga_kerja', // Sesuai file Anda
         ]);
 
         // 2. Buat Karyawan dan hubungkan user_id
@@ -54,6 +58,10 @@ class KaryawanController extends Controller
             'telepon' => $validated['telepon'],
             'jabatan_id' => $validated['jabatan_id'],
             'email' => $validated['user_email'],
+            // --- AWAL REVISI (store) ---
+            'tanggal_masuk' => $validated['tanggal_masuk'] ?? null,
+            'jumlah_anak' => $validated['jumlah_anak'] ?? 0,
+            // --- AKHIR REVISI (store) ---
         ]);
 
         return redirect()->route('karyawan.index')->with('success', 'Data karyawan dan akun login berhasil dibuat.');
@@ -71,6 +79,7 @@ class KaryawanController extends Controller
         return view('karyawan.edit', compact('karyawan', 'jabatans'))->with('tombol', 'Perbarui');
     }
 
+
     public function update(Request $request, Karyawan $karyawan)
     {
         $validated = $request->validate([
@@ -81,6 +90,10 @@ class KaryawanController extends Controller
             'jabatan_id' => 'nullable|exists:jabatans,id',
             'user_email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore(optional($karyawan->user)->id)],
             'password' => 'nullable|string|min:8',
+            // --- AWAL REVISI (update) ---
+            'tanggal_masuk' => 'nullable|date',
+            'jumlah_anak' => 'nullable|integer|min:0',
+            // --- AKHIR REVISI (update) ---
         ]);
 
         // 1. Update data karyawan
@@ -91,6 +104,10 @@ class KaryawanController extends Controller
             'telepon' => $validated['telepon'],
             'jabatan_id' => $validated['jabatan_id'],
             'email' => $validated['user_email'],
+            // --- AWAL REVISI (update) ---
+            'tanggal_masuk' => $validated['tanggal_masuk'] ?? null,
+            'jumlah_anak' => $validated['jumlah_anak'] ?? 0,
+            // --- AKHIR REVISI (update) ---
         ]);
 
         // 2. Update data user yang terhubung

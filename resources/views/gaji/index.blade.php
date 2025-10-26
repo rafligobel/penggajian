@@ -48,7 +48,7 @@
                             </tr>
                         </thead>
                         <tbody id="gaji-table-body">
-                            {{-- ================== PERBAIKAN BLADE DIMULAI ================== --}}
+                            {{-- ================== PERBAIKAN BLADE DIMULAI (Kode Asli Anda) ================== --}}
                             @forelse ($dataGaji as $gajiData)
                                 {{-- Tidak perlu @php, $gajiData adalah array yang kita gunakan --}}
                                 <tr data-gaji-json="{{ json_encode($gajiData) }}" class="karyawan-row"
@@ -82,9 +82,12 @@
                                     </td>
                                     <td class="text-center">
                                         @if (Auth::user()->role === 'bendahara')
-                                            <button class="btn btn-sm btn-info btn-detail" title="Detail Gaji"><i
+                                            <button class="btn btn-sm btn-info btn-detail" title="Detail Gaji"
+                                                data-bs-toggle="modal" data-bs-target="#detailModal"><i
                                                     class="fas fa-eye"></i></button>
-                                            <button class="btn btn-sm btn-warning btn-edit" title="Kelola Gaji"><i
+
+                                            <button class="btn btn-sm btn-warning btn-edit" title="Kelola Gaji"
+                                                data-bs-toggle="modal" data-bs-target="#editModal"><i
                                                     class="fas fa-edit"></i></button>
                                         @endif
                                     </td>
@@ -107,7 +110,7 @@
         </div>
     </div>
 
-    {{-- ============== MODALS (Tidak Berubah) ============== --}}
+    {{-- ============== MODALS (Struktur Asli Anda) ============== --}}
     {{-- Modal Detail --}}
     <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
@@ -150,14 +153,15 @@
                             </div>
                             <div class="col-md-8">
                                 <label for="tunjangan_kehadiran_id_modal" class="form-label fw-bold">Pilih Tunjangan
-                                    Kehadiran</label>
+                                    Kehadiran (Revisi 1)</label>
                                 <select name="tunjangan_kehadiran_id" id="tunjangan_kehadiran_id_modal"
                                     class="form-select" required>
+
                                     @foreach ($tunjanganKehadirans as $tunjangan)
                                         <option value="{{ $tunjangan->id }}">
-                                            {{-- Perbaikan kecil: Ambil nama_tunjangan, bukan jenis_tunjangan --}}
                                             {{ $tunjangan->nama_tunjangan }}
-                                            ({{ 'Rp ' . number_format($tunjangan->jumlah_tunjangan, 0, ',', '.') }}/hari)
+
+                                            ({{ 'Rp ' . number_format($tunjangan->nilai ?? $tunjangan->jumlah_tunjangan, 0, ',', '.') }}/hari)
                                         </option>
                                     @endforeach
                                 </select>
@@ -249,7 +253,16 @@
                             // 'data.newData' adalah flat array, sesuai dengan service
                             updateTableRow(data.newData);
                         } else {
-                            showResponseMessage(data.message || 'Gagal menyimpan data.', false);
+                            // [REVISI] Menampilkan error validasi (jika ada)
+                            if (data.errors) {
+                                let errorMsg = data.message || 'Gagal menyimpan data.';
+                                for (const key in data.errors) {
+                                    errorMsg += `\n- ${data.errors[key][0]}`;
+                                }
+                                showResponseMessage(errorMsg, false);
+                            } else {
+                                showResponseMessage(data.message || 'Gagal menyimpan data.', false);
+                            }
                         }
                     })
                     .catch(error => {
@@ -264,21 +277,37 @@
 
             // --- EVENT LISTENER UNTUK TOMBOL-TOMBOL AKSI DI TABEL ---
             document.getElementById('gaji-table-body').addEventListener('click', function(e) {
+                // [REVISI] Target 'btn-edit' atau 'btn-detail'
                 const button = e.target.closest('.btn-detail, .btn-edit');
                 if (!button) return;
 
-                const row = button.closest('tr.karyawan-row');
-                // 'gajiData' adalah flat array
-                const gajiData = JSON.parse(row.getAttribute('data-gaji-json'));
-
-                if (button.classList.contains('btn-detail')) {
-                    populateDetailModal(gajiData);
-                    detailModal.show();
-                } else if (button.classList.contains('btn-edit')) {
-                    populateEditModal(gajiData);
-                    editModal.show();
-                }
+                // Event 'show.bs.modal' akan menangani populasi data
             });
+
+            // [REVISI] Gunakan event 'show.bs.modal' untuk 'editModal'
+            editModalEl.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget; // Tombol yang memicu modal
+                if (!button) return;
+
+                const row = button.closest('tr.karyawan-row');
+                if (!row) return;
+
+                const gajiData = JSON.parse(row.getAttribute('data-gaji-json'));
+                populateEditModal(gajiData);
+            });
+
+            // [REVISI] Gunakan event 'show.bs.modal' untuk 'detailModal'
+            detailModalEl.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget; // Tombol yang memicu modal
+                if (!button) return;
+
+                const row = button.closest('tr.karyawan-row');
+                if (!row) return;
+
+                const gajiData = JSON.parse(row.getAttribute('data-gaji-json'));
+                populateDetailModal(gajiData);
+            });
+
 
             // --- FUNGSI PENCARIAN ---
             document.getElementById('search-input').addEventListener('input', function() {
@@ -302,7 +331,7 @@
                 noResultsRow.style.display = (visibleRows === 0 && searchTerm) ? '' : 'none';
             });
 
-            // ================== PERBAIKAN JAVASCRIPT (populateEditModal) ==================
+            // ================== [REVISI UTAMA JAVASCRIPT] (populateEditModal) ==================
             function populateEditModal(data) {
                 // 'data' adalah flat array
                 const modal = editModalEl;
@@ -321,32 +350,31 @@
                     name: 'tunj_jabatan',
                     label: 'Tunjangan Jabatan',
                     value: data.tunj_jabatan,
-                    readonly: true, // Ditambahkan: Status readonly
-                    isNumeric: false // Ditambahkan: Gunakan type="text"
+                    readonly: true,
+                    isNumeric: false
                 }, {
                     name: 'gaji_pokok',
                     label: 'Gaji Pokok',
                     value: data.gaji_pokok_numeric,
                     readonly: false,
-                    isNumeric: true // Ditambahkan: Gunakan type="number"
+                    isNumeric: true
                 }, {
+                    // --- REVISI 2: Tunjangan Anak (Otomatis) ---
                     name: 'tunj_anak',
-                    label: 'Tunjangan Anak',
-                    value: data.tunj_anak,
-                    readonly: false,
+                    label: 'Tunjangan Anak (Otomatis)', // Label diubah
+                    value: data.tunj_anak, // Nilai diambil dari data kalkulasi
+                    readonly: true, // Dibuat Readonly
                     isNumeric: true
                 }, {
-                    name: 'tunj_komunikasi',
-                    label: 'Tunj. Komunikasi',
-                    value: data.tunj_komunikasi,
-                    readonly: false,
-                    isNumeric: true
-                }, {
+                    // --- REVISI 3: Tunjangan Pengabdian (Otomatis) ---
                     name: 'tunj_pengabdian',
-                    label: 'Tunj. Pengabdian',
-                    value: data.tunj_pengabdian,
-                    readonly: false,
+                    label: 'Tunj. Pengabdian (Otomatis)', // Label diubah
+                    value: data.tunj_pengabdian, // Nilai diambil dari data kalkulasi
+                    readonly: true, // Dibuat Readonly
                     isNumeric: true
+                }, {
+                    // --- REVISI 1: Tunjangan Komunikasi (Dihapus) ---
+                    // Objek 'tunj_komunikasi' dihapus dari array ini
                 }, {
                     name: 'tunj_kinerja',
                     label: 'Tunj. Kinerja',
@@ -369,19 +397,22 @@
 
                 // Map field menjadi HTML, menggunakan input-group untuk prefix "Rp"
                 let fieldsHtml = fields.map(f => {
+                    // Filter objek kosong (dari tunj_komunikasi yang dihapus)
+                    if (!f.name) return '';
+
                     const inputType = f.isNumeric ? 'number' : 'text';
                     const readonlyAttr = f.readonly ? 'readonly' : '';
+
+                    // [REVISI] Jika readonly, JANGAN kirim 'name'
                     const inputName = f.readonly ? '' : `name="${f.name}"`;
                     const requiredAttr = f.readonly ? '' : 'required';
 
-                    // Untuk readonly, tampilkan nilai yang sudah diformat Rupiah (lalu hapus "Rp" agar tidak double dengan input-group-text)
-                    // Untuk editable, tampilkan nilai numerik murni agar type="number" berfungsi
                     const displayValue = f.readonly ? formatRupiah(f.value).replace('Rp', '').trim() :
                         parseFloat(f.value || 0);
 
                     return `
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">${f.label} ${f.readonly ? '(Otomatis)' : ''}</label>
+                        <label class="form-label">${f.label} ${f.readonly ? '' : ''}</label>
                         <div class="input-group">
                             <span class="input-group-text">Rp</span>
                             <input type="${inputType}" ${inputName} class="form-control" value="${displayValue}" ${readonlyAttr} ${requiredAttr}>
@@ -393,6 +424,7 @@
             }
 
             // ================== PERBAIKAN JAVASCRIPT (populateDetailModal) ==================
+            // (Tidak ada perubahan, kode asli Anda sudah benar)
             function populateDetailModal(data) {
                 // 'data' adalah flat array
                 const modal = detailModalEl;
@@ -515,9 +547,6 @@
                     }
 
                     newDownloadBtn.addEventListener('click', function(e) {
-                        // Untuk tombol download, lebih baik menggunakan redirect langsung ke URL download
-                        // daripada AJAX, agar browser bisa menangani file download.
-                        // Namun, karena kode Anda menggunakan AJAX untuk dispatch Job, saya pertahankan.
                         handleJobDispatch(this, downloadUrl, 'unduh slip', e);
                     });
 

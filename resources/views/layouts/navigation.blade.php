@@ -71,11 +71,31 @@
                         <i class="fas fa-briefcase"></i> Kelola Jabatan
                     </a>
                 </li>
-                <li class="{{ Request::routeIs('tunjangan-kehadiran.*') ? 'active' : '' }}">
+                {{-- <li class="{{ Request::routeIs('tunjangan-kehadiran.*') ? 'active' : '' }}">
                     <a href="{{ route('tunjangan-kehadiran.index') }}">
                         <i class="fas fa-calendar-check"></i>
                         <span>Tunjangan Kehadiran</span>
                     </a>
+                </li> --}}
+                <li
+                    class="{{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*']) ? 'active' : '' }}">
+                    <a href="#tunjanganSubmenu" data-bs-toggle="collapse"
+                        aria-expanded="{{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*']) ? '' : 'false' }}"
+                        class="dropdown-toggle">
+                        <i class="fas fa-wallet"></i> Kelola Tunjangan
+                    </a>
+                    <ul class="collapse list-unstyled {{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*']) ? 'show' : '' }}"
+                        id="tunjanganSubmenu">
+                        <li class="{{ Request::routeIs('tunjangan-kehadiran.*') ? 'active' : '' }}">
+                            <a href="{{ route('tunjangan-kehadiran.index') }}">Tunjangan Kehadiran</a>
+                        </li>
+                        <li class="{{ Request::routeIs('aturan-anak.*') ? 'active' : '' }}">
+                            <a href="{{ route('aturan-anak.index') }}">Aturan Tunjangan Anak</a>
+                        </li>
+                        <li class="{{ Request::routeIs('aturan-pengabdian.*') ? 'active' : '' }}">
+                            <a href="{{ route('aturan-pengabdian.index') }}">Aturan Tunjangan Pengabdian</a>
+                        </li>
+                    </ul>
                 </li>
                 <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">
                     <a href="{{ route('karyawan.index') }}">
