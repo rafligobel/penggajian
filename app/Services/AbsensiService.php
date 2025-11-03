@@ -47,15 +47,20 @@ class AbsensiService
      * [PERBAIKAN] Menambahkan 'jam' pada detail harian.
      * [PERBAIKAN] Mengganti nama 'total_absen' menjadi 'total_alpha' sesuai view.
      * [PERBAIKAN] Menambahkan 'daysInMonth' pada return.
+     * [PERBAIKAN KRITIS] Menambahkan parameter opsional $karyawanIds dan menggunakannya untuk filter.
      */
-    public function getAttendanceRecap(Carbon $month): array
+    public function getAttendanceRecap(Carbon $month, ?array $karyawanIds = null): array
     {
         $startOfMonth = $month->copy()->startOfMonth();
         $endOfMonth = $month->copy()->endOfMonth();
         $daysInMonth = $endOfMonth->day; // [FIX] Dapatkan jumlah hari dalam bulan
 
-        // Ambil semua karyawan aktif (sesuaikan dengan logika status karyawan jika ada)
-        $karyawans = Karyawan::with('jabatan')->orderBy('nama')->get(); // Sertakan jabatan
+        // [PERBAIKAN] Ambil karyawan berdasarkan $karyawanIds jika disediakan
+        $query = Karyawan::with('jabatan')->orderBy('nama');
+        if ($karyawanIds) {
+            $query->whereIn('id', $karyawanIds);
+        }
+        $karyawans = $query->get(); // Sertakan jabatan
 
         // Ambil data absensi untuk bulan terkait
         $absensiBulanIni = Absensi::whereBetween('tanggal', [$startOfMonth->toDateString(), $endOfMonth->toDateString()])

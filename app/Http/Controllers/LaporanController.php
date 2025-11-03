@@ -101,7 +101,8 @@ class LaporanController extends Controller
     // --- LAPORAN ABSENSI ---
     public function rekapAbsensi(Request $request)
     {
-        $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
+        // [PERBAIKAN KRITIS] Mengganti 'bulan' menjadi 'periode' agar sesuai dengan nama input di view
+        $selectedMonth = $request->input('periode', Carbon::now()->format('Y-m'));
         $tanggal = Carbon::createFromFormat('Y-m', $selectedMonth);
 
         // PERBAIKAN KRITIS A: Panggil service dan simpan hasilnya

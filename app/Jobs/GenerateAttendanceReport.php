@@ -39,32 +39,22 @@ class GenerateAttendanceReport implements ShouldQueue
     public function handle(AbsensiService $absensiService): void
     {
         $user = User::find($this->userId);
-        $karyawan = Karyawan::find($this->karyawanIds);
+        // [PERBAIKAN] Karyawan::find($this->karyawanIds) tidak diperlukan di sini
         $periode = Carbon::create($this->tahun, $this->bulan, 1);
 
         try {
+            // [PERBAIKAN KRITIS] Memanggil service dengan $this->karyawanIds
             $rekap = $absensiService->getAttendanceRecap($periode, $this->karyawanIds);
 
-            if (empty($rekap['rekapData'])) {
+            if (empty($rekap['rekapData']) || $rekap['rekapData']->isEmpty()) {
                 throw new \Exception('Tidak ada data absensi untuk karyawan yang dipilih pada periode ini.');
             }
 
-            // Transformasi struktur data agar cocok dengan view
-            $detailAbsensi = [];
-            foreach ($rekap['rekapData'] as $dataKaryawan) {
-                $item = new \stdClass();
-                $item->nama = $dataKaryawan['nama'];
-                $item->nip = $dataKaryawan['nip'];
-                $item->total_hadir = $dataKaryawan['summary']['total_hadir'];
-                $item->total_alpha = $dataKaryawan['summary']['total_alpha'];
+            // [PERBAIKAN KRITIS] Hapus transformasi data yang salah.
+            // Gunakan data 'rekapData' langsung karena strukturnya sudah sesuai
+            // dengan view PDF (rekap_absensi.blade.php).
+            $detailAbsensi = $rekap['rekapData'];
 
-                $dailyData = [];
-                foreach ($dataKaryawan['detail'] as $day => $statusData) {
-                    $dailyData[$day] = $statusData['status'];
-                }
-                $item->daily_data = $dailyData;
-                $detailAbsensi[] = $item;
-            }
 
             // Ambil data Tanda Tangan
             $bendahara = TandaTangan::where('key', 'tanda_tangan_bendahara')->first();
@@ -77,7 +67,7 @@ class GenerateAttendanceReport implements ShouldQueue
             $data = [
                 'periode' => $periode,
                 'daysInMonth' => $rekap['daysInMonth'],
-                'detailAbsensi' => $detailAbsensi,
+                'detailAbsensi' => $detailAbsensi, // [FIX] Data sudah benar
                 'logoAlAzhar' => $this->getImageAsBase64DataUri(public_path('logo/logoalazhar.png')),
                 'logoYayasan' => $this->getImageAsBase64DataUri(public_path('logo/logoyayasan.png')),
                 'bendaharaNama' => $bendaharaNama,
