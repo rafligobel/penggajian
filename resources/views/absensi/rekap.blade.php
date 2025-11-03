@@ -105,8 +105,8 @@
         /* --- END MODIFIKASI --- */
     </style>
 
-    <div class="container py-4">
-        <h3 class="mb-4 text-center text-primary fw-bold">Rekap Absensi Bulanan</h3>
+    <div class="container ">
+        <h3 class=" text-center text-primary fw-bold">Rekap Absensi Bulanan</h3>
 
         {{-- Form Filter --}}
         <div class="card shadow-sm mb-4 border-0">

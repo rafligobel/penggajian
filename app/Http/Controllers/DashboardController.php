@@ -10,7 +10,7 @@ use App\Models\SesiAbsensi;
 use App\Models\User;
 use Carbon\Carbon;
 use App\Services\SalaryService; // Menggunakan SalaryService untuk konsistensi
-use Illuminate\Container\Attributes\DB;
+// use Illuminate\Container\Attributes\DB; // DIHAPUS KARENA TYPO DAN TIDAK DIGUNAKAN
 
 class DashboardController extends Controller
 {
@@ -23,12 +23,38 @@ class DashboardController extends Controller
 
     public function index()
     {
-        $semuaGaji = Gaji::all();
+        $semuaGaji = Gaji::with('karyawan.jabatan')->get();
 
-        // --- 1. Kalkulasi untuk Kartu Gaji ---
-        $totalGajiDibayarkan = $semuaGaji->sum(fn($gaji) => $gaji->gaji_pokok + $gaji->total_tunjangan - $gaji->total_potongan);
-        $totalGajiBulanIni = $semuaGaji->whereBetween('bulan', [now()->startOfMonth(), now()->endOfMonth()])->sum(fn($gaji) => $gaji->gaji_pokok + $gaji->total_tunjangan - $gaji->total_potongan);
-        $totalGajiBulanLalu = $semuaGaji->whereBetween('bulan', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])->sum(fn($gaji) => $gaji->gaji_pokok + $gaji->total_tunjangan - $gaji->total_potongan);
+        $kalkulasiGajiBersih = function (Gaji $gaji) {
+            if (!$gaji->karyawan) {
+                return 0;
+            }
+
+            $tunjanganJabatan = $gaji->karyawan->jabatan->tunj_jabatan ?? 0;
+
+
+            $detailGaji = $this->salaryService->calculateDetailsForForm($gaji->karyawan, $gaji->bulan);
+            $tunjanganKehadiran = $detailGaji['tunj_kehadiran'] ?? 0;
+
+            $totalTunjangan = $tunjanganKehadiran +
+                $tunjanganJabatan +
+                $gaji->tunj_anak +
+                $gaji->tunj_komunikasi +
+                $gaji->tunj_pengabdian +
+                $gaji->tunj_kinerja +
+                $gaji->lembur;
+
+            return $gaji->gaji_pokok + $totalTunjangan - $gaji->potongan;
+        };
+
+
+        $totalGajiDibayarkan = $semuaGaji->sum($kalkulasiGajiBersih);
+
+        $totalGajiBulanIni = $semuaGaji->whereBetween('bulan', [now()->startOfMonth(), now()->endOfMonth()])
+            ->sum($kalkulasiGajiBersih); 
+
+        $totalGajiBulanLalu = $semuaGaji->whereBetween('bulan', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])
+            ->sum($kalkulasiGajiBersih); 
 
         if ($totalGajiBulanLalu > 0) {
             $perbandinganGaji = (($totalGajiBulanIni - $totalGajiBulanLalu) / $totalGajiBulanLalu) * 100;
@@ -36,7 +62,6 @@ class DashboardController extends Controller
             $perbandinganGaji = $totalGajiBulanIni > 0 ? 100 : 0;
         }
 
-        // --- 2. Jumlah Entitas & Statistik Karyawan ---
         $jumlahKaryawan = Karyawan::count();
         $jumlahJabatan = Jabatan::count();
         $jumlahPengguna = User::count();
@@ -44,19 +69,17 @@ class DashboardController extends Controller
         $karyawanBaruBulanIni = Karyawan::whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])->count();
         $gajiDiproses = Gaji::whereBetween('bulan', [now()->startOfMonth(), now()->endOfMonth()])->count();
 
-        // --- 3. Data untuk Grafik (Chart) ---
-        $gajiPerBulan = $semuaGaji->groupBy(fn($gaji) => Carbon::parse($gaji->bulan)->format('Y-m')) // Menggunakan 'bulan' untuk konsistensi
-            ->map(fn($gajiBulanan) => $gajiBulanan->sum(fn($gaji) => $gaji->gaji_pokok + $gaji->total_tunjangan - $gaji->total_potongan))
+        $gajiPerBulan = $semuaGaji->groupBy(fn($gaji) => Carbon::parse($gaji->bulan)->format('Y-m'))
+            ->map(fn($gajiBulanan) => $gajiBulanan->sum($kalkulasiGajiBersih)) // PERBAIKAN
             ->sortKeys();
 
         $labels = $gajiPerBulan->keys()->map(fn($bulan) => Carbon::createFromFormat('Y-m', $bulan)->format('M Y'));
         $data = $gajiPerBulan->values();
 
-        // --- 4. Kirim Semua Data ke View [SUDAH DIPERBAIKI] ---
         return view('dashboard.index', compact(
             'totalGajiDibayarkan',
             'totalGajiBulanIni',
-            'totalGajiBulanLalu', // Variabel yang dibutuhkan view kini sudah dikirim
+            'totalGajiBulanLalu',
             'perbandinganGaji',
             'jumlahKaryawan',
             'karyawanBaruBulanIni',
@@ -69,3 +92,5 @@ class DashboardController extends Controller
         ));
     }
 }
+
+// PERBAIKAN 3: Kurung kurawal '}' ekstra di akhir file telah DIHAPUS.

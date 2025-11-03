@@ -35,9 +35,9 @@
         }
     </style>
 
-    <div class="container py-4">
+    <div class="container py-1">
         {{-- Header Halaman --}}
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-1">
             <h3 class="fw-bold text-primary">Daftar Pegawai</h3>
             {{-- Tombol Tambah Pegawai --}}
             @if (in_array(auth()->user()->role, ['superadmin', 'admin']))

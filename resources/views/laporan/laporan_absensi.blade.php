@@ -96,8 +96,8 @@
         }
     </style>
 
-    <div class="container py-4">
-        <h3 class="mb-4 fw-bold text-primary">Laporan Rekapitulasi Absensi Bulanan</h3>
+    <div class="container ">
+        <h3 class=" fw-bold text-primary">Laporan Rekapitulasi Absensi Bulanan</h3>
 
         {{-- Form Filter --}}
         <div class="card shadow-sm mb-4 border-0">
