@@ -1,3 +1,4 @@
+{{-- resources/views/laporan/pdf/rekap_absensi.blade.php --}}
 <!DOCTYPE html>
 <html lang="id">
 
@@ -5,6 +6,7 @@
     <meta charset="UTF-8">
     <title>Laporan Rincian Absensi - {{ $periode->translatedFormat('F Y') }}</title>
     <style>
+        /* ... (style Anda sudah benar, tidak perlu diubah) ... */
         body {
             font-family: 'Helvetica', sans-serif;
             font-size: 7px;
@@ -136,29 +138,35 @@
             </tr>
         </thead>
         <tbody>
+            {{-- [PERBAIKAN] Mengganti $data-> (objek) menjadi $data[...] (array) agar sesuai struktur data AbsensiService --}}
             @foreach ($detailAbsensi as $index => $data)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    {{-- [PERBAIKAN] Menampilkan nama karyawan --}}
-                    <td class="karyawan-name">{{ $data->nama ?? '-' }}</td>
-                    {{-- [PERBAIKAN] Menampilkan NIP --}}
-                    <td>{{ $data->nip ?? '-' }}</td>
+                    {{-- [PERBAIKAN] Menampilkan nama karyawan dari array --}}
+                    <td class="karyawan-name">{{ $data['nama'] ?? '-' }}</td>
+                    {{-- [PERBAIKAN] Menampilkan NIP dari array --}}
+                    <td>{{ $data['nip'] ?? '-' }}</td>
+
                     @for ($day = 1; $day <= $daysInMonth; $day++)
                         @php
-                            $status = $data->daily_data[$day] ?? 'L'; // Default ke 'Libur' jika tidak ada data
+                            // [PERBAIKAN] Mengambil status dari array 'detail' berdasarkan key hari, dan 'status' di dalamnya
+                            $status = $data['detail'][$day]['status'] ?? 'L'; // Default ke 'Libur' jika tidak ada data
                         @endphp
                         <td class="{{ $status === 'H' ? 'text-success' : 'text-danger' }}">
                             {{ $status }}
                         </td>
                     @endfor
-                    <td class="fw-bold text-success">{{ $data->total_hadir }}</td>
-                    <td class="fw-bold text-danger">{{ $data->total_alpha }}</td>
+
+                    {{-- [PERBAIKAN] Mengambil total dari array 'summary' --}}
+                    <td class="fw-bold text-success">{{ $data['summary']['total_hadir'] }}</td>
+                    <td class="fw-bold text-danger">{{ $data['summary']['total_alpha'] }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
     <div class="footer">
+        {{-- ... (Bagian footer Anda sudah benar) ... --}}
         <p>Gorontalo, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}</p>
         <p>Bendahara Umum,</p>
         <div class="signature-space">

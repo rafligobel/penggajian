@@ -127,9 +127,10 @@ Route::middleware(['auth', 'role:bendahara'])->group(function () {
 
     // Absensi
     Route::get('/rekap-absensi', [AbsensiController::class, 'rekapPerBulan'])->name('absensi.rekap');
-    Route::get('/sesi-absensi', [SesiAbsensiController::class, 'index'])->name('sesi-absensi.index');
-    Route::post('sesi-absensi', [SesiAbsensiController::class, 'storeOrUpdate'])->name('sesi-absensi.storeOrUpdate');
-    Route::get('sesi-absensi/calendar-events', [SesiAbsensiController::class, 'getCalendarEvents'])->name('sesi-absensi.calendar-events');
+    Route::get('/sesi-absensi', [SesiAbsensiController::class, 'index'])->name('sesi_absensi.index');
+    Route::post('sesi-absensi', [SesiAbsensiController::class, 'storeOrUpdate'])->name('sesi_absensi.storeOrUpdate');
+    Route::get('sesi-absensi/calendar-events', [SesiAbsensiController::class, 'getCalendarEvents'])->name('sesi_absensi.calendar-events');
+    Route::delete('sesi-absensi/{sesi_absensi}', [SesiAbsensiController::class, 'destroy'])->name('sesi_absensi.destroy');
 
     Route::get('/laporan/absensi/data', [App\Http\Controllers\AbsensiController::class, 'fetchRekapData'])->name('absensi.rekap.data');
 

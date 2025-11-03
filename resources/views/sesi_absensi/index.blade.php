@@ -112,8 +112,8 @@
     <div class="modal fade" id="defaultTimeModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <form action="{{ route('sesi-absensi.storeOrUpdate') }}" method="POST">
-                    @csrf
+                {{-- [PERBAIKAN] Pastikan route() menggunakan underscore --}}
+                <form action="{{ route('sesi_absensi.storeOrUpdate') }}" method="POST"> @csrf
                     <input type="hidden" name="update_default" value="1">
                     <div class="modal-header">
                         <h5 class="modal-title">Ubah Waktu Default Sesi</h5>
@@ -164,8 +164,7 @@
     <div class="modal fade" id="exceptionModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <form action="{{ route('sesi-absensi.storeOrUpdate') }}" method="POST">
-                    @csrf
+                <form action="{{ route('sesi_absensi.storeOrUpdate') }}" method="POST"> @csrf
                     <div class="modal-header">
                         <h5 class="modal-title">Buat Pengecualian Sesi Harian</h5>
                     </div>
@@ -264,7 +263,7 @@
                             center: 'title',
                             right: 'dayGridMonth,timeGridWeek'
                         },
-                        events: '{{ route('sesi-absensi.calendar-events') }}',
+                        events: '{{ route('sesi_absensi.calendar-events') }}',
                         eventDidMount: (info) => {
                             if (bootstrap.Tooltip) {
                                 new bootstrap.Tooltip(info.el, {

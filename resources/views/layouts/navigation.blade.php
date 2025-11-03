@@ -130,16 +130,16 @@
                     </a>
                 </li>
 
-                <li class="{{ Request::routeIs(['sesi-absensi.*', 'absensi.rekap']) ? 'active' : '' }}">
+                <li class="{{ Request::routeIs(['sesi_absensi.*', 'absensi.rekap']) ? 'active' : '' }}">
                     <a href="#absensiSubmenu" data-bs-toggle="collapse"
-                        aria-expanded="{{ Request::routeIs(['sesi-absensi.*', 'absensi.rekap']) ? '' : 'false' }}"
+                        aria-expanded="{{ Request::routeIs(['sesi_absensi.*', 'absensi.rekap']) ? '' : 'false' }}"
                         class="dropdown-toggle">
                         <i class="fas fa-calendar-check"></i> Kelola Absensi
                     </a>
-                    <ul class="collapse list-unstyled {{ Request::routeIs(['sesi-absensi.*', 'absensi.rekap']) ? 'show' : '' }}"
+                    <ul class="collapse list-unstyled {{ Request::routeIs(['sesi_absensi.*', 'absensi.rekap']) ? 'show' : '' }}"
                         id="absensiSubmenu">
-                        <li class="{{ Request::routeIs('sesi-absensi.*') ? 'active' : '' }}">
-                            <a href="{{ route('sesi-absensi.index') }}">Sesi Absensi</a>
+                        <li class="{{ Request::routeIs('sesi_absensi.*') ? 'active' : '' }}">
+                            <a href="{{ route('sesi_absensi.index') }}">Sesi Absensi</a>
                         </li>
                         <li class="{{ Request::routeIs('absensi.rekap') ? 'active' : '' }}">
                             <a href="{{ route('absensi.rekap') }}">Rekap Absensi</a>

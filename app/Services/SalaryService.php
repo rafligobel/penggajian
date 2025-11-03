@@ -164,6 +164,7 @@ class SalaryService
             'jumlah_hari_masuk' => $jumlahKehadiran,
             'gaji_bersih' => $gajiBersih,
             'rincian' => [
+                
                 'gaji_pokok' => $gajiPokok,
                 'tunj_jabatan' => $tunjJabatan,
                 'tunj_anak' => $tunjAnak,

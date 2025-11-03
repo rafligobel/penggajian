@@ -127,7 +127,9 @@ class SesiAbsensiController extends Controller
             );
 
             Cache::forget('sesi_absensi_default_setting');
-            return redirect()->route('sesi-absensi.index')->with('success', 'Pengaturan waktu default berhasil diperbarui.');
+
+            // PERBAIKAN TYPO ROUTING (1): 'sesi-absensi.index' diubah menjadi 'sesi_absensi.index'
+            return redirect()->route('sesi_absensi.index')->with('success', 'Pengaturan waktu default berhasil diperbarui.');
         }
 
         // LOGIKA UNTUK MODAL 2: Pengecualian Harian
@@ -163,7 +165,8 @@ class SesiAbsensiController extends Controller
             $message = 'Pengecualian sesi untuk tanggal ' . Carbon::parse($validated['tanggal'])->isoFormat('D MMMM YYYY') . ' berhasil disimpan.';
         }
 
-        return redirect()->route('sesi-absensi.index')->with('success', $message);
+        // PERBAIKAN TYPO ROUTING (2): 'sesi-absensi.index' diubah menjadi 'sesi_absensi.index'
+        return redirect()->route('sesi_absensi.index')->with('success', $message);
     }
 
     /**

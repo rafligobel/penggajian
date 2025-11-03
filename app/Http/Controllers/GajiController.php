@@ -95,17 +95,23 @@ class GajiController extends Controller
         $dataGaji = [];
         foreach ($karyawans as $karyawan) {
             // 1. Ambil data dasar (gaji_pokok, dll) dari service Anda
+            //    Service ini sudah benar memuat $gajiTersimpan (data historis)
             $detailGaji = $this->salaryService->calculateDetailsForForm($karyawan, $selectedMonth);
 
-            // --- AWAL REVISI (index) ---
-            // 2. Hitung tunjangan otomatis (Anak, Pengabdian)
-            $tunjanganDinamis = $this->hitungTunjanganDinamis($karyawan);
+            // --- AWAL PERBAIKAN ---
+            // Hanya hitung & timpa tunjangan dinamis JIKA gaji belum diproses
+            // (gaji_id masih null). Jika sudah diproses, kita gunakan
+            // data historis yang sudah dimuat oleh SalaryService.
+            if (is_null($detailGaji['gaji_id'])) {
+                // 2. Hitung tunjangan otomatis (Anak, Pengabdian)
+                $tunjanganDinamis = $this->hitungTunjanganDinamis($karyawan);
 
-            // 3. Timpa (overwrite) nilai dari service dengan nilai kalkulasi kita
-            $detailGaji['tunj_anak'] = $tunjanganDinamis['tunj_anak'];
-            $detailGaji['tunj_pengabdian'] = $tunjanganDinamis['tunj_pengabdian'];
-            $detailGaji['tunj_komunikasi'] = $tunjanganDinamis['tunj_komunikasi']; // Akan 0
-            // --- AKHIR REVISI (index) ---
+                // 3. Timpa (overwrite) nilai dari service dengan nilai kalkulasi kita
+                $detailGaji['tunj_anak'] = $tunjanganDinamis['tunj_anak'];
+                $detailGaji['tunj_pengabdian'] = $tunjanganDinamis['tunj_pengabdian'];
+                $detailGaji['tunj_komunikasi'] = $tunjanganDinamis['tunj_komunikasi']; // Akan 0
+            }
+            // --- AKHIR PERBAIKAN ---
 
             $dataGaji[] = $detailGaji;
         }
@@ -154,6 +160,7 @@ class GajiController extends Controller
 
         // --- AWAL REVISI (JSON Response) ---
         // Timpa lagi output service untuk data balikan JSON agar akurat
+        // (Ini diperlukan agar data di baris tabel langsung update dengan benar)
         $newData['tunj_anak'] = $tunjanganDinamis['tunj_anak'];
         $newData['tunj_pengabdian'] = $tunjanganDinamis['tunj_pengabdian'];
         $newData['tunj_komunikasi'] = $tunjanganDinamis['tunj_komunikasi']; // Akan 0

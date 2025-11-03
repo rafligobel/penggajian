@@ -185,6 +185,7 @@ class AbsensiController extends Controller
                 'rekap' => $rekap['rekapData'],
                 'nama_bulan' => $selectedMonth->translatedFormat('F Y'),
                 'total_hari_kerja' => $rekap['workingDaysCount'],
+                'days_in_month' => $rekap['daysInMonth'],
             ]);
         } catch (Exception $e) {
             // Log::error("Error fetching rekap data: " . $e->getMessage());

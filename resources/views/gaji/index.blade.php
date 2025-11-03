@@ -355,7 +355,8 @@
                 }, {
                     name: 'gaji_pokok',
                     label: 'Gaji Pokok',
-                    value: data.gaji_pokok_numeric,
+                    // --- PERBAIKAN: 'gaji_pokok_numeric' diubah menjadi 'gaji_pokok' ---
+                    value: data.gaji_pokok,
                     readonly: false,
                     isNumeric: true
                 }, {
@@ -423,8 +424,7 @@
                 formContent.innerHTML = fieldsHtml;
             }
 
-            // ================== PERBAIKAN JAVASCRIPT (populateDetailModal) ==================
-            // (Tidak ada perubahan, kode asli Anda sudah benar)
+            // ================== [PERBAIKAN FOKUS: JAVASCRIPT] (populateDetailModal) ==================
             function populateDetailModal(data) {
                 // 'data' adalah flat array
                 const modal = detailModalEl;
@@ -434,42 +434,36 @@
                     `<div class="row mb-2"><div class="col-7">${item.label}</div><div class="col-5 text-end">${item.value}</div></div>`
                 ).join('');
 
+                // --- AWAL PERBAIKAN ---
+                // Menggunakan key '_string' agar 100% konsisten dengan PDF dan Service
+                // Menghapus panggilan formatRupiah() yang tidak perlu dan rawan error
                 const pendapatanItems = [{
-                    // Sudah menggunakan formatRupiah
                     label: 'Gaji Pokok',
-                    value: formatRupiah(data.gaji_pokok_numeric)
+                    value: data.gaji_pokok_string
                 }, {
-                    // Sudah menggunakan formatRupiah
                     label: 'Tunjangan Jabatan',
-                    value: formatRupiah(data.tunj_jabatan)
+                    value: data.tunj_jabatan_string
                 }, {
-                    // Sudah menggunakan formatRupiah
                     label: 'Tunjangan Anak',
-                    value: formatRupiah(data.tunj_anak)
+                    value: data.tunj_anak_string
                 }, {
-                    // Sudah menggunakan formatRupiah
                     label: 'Tunjangan Komunikasi',
-                    value: formatRupiah(data.tunj_komunikasi)
+                    value: data.tunj_komunikasi_string
                 }, {
-                    // Sudah menggunakan formatRupiah
                     label: 'Tunjangan Pengabdian',
-                    value: formatRupiah(data.tunj_pengabdian)
+                    value: data.tunj_pengabdian_string
                 }, {
-                    // Sudah menggunakan formatRupiah
                     label: 'Tunjangan Kinerja',
-                    value: formatRupiah(data.tunj_kinerja)
+                    value: data.tunj_kinerja_string
                 }, {
-                    // Gunakan 'total_kehadiran' dan 'total_tunjangan_kehadiran_string' (Diasumsikan sudah ber-Rp)
                     label: `Tunj. Kehadiran (${data.total_kehadiran} hari)`,
                     value: data.total_tunjangan_kehadiran_string
                 }, {
-                    // Sudah menggunakan formatRupiah
                     label: 'Lembur',
-                    value: formatRupiah(data.lembur)
+                    value: data.lembur_string
                 }, ];
 
                 detailContent.innerHTML = `
-                {{-- 'nip' tidak ada di service --}}
                 <p><strong>Jabatan:</strong> ${data.jabatan}</p><hr>
                 <div class="row">
                     <div class="col-lg-6 mb-4 mb-lg-0 border-end">
@@ -478,18 +472,18 @@
                     </div>
                     <div class="col-lg-6">
                         <h5 class="mb-3 text-danger">B. Potongan</h5>
-                        ${rincianHtml([{ label: 'Potongan Lain-lain', value: `<span class="text-danger">(${formatRupiah(data.potongan)})</span>` }])}
+                        ${rincianHtml([{ label: 'Potongan Lain-lain', value: `<span class="text-danger">(${data.potongan_string})</span>` }])}
                     </div>
                 </div>
                 <hr class="my-4">
                 <div class="bg-light p-3 rounded">
                     <div class="row align-items-center">
                         <div class="col-7"><h5 class="mb-0">GAJI BERSIH (A - B)</h5></div>
-                        {{-- Gunakan 'gaji_bersih_string' (Diasumsikan sudah ber-Rp) --}}
                         <div class="col-5 text-end"><h5 class="mb-0 fw-bold text-success">${data.gaji_bersih_string}</h5></div>
                     </div>
                 </div>
             `;
+                // --- AKHIR PERBAIKAN ---
 
                 const downloadBtn = modal.querySelector('.btn-download-slip');
                 const emailBtn = modal.querySelector('.btn-send-email');
@@ -506,7 +500,6 @@
                     newDownloadBtn.disabled = false;
 
                     // Tombol kirim email akan aktif jika gaji sudah diproses DAN karyawan memiliki email.
-                    // Asumsi: field 'email' ada di flat array 'data'
                     const hasEmail = data.email && data.email.trim() !== '';
                     newEmailBtn.disabled = !hasEmail;
 
