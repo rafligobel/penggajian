@@ -18,6 +18,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\AturanTunjanganAnakController;
 use App\Http\Controllers\AturanTunjanganPengabdianController;
+use App\Http\Controllers\PengaturanKinerjaController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -95,6 +96,14 @@ Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
 
     // Rute untuk Tunjangan Pengabdian (Hapus 'create' dan 'edit')
     Route::resource('aturan-pengabdian', AturanTunjanganPengabdianController::class)->except(['show', 'create', 'edit']);
+
+    Route::get('pengaturan-kinerja', [PengaturanKinerjaController::class, 'index'])->name('pengaturan-kinerja.index');
+    // Rute untuk update Aturan (Nilai Maks)
+    Route::put('pengaturan-kinerja/aturan', [PengaturanKinerjaController::class, 'updateAturan'])->name('pengaturan-kinerja.aturan.update');
+    // Rute untuk CRUD Indikator
+    Route::post('pengaturan-kinerja/indikator', [PengaturanKinerjaController::class, 'storeIndikator'])->name('pengaturan-kinerja.indikator.store');
+    Route::put('pengaturan-kinerja/indikator/{indikator}', [PengaturanKinerjaController::class, 'updateIndikator'])->name('pengaturan-kinerja.indikator.update');
+    Route::delete('pengaturan-kinerja/indikator/{indikator}', [PengaturanKinerjaController::class, 'destroyIndikator'])->name('pengaturan-kinerja.indikator.destroy');
 });
 
 Route::middleware(['auth', 'role:superadmin,admin,bendahara'])->group(function () {

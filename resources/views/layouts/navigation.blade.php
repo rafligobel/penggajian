@@ -95,6 +95,9 @@
                         <li class="{{ Request::routeIs('aturan-pengabdian.*') ? 'active' : '' }}">
                             <a href="{{ route('aturan-pengabdian.index') }}">Aturan Tunjangan Pengabdian</a>
                         </li>
+                        <li class="{{ Request::routeIs('pengaturan-kinerja.index') ? 'active' : '' }}">
+                            <a href="{{ route('pengaturan-kinerja.index') }}">Aturan & Indikator Kinerja</a>
+                        </li>
                     </ul>
                 </li>
                 <li class="{{ Request::routeIs('karyawan.*') ? 'active' : '' }}">

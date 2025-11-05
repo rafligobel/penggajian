@@ -168,6 +168,55 @@
                             </div>
                         </div>
                         <hr>
+
+                        {{-- ================== AWAL TAMBAHAN HTML (TUNJANGAN KINERJA) ================== --}}
+                        <h6 class="form-label fw-bold">Penilaian Kinerja (untuk Tunjangan Kinerja)</h6>
+
+                        {{-- Variabel $aturanKinerja dan $indikatorKinerjas dikirim dari GajiController@index --}}
+                        @if ($aturanKinerja && $aturanKinerja->maksimal_tunjangan > 0)
+                            <div class="alert alert-info py-2" role="alert">
+                                Tunjangan Kinerja Maksimal: <strong>Rp
+                                    {{ number_format($aturanKinerja->maksimal_tunjangan, 0, ',', '.') }}</strong>.
+                                <br>
+                                <small>Nominal Tukin = (Rata-rata Skor / 100) * Tunjangan Maksimal.</small>
+                            </div>
+                        @else
+                            <div class="alert alert-warning py-2" role="alert">
+                                Tunjangan Kinerja Maksimal belum diatur oleh Admin.
+                                {{-- PERUBAHAN ROUTE: Mengarah ke route terpadu --}}
+                                Silakan atur di menu <a href="{{ route('pengaturan-kinerja.index') }}"
+                                    target="_blank">Aturan Kinerja</a>.
+                            </div>
+                        @endif
+
+                        <div class="row">
+                            @forelse ($indikatorKinerjas as $indikator)
+                                <div class="col-md-6 mb-3">
+                                    <label for="score-{{ $indikator->id }}"
+                                        class="form-label">{{ $indikator->nama_indikator }}</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control score-input"
+                                            name="scores[{{ $indikator->id }}]" id="score-{{ $indikator->id }}"
+                                            data-indikator-id="{{ $indikator->id }}" value="0" min="0"
+                                            max="100" required>
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="col-12">
+                                    <div class="alert alert-light" role="alert">
+                                        Belum ada Master Indikator Kinerja yang diatur oleh Admin.
+                                        {{-- PERUBAHAN ROUTE: Mengarah ke route terpadu --}}
+                                        <a href="{{ route('pengaturan-kinerja.index') }}" target="_blank">Atur di
+                                            sini</a>.
+                                    </div>
+                                </div>
+                            @endforelse
+                        </div>
+                        <hr>
+                        {{-- ================== AKHIR TAMBAHAN HTML (TUNJANGAN KINERJA) ================== --}}
+
+
                         <div id="edit-form-content" class="row"></div>
                     </div>
                     <div class="modal-footer">
@@ -217,8 +266,6 @@
                 // Gunakan key _string untuk data tampilan
                 row.querySelector('.gaji-pokok-col').textContent = newData.gaji_pokok_string;
 
-                // 'tunj_jabatan' tidak ada di service, jadi tetap 0
-                // row.querySelector('.tunj-jabatan-col').textContent = formatRupiah(newData.tunj_jabatan).replace('Rp', 'Rp ');
                 row.querySelector('.tunj-jabatan-col').textContent = newData.tunj_jabatan_string;
                 row.querySelector('.gaji-bersih-col').innerHTML =
                     `<span class="badge bg-success">${newData.gaji_bersih_string}</span>`;
@@ -250,10 +297,8 @@
                         if (data.success) {
                             showResponseMessage(data.message, true);
                             editModal.hide();
-                            // 'data.newData' adalah flat array, sesuai dengan service
                             updateTableRow(data.newData);
                         } else {
-                            // [REVISI] Menampilkan error validasi (jika ada)
                             if (data.errors) {
                                 let errorMsg = data.message || 'Gagal menyimpan data.';
                                 for (const key in data.errors) {
@@ -277,16 +322,13 @@
 
             // --- EVENT LISTENER UNTUK TOMBOL-TOMBOL AKSI DI TABEL ---
             document.getElementById('gaji-table-body').addEventListener('click', function(e) {
-                // [REVISI] Target 'btn-edit' atau 'btn-detail'
                 const button = e.target.closest('.btn-detail, .btn-edit');
                 if (!button) return;
-
-                // Event 'show.bs.modal' akan menangani populasi data
             });
 
             // [REVISI] Gunakan event 'show.bs.modal' untuk 'editModal'
             editModalEl.addEventListener('show.bs.modal', function(event) {
-                const button = event.relatedTarget; // Tombol yang memicu modal
+                const button = event.relatedTarget;
                 if (!button) return;
 
                 const row = button.closest('tr.karyawan-row');
@@ -294,11 +336,32 @@
 
                 const gajiData = JSON.parse(row.getAttribute('data-gaji-json'));
                 populateEditModal(gajiData);
+
+                // ================== AWAL TAMBAHAN JS (MENGISI SKOR SAAT MODAL BUKA) ==================
+                // 1. Reset semua input skor ke 0 (atau nilai default)
+                editModalEl.querySelectorAll('.score-input').forEach(input => {
+                    input.value = 0;
+                });
+
+                // 2. Ambil data skor tersimpan (dari SalaryService 'penilaian_kinerja')
+                const savedScores = gajiData.penilaian_kinerja;
+
+                // 3. Isi input skor jika datanya ada
+                if (savedScores) {
+                    for (const [indikator_id, skor] of Object.entries(savedScores)) {
+                        const scoreInput = editModalEl.querySelector(
+                            `.score-input[data-indikator-id="${indikator_id}"]`);
+                        if (scoreInput) {
+                            scoreInput.value = skor;
+                        }
+                    }
+                }
+                // ================== AKHIR TAMBAHAN JS ==================
             });
 
             // [REVISI] Gunakan event 'show.bs.modal' untuk 'detailModal'
             detailModalEl.addEventListener('show.bs.modal', function(event) {
-                const button = event.relatedTarget; // Tombol yang memicu modal
+                const button = event.relatedTarget;
                 if (!button) return;
 
                 const row = button.closest('tr.karyawan-row');
@@ -317,10 +380,9 @@
                 let visibleRows = 0;
 
                 rows.forEach(row => {
-                    // Sesuaikan pencarian dengan data yang ada: 'nama' dan 'jabatan'
                     const nama = row.querySelector('.nama-karyawan').textContent.toLowerCase();
                     const nip = row.querySelector('.nip-karyawan').textContent
-                        .toLowerCase(); // Ini sekarang isinya 'Jabatan'
+                        .toLowerCase();
                     if (nama.includes(searchTerm) || nip.includes(searchTerm)) {
                         row.style.display = '';
                         visibleRows++;
@@ -333,7 +395,6 @@
 
             // ================== [REVISI UTAMA JAVASCRIPT] (populateEditModal) ==================
             function populateEditModal(data) {
-                // 'data' adalah flat array
                 const modal = editModalEl;
                 modal.querySelector('#editModalLabel').textContent = `Kelola Gaji: ${data.nama}`;
                 modal.querySelector('#periode-modal').value = new Date(data.bulan + '-02').toLocaleDateString(
@@ -342,10 +403,18 @@
                         year: 'numeric'
                     });
                 modal.querySelector('#edit-karyawan-id').value = data.karyawan_id;
-                modal.querySelector('#tunjangan_kehadiran_id_modal').value = data.tunjangan_kehadiran_id;
+
+                // Periksa apakah tunjangan_kehadiran_id ada, jika tidak set default
+                const tunjKehadiranSelect = modal.querySelector('#tunjangan_kehadiran_id_modal');
+                if (data.tunjangan_kehadiran_id) {
+                    tunjKehadiranSelect.value = data.tunjangan_kehadiran_id;
+                } else if (tunjKehadiranSelect.options.length > 0) {
+                    // Set ke opsi pertama jika belum ada data
+                    tunjKehadiranSelect.value = tunjKehadiranSelect.options[0].value;
+                }
+
                 const formContent = modal.querySelector('#edit-form-content');
 
-                // Siapkan data field dengan properti tambahan untuk kontrol
                 const fields = [{
                     name: 'tunj_jabatan',
                     label: 'Tunjangan Jabatan',
@@ -355,33 +424,23 @@
                 }, {
                     name: 'gaji_pokok',
                     label: 'Gaji Pokok',
-                    // --- PERBAIKAN: 'gaji_pokok_numeric' diubah menjadi 'gaji_pokok' ---
                     value: data.gaji_pokok,
                     readonly: false,
                     isNumeric: true
                 }, {
-                    // --- REVISI 2: Tunjangan Anak (Otomatis) ---
                     name: 'tunj_anak',
-                    label: 'Tunjangan Anak (Otomatis)', // Label diubah
-                    value: data.tunj_anak, // Nilai diambil dari data kalkulasi
-                    readonly: true, // Dibuat Readonly
+                    label: 'Tunjangan Anak (Otomatis)',
+                    value: data.tunj_anak,
+                    readonly: true,
                     isNumeric: true
                 }, {
-                    // --- REVISI 3: Tunjangan Pengabdian (Otomatis) ---
                     name: 'tunj_pengabdian',
-                    label: 'Tunj. Pengabdian (Otomatis)', // Label diubah
-                    value: data.tunj_pengabdian, // Nilai diambil dari data kalkulasi
-                    readonly: true, // Dibuat Readonly
+                    label: 'Tunj. Pengabdian (Otomatis)',
+                    value: data.tunj_pengabdian,
+                    readonly: true,
                     isNumeric: true
                 }, {
-                    // --- REVISI 1: Tunjangan Komunikasi (Dihapus) ---
-                    // Objek 'tunj_komunikasi' dihapus dari array ini
-                }, {
-                    name: 'tunj_kinerja',
-                    label: 'Tunj. Kinerja',
-                    value: data.tunj_kinerja,
-                    readonly: false,
-                    isNumeric: true
+                    // tunj_kinerja dihapus dari sini karena diinput di atas
                 }, {
                     name: 'lembur',
                     label: 'Lembur',
@@ -396,29 +455,40 @@
                     isNumeric: true
                 }];
 
-                // Map field menjadi HTML, menggunakan input-group untuk prefix "Rp"
                 let fieldsHtml = fields.map(f => {
-                    // Filter objek kosong (dari tunj_komunikasi yang dihapus)
-                    if (!f.name) return '';
+                    if (!f || !f.name) return '';
 
                     const inputType = f.isNumeric ? 'number' : 'text';
                     const readonlyAttr = f.readonly ? 'readonly' : '';
-
-                    // [REVISI] Jika readonly, JANGAN kirim 'name'
                     const inputName = f.readonly ? '' : `name="${f.name}"`;
                     const requiredAttr = f.readonly ? '' : 'required';
 
-                    const displayValue = f.readonly ? formatRupiah(f.value).replace('Rp', '').trim() :
+                    // Jika readonly, format sebagai Rupiah. Jika tidak, tampilkan angka mentah.
+                    const displayValue = f.readonly ?
+                        formatRupiah(f.value).replace(/\D/g, '') // Ambil angkanya saja untuk input
+                        :
                         parseFloat(f.value || 0);
 
-                    return `
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">${f.label} ${f.readonly ? '' : ''}</label>
-                        <div class="input-group">
-                            <span class="input-group-text">Rp</span>
-                            <input type="${inputType}" ${inputName} class="form-control" value="${displayValue}" ${readonlyAttr} ${requiredAttr}>
-                        </div>
-                    </div>`;
+                    // Gunakan formatRupiah untuk display readonly, tapi value tetap angka
+                    if (f.readonly) {
+                        return `
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">${f.label}</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="text" class="form-control" value="${formatRupiah(f.value).replace('Rp', '').trim()}" readonly>
+                            </div>
+                        </div>`;
+                    } else {
+                        return `
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">${f.label}</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="${inputType}" ${inputName} class="form-control" value="${displayValue}" ${readonlyAttr} ${requiredAttr} min="0">
+                            </div>
+                        </div>`;
+                    }
                 }).join('');
 
                 formContent.innerHTML = fieldsHtml;
@@ -426,7 +496,6 @@
 
             // ================== [PERBAIKAN FOKUS: JAVASCRIPT] (populateDetailModal) ==================
             function populateDetailModal(data) {
-                // 'data' adalah flat array
                 const modal = detailModalEl;
                 modal.querySelector('#detailModalLabel').textContent = `Detail Gaji: ${data.nama}`;
                 const detailContent = modal.querySelector('#detail-content');
@@ -434,9 +503,6 @@
                     `<div class="row mb-2"><div class="col-7">${item.label}</div><div class="col-5 text-end">${item.value}</div></div>`
                 ).join('');
 
-                // --- AWAL PERBAIKAN ---
-                // Menggunakan key '_string' agar 100% konsisten dengan PDF dan Service
-                // Menghapus panggilan formatRupiah() yang tidak perlu dan rawan error
                 const pendapatanItems = [{
                     label: 'Gaji Pokok',
                     value: data.gaji_pokok_string
@@ -483,27 +549,20 @@
                     </div>
                 </div>
             `;
-                // --- AKHIR PERBAIKAN ---
 
                 const downloadBtn = modal.querySelector('.btn-download-slip');
                 const emailBtn = modal.querySelector('.btn-send-email');
 
-                // --- PERBAIKAN Logika Tombol Slip/Email ---
-                // Hapus event listener lama
                 const newDownloadBtn = downloadBtn.cloneNode(true);
                 downloadBtn.parentNode.replaceChild(newDownloadBtn, downloadBtn);
                 const newEmailBtn = emailBtn.cloneNode(true);
                 emailBtn.parentNode.replaceChild(newEmailBtn, emailBtn);
 
-                // Cek 'gaji_id'
                 if (data.gaji_id) {
                     newDownloadBtn.disabled = false;
-
-                    // Tombol kirim email akan aktif jika gaji sudah diproses DAN karyawan memiliki email.
                     const hasEmail = data.email && data.email.trim() !== '';
                     newEmailBtn.disabled = !hasEmail;
 
-                    // Bangun URL dari 'gaji_id'
                     const downloadUrl = `/gaji/${data.gaji_id}/download-slip`;
                     const emailUrl = `/gaji/${data.gaji_id}/send-email`;
 

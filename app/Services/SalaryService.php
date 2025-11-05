@@ -24,7 +24,9 @@ class SalaryService
             $tanggal = Carbon::now()->startOfMonth();
         }
 
-        $gajiTersimpan = Gaji::where('karyawan_id', $karyawan->id)
+        // --- MODIFIKASI QUERY: Tambahkan eager loading 'penilaianKinerjas' ---
+        $gajiTersimpan = Gaji::with(['tunjanganKehadiran', 'penilaianKinerjas'])
+            ->where('karyawan_id', $karyawan->id)
             ->whereYear('bulan', $tanggal->year)
             ->whereMonth('bulan', $tanggal->month)
             ->first();
@@ -101,6 +103,10 @@ class SalaryService
             'total_tunjangan_kehadiran_string' => 'Rp ' . number_format($tunjKehadiran, 0, ',', '.'),
             'gaji_bersih_string' => $gajiBersihString, // Menggunakan variabel yang sudah didefinisikan
 
+            // --- TAMBAHKAN KEY BARU UNTUK SKOR ---
+            // Ini akan berisi [indikator_id => skor], contoh: [1 => 90, 2 => 85]
+            'penilaian_kinerja' => $gajiTersimpan ? $gajiTersimpan->penilaianKinerjas->pluck('skor', 'indikator_kinerja_id') : [],
+
             // Rincian Kehadiran
             'tunj_kehadiran_rincian' => [
                 'per_hari' => $tunjanganPerKehadiran,
@@ -129,7 +135,7 @@ class SalaryService
                 'tunj_anak' => $data['tunj_anak'] ?? 0,
                 'tunj_komunikasi' => $data['tunj_komunikasi'] ?? 0,
                 'tunj_pengabdian' => $data['tunj_pengabdian'] ?? 0,
-                'tunj_kinerja' => $data['tunj_kinerja'] ?? 0,
+                'tunj_kinerja' => $data['tunj_kinerja'] ?? 0, // Ini akan diisi oleh GajiController
                 'lembur' => $data['lembur'] ?? 0,
                 'potongan' => $data['potongan'] ?? 0,
                 'tunjangan_kehadiran_id' => $data['tunjangan_kehadiran_id'],
@@ -164,7 +170,7 @@ class SalaryService
             'jumlah_hari_masuk' => $jumlahKehadiran,
             'gaji_bersih' => $gajiBersih,
             'rincian' => [
-                
+
                 'gaji_pokok' => $gajiPokok,
                 'tunj_jabatan' => $tunjJabatan,
                 'tunj_anak' => $tunjAnak,

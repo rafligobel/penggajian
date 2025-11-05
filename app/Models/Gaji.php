@@ -56,7 +56,11 @@ class Gaji extends Model
     {
         return $this->belongsTo(\App\Models\TunjanganKehadiran::class, 'tunjangan_kehadiran_id');
     }
-
+    
+    public function penilaianKinerjas()
+    {
+        return $this->hasMany(PenilaianKinerja::class);
+    }
     /*
     |--------------------------------------------------------------------------
     | [PERBAIKAN 2: HAPUS ACCESSOR]

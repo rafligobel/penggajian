@@ -17,6 +17,11 @@ use App\Models\AturanTunjanganAnak;
 use App\Models\AturanTunjanganPengabdian;
 use Illuminate\Support\Facades\Cache;
 
+// --- TAMBAHAN BARU UNTUK KINERJA ---
+use App\Models\AturanKinerja;
+use App\Models\IndikatorKinerja;
+use App\Models\PenilaianKinerja;
+
 class GajiController extends Controller
 {
     protected SalaryService $salaryService;
@@ -92,6 +97,16 @@ class GajiController extends Controller
         // Revisi 1: Ambil data Tunjangan Kehadiran untuk dropdown modal
         $tunjanganKehadirans = TunjanganKehadiran::all();
 
+        // --- TAMBAHAN BARU UNTUK KINERJA ---
+        // Ambil data Master Indikator
+        $indikatorKinerjas = IndikatorKinerja::all();
+        // Ambil aturan Tukin (nominal maksimal)
+        $aturanKinerja = Cache::remember('aturan_kinerja_single', 3600, function () {
+            return AturanKinerja::first();
+        });
+        // --- AKHIR TAMBAHAN ---
+
+
         $dataGaji = [];
         foreach ($karyawans as $karyawan) {
             // 1. Ambil data dasar (gaji_pokok, dll) dari service Anda
@@ -116,12 +131,19 @@ class GajiController extends Controller
             $dataGaji[] = $detailGaji;
         }
 
-        // Pastikan $tunjanganKehadirans dikirim ke view untuk modal
-        return view('gaji.index', compact('dataGaji', 'selectedMonth', 'tunjanganKehadirans'));
+        // --- UBAH COMPACT ---
+        // Pastikan $tunjanganKehadirans, $indikatorKinerjas, $aturanKinerja dikirim ke view
+        return view('gaji.index', compact(
+            'dataGaji',
+            'selectedMonth',
+            'tunjanganKehadirans',
+            'indikatorKinerjas', // Kirim master indikator
+            'aturanKinerja'      // Kirim aturan (nilai maks)
+        ));
     }
 
     /**
-     * [REVISI] Method saveOrUpdate di-update agar MENYIMPAN tunjangan yang sudah dihitung
+     * [REVISI] Method saveOrUpdate di-update agar MENGHITUNG dan MENYIMPAN Tukin & skornya
      */
     public function saveOrUpdate(Request $request)
     {
@@ -130,32 +152,81 @@ class GajiController extends Controller
             'karyawan_id' => 'required|exists:karyawans,id',
             'bulan' => 'required|date_format:Y-m',
             'gaji_pokok' => 'required|numeric|min:0',
-            'tunj_kinerja' => 'required|numeric|min:0',
+            // 'tunj_kinerja' DIHAPUS dari validasi, akan dihitung
             'lembur' => 'required|numeric|min:0',
             'potongan' => 'required|numeric|min:0',
-            // Revisi 1: 'tunjangan_kehadiran_id' adalah input manual (dropdown)
             'tunjangan_kehadiran_id' => 'required|exists:tunjangan_kehadirans,id',
 
-            // 'tunj_anak', 'tunj_komunikasi', 'tunj_pengabdian' DIHAPUS dari validasi
-            // karena akan dihitung otomatis
+            // Validasi untuk input skor
+            'scores' => 'nullable|array',
+            'scores.*' => 'required|numeric|min:0|max:100', // Skor harus 0-100
         ]);
 
         // --- AWAL REVISI (saveOrUpdate) ---
         // 2. Ambil model Karyawan
         $karyawan = Karyawan::find($validatedData['karyawan_id']);
 
-        // 3. Panggil fungsi kalkulasi baru kita (Anak, Pengabdian)
+        // 3. Panggil fungsi kalkulasi (Anak, Pengabdian)
         $tunjanganDinamis = $this->hitungTunjanganDinamis($karyawan);
 
-        // 4. Gabungkan hasil kalkulasi ke data yang akan disimpan
-        $dataUntukDisimpan = array_merge($validatedData, $tunjanganDinamis);
+        // --- AWAL KALKULASI KINERJA (SESUAI PERMINTAAN BARU) ---
+
+        // 4. Ambil Aturan Tukin (Nilai Maksimal)
+        $aturanKinerja = Cache::remember('aturan_kinerja_single', 3600, function () {
+            return AturanKinerja::first();
+        });
+        $maksimalTunjangan = $aturanKinerja ? $aturanKinerja->maksimal_tunjangan : 0;
+
+        // 5. Hitung Skor Rata-rata dari Input Bendahara
+        $scores = $request->input('scores', []);
+        $totalSkor = 0;
+        $jumlahIndikator = count($scores);
+        $rataRataSkor = 0;
+
+        if ($jumlahIndikator > 0) {
+            foreach ($scores as $skor) {
+                $totalSkor += (float)$skor;
+            }
+            $rataRataSkor = $totalSkor / $jumlahIndikator; // Hasilnya 0-100
+        }
+
+        // 6. Hitung Nominal Tukin
+        // Rumus: (Skor Rata-rata / 100) * Tunjangan Maksimal
+        $tunjanganKinerjaNominal = ($rataRataSkor / 100) * $maksimalTunjangan;
+
+        // --- AKHIR KALKULASI KINERJA ---
+
+        // 7. Gabungkan semua hasil kalkulasi ke data yang akan disimpan
+        $dataUntukDisimpan = array_merge(
+            $validatedData,
+            $tunjanganDinamis,
+            ['tunj_kinerja' => $tunjanganKinerjaNominal] // Timpa/Isi tunj_kinerja
+        );
         // --- AKHIR REVISI (saveOrUpdate) ---
 
-        // 5. Simpan ke database menggunakan service Anda
-        //    Service Anda akan menyimpan semua data di $dataUntukDisimpan
-        $this->salaryService->saveGaji($dataUntukDisimpan);
+        // 8. Simpan ke database menggunakan service Anda
+        //    Service Anda akan menyimpan semua data di $dataUntukDisimpan ke tabel 'gajis'
+        $gaji = $this->salaryService->saveGaji($dataUntukDisimpan);
 
-        // 6. Ambil data terbaru dari service untuk dikirim balik ke view
+        // 9. Simpan rincian skor ke tabel 'penilaian_kinerjas'
+        //    Hapus data skor lama (jika ada)
+        $gaji->penilaianKinerjas()->delete();
+        //    Simpan data skor baru
+        if (!empty($scores)) {
+            $dataSkorBatch = [];
+            foreach ($scores as $indikator_id => $skor) {
+                $dataSkorBatch[] = [
+                    'gaji_id' => $gaji->id,
+                    'indikator_kinerja_id' => $indikator_id,
+                    'skor' => (int)$skor,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+            PenilaianKinerja::insert($dataSkorBatch);
+        }
+
+        // 10. Ambil data terbaru dari service untuk dikirim balik ke view
         $newData = $this->salaryService->calculateDetailsForForm($karyawan, $validatedData['bulan']);
 
         // --- AWAL REVISI (JSON Response) ---
@@ -164,6 +235,7 @@ class GajiController extends Controller
         $newData['tunj_anak'] = $tunjanganDinamis['tunj_anak'];
         $newData['tunj_pengabdian'] = $tunjanganDinamis['tunj_pengabdian'];
         $newData['tunj_komunikasi'] = $tunjanganDinamis['tunj_komunikasi']; // Akan 0
+        // Tunjangan Kinerja sudah dihitung ulang oleh service, jadi tidak perlu ditimpa
         // --- AKHIR REVISI (JSON Response) ---
 
         return response()->json([
@@ -176,12 +248,14 @@ class GajiController extends Controller
     // Fungsi lain (downloadSlip, sendEmail) tidak berubah
     public function downloadSlip(Gaji $gaji)
     {
+        // ... (Tidak berubah) ...
         GenerateIndividualSlip::dispatch($gaji->id, Auth::id());
         return response()->json(['message' => 'Permintaan diterima! Slip sedang dibuat & akan muncul di notifikasi jika siap.']);
     }
 
     public function sendEmail(Gaji $gaji)
     {
+        // ... (Tidak berubah) ...
         if (empty($gaji->karyawan->email)) {
             return response()->json(['message' => 'Gagal. Karyawan ini tidak memiliki alamat email.'], 422);
         }
