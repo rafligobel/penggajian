@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Slip Gaji - {{ $gaji->karyawan->nama ?? 'N/A' }} -
+    {{-- PERBAIKAN: Gunakan data snapshot untuk judul --}}
+    <title>Slip Gaji - {{ $gaji->nama_karyawan_snapshot ?? 'N/A' }} -
         {{ $gaji->bulan->translatedFormat('F Y') }}</title>
     <style>
         /* CSS styles (tidak ada perubahan signifikan, hanya memastikan konsistensi) */
@@ -156,18 +157,23 @@
                     <td style="width: 35%;">Periode Gaji</td>
                     <td style="width: 65%;">: {{ $gaji->bulan->translatedFormat('F Y') }}</td>
                 </tr>
+                {{-- --- AWAL PERBAIKAN HISTORIS --- --}}
                 <tr>
                     <td>Nama Karyawan</td>
-                    <td style="width: 65%;">: {{ $gaji->karyawan->nama ?? 'N/A' }}</td>
+                    {{-- Ubah dari relasi $gaji->karyawan->nama menjadi data snapshot --}}
+                    <td style="width: 65%;">: {{ $gaji->nama_karyawan_snapshot ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td>NP</td>
-                    <td style="width: 65%;">: {{ $gaji->karyawan->nip ?? 'N/A' }}</td>
+                    {{-- Ubah dari relasi $gaji->karyawan->nip menjadi data snapshot --}}
+                    <td style="width: 65%;">: {{ $gaji->nip_snapshot ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td>Jabatan</td>
-                    <td style="width: 65%;">: {{ $gaji->karyawan->jabatan->nama_jabatan ?? 'N/A' }}</td>
+                    {{-- Ubah dari relasi $gaji->karyawan->jabatan->nama_jabatan menjadi data snapshot --}}
+                    <td style="width: 65%;">: {{ $gaji->jabatan_snapshot ?? 'N/A' }}</td>
                 </tr>
+                {{-- --- AKHIR PERBAIKAN HISTORIS --- --}}
             </table>
         </div>
 

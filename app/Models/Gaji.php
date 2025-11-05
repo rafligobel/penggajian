@@ -1,4 +1,5 @@
 <?php
+// File: app/Models/Gaji.php
 
 namespace App\Models;
 
@@ -20,6 +21,13 @@ class Gaji extends Model
     protected $fillable = [
         'karyawan_id',
         'bulan',
+
+        // --- AWAL TAMBAHAN SNAPSHOT ---
+        'nama_karyawan_snapshot',
+        'nip_snapshot',
+        'jabatan_snapshot',
+        // --- AKHIR TAMBAHAN SNAPSHOT ---
+
         'gaji_pokok',
         'tunj_anak',
         'tunj_komunikasi',

@@ -1,4 +1,5 @@
 <?php
+// File: app/Services/SalaryService.php
 
 namespace App\Services;
 
@@ -12,7 +13,6 @@ class SalaryService
 {
     /**
      * [PERBAIKAN] Mengkalkulasi detail gaji untuk form admin atau slip.
-     * Dibuat lebih aman (robust) untuk menangani input bulan yang bervariasi.
      */
     public function calculateDetailsForForm(Karyawan $karyawan, string $bulan): array
     {
@@ -24,14 +24,12 @@ class SalaryService
             $tanggal = Carbon::now()->startOfMonth();
         }
 
-        // --- MODIFIKASI QUERY: Tambahkan eager loading 'penilaianKinerjas' ---
         $gajiTersimpan = Gaji::with(['tunjanganKehadiran', 'penilaianKinerjas'])
             ->where('karyawan_id', $karyawan->id)
             ->whereYear('bulan', $tanggal->year)
             ->whereMonth('bulan', $tanggal->month)
             ->first();
 
-        // Menggunakan karyawan_id untuk query absensi
         $jumlahKehadiran = Absensi::where('karyawan_id', $karyawan->id)
             ->whereYear('tanggal', $tanggal->year)
             ->whereMonth('tanggal', $tanggal->month)
@@ -40,10 +38,22 @@ class SalaryService
         $tunjanganPerKehadiran = 0;
         $tunjanganKehadiranId = null;
 
+        // --- AWAL PERBAIKAN ERROR 'is_default' ---
         if ($gajiTersimpan && $gajiTersimpan->tunjanganKehadiran) {
+            // 1. Jika gaji sudah ada, pakai ID dari data tersimpan
             $tunjanganPerKehadiran = $gajiTersimpan->tunjanganKehadiran->jumlah_tunjangan;
             $tunjanganKehadiranId = $gajiTersimpan->tunjangan_kehadiran_id;
+        } else {
+            // 2. Jika gaji BELUM ada, ambil aturan pertama sebagai default
+            //    (Mengganti logika `where('is_default', true)`)
+            $aturanDefault = TunjanganKehadiran::orderBy('id', 'asc')->first();
+
+            if ($aturanDefault) {
+                $tunjanganPerKehadiran = $aturanDefault->jumlah_tunjangan;
+                $tunjanganKehadiranId = $aturanDefault->id;
+            }
         }
+        // --- AKHIR PERBAIKAN ERROR 'is_default' ---
 
         $gajiPokok = $gajiTersimpan->gaji_pokok ?? $karyawan->gaji_pokok_default ?? 0;
         $tunjJabatan = $karyawan->jabatan->tunj_jabatan ?? 0;
@@ -58,9 +68,8 @@ class SalaryService
         $tunjKehadiran = $jumlahKehadiran * $tunjanganPerKehadiran;
 
         $gajiBersihNumeric = ($gajiPokok + $tunjJabatan + $tunjKehadiran + $tunjAnak + $tunjKomunikasi + $tunjPengabdian + $tunjKinerja + $lembur) - $potongan;
-        $gajiBersihString = 'Rp ' . number_format($gajiBersihNumeric, 0, ',', '.'); // Definisi string formatted
+        $gajiBersihString = 'Rp ' . number_format($gajiBersihNumeric, 0, ',', '.');
 
-        // Siapkan array hasil
         $result = [
             'gaji_id' => $gajiTersimpan->id ?? null,
             'karyawan_id' => $karyawan->id,
@@ -70,7 +79,6 @@ class SalaryService
             'jabatan' => $karyawan->jabatan->nama_jabatan ?? 'Tidak Ada Jabatan',
             'bulan' => $tanggal->format('Y-m'),
 
-            // Kunci yang dibutuhkan View PDF (Sudah diperbaiki di langkah sebelumnya)
             'gaji_pokok' => (float) $gajiPokok,
             'tunj_jabatan' => (float) $tunjJabatan,
             'tunj_anak' => (float) $tunjAnak,
@@ -81,16 +89,11 @@ class SalaryService
             'potongan' => (float) $potongan,
             'jumlah_kehadiran' => $jumlahKehadiran,
             'tunj_kehadiran' => (float) $tunjKehadiran,
-
-            // PERBAIKAN KRITIS: Menambahkan kunci array yang hilang
             'gaji_bersih' => $gajiBersihString,
-
-            // Kunci yang sudah ada
             'total_kehadiran' => $jumlahKehadiran,
             'tunjangan_kehadiran_id' => $tunjanganKehadiranId,
             'gaji_bersih_numeric' => $gajiBersihNumeric,
 
-            // Komponen String/Formatted
             'gaji_pokok_string' => 'Rp ' . number_format($gajiPokok, 0, ',', '.'),
             'tunj_jabatan_string' => 'Rp ' . number_format($tunjJabatan, 0, ',', '.'),
             'tunj_anak_string' => 'Rp ' . number_format($tunjAnak, 0, ',', '.'),
@@ -101,13 +104,10 @@ class SalaryService
             'potongan_string' => 'Rp ' . number_format($potongan, 0, ',', '.'),
 
             'total_tunjangan_kehadiran_string' => 'Rp ' . number_format($tunjKehadiran, 0, ',', '.'),
-            'gaji_bersih_string' => $gajiBersihString, // Menggunakan variabel yang sudah didefinisikan
+            'gaji_bersih_string' => $gajiBersihString,
 
-            // --- TAMBAHKAN KEY BARU UNTUK SKOR ---
-            // Ini akan berisi [indikator_id => skor], contoh: [1 => 90, 2 => 85]
             'penilaian_kinerja' => $gajiTersimpan ? $gajiTersimpan->penilaianKinerjas->pluck('skor', 'indikator_kinerja_id') : [],
 
-            // Rincian Kehadiran
             'tunj_kehadiran_rincian' => [
                 'per_hari' => $tunjanganPerKehadiran,
                 'total' => $tunjKehadiran,
@@ -117,9 +117,10 @@ class SalaryService
 
         return $result;
     }
+
     /**
      * [PERBAIKAN] Menyimpan atau update data gaji.
-     * Menggunakan format Y-m untuk input $data['bulan']
+     * Termasuk menyimpan data snapshot
      */
     public function saveGaji(array $data): Gaji
     {
@@ -128,14 +129,20 @@ class SalaryService
         return Gaji::updateOrCreate(
             [
                 'karyawan_id' => $data['karyawan_id'],
-                'bulan' => $bulanCarbon, // Simpan sebagai objek Carbon YYYY-MM-01
+                'bulan' => $bulanCarbon,
             ],
             [
+                // Data Snapshot (dari GajiController)
+                'nama_karyawan_snapshot' => $data['nama_karyawan_snapshot'] ?? null,
+                'nip_snapshot' => $data['nip_snapshot'] ?? null,
+                'jabatan_snapshot' => $data['jabatan_snapshot'] ?? null,
+
+                // Data Finansial
                 'gaji_pokok' => $data['gaji_pokok'] ?? 0,
                 'tunj_anak' => $data['tunj_anak'] ?? 0,
                 'tunj_komunikasi' => $data['tunj_komunikasi'] ?? 0,
                 'tunj_pengabdian' => $data['tunj_pengabdian'] ?? 0,
-                'tunj_kinerja' => $data['tunj_kinerja'] ?? 0, // Ini akan diisi oleh GajiController
+                'tunj_kinerja' => $data['tunj_kinerja'] ?? 0,
                 'lembur' => $data['lembur'] ?? 0,
                 'potongan' => $data['potongan'] ?? 0,
                 'tunjangan_kehadiran_id' => $data['tunjangan_kehadiran_id'],
@@ -144,7 +151,7 @@ class SalaryService
     }
 
     /**
-     * Fungsi simulasi (sudah ada di file Anda, tidak diubah)
+     * Fungsi simulasi (tidak diubah)
      */
     public function calculateSimulasi(Karyawan $karyawan, array $data): array
     {

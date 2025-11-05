@@ -1,4 +1,5 @@
 <?php
+// File: app/Http/Controllers/GajiController.php
 
 namespace App\Http\Controllers;
 
@@ -144,6 +145,7 @@ class GajiController extends Controller
 
     /**
      * [REVISI] Method saveOrUpdate di-update agar MENGHITUNG dan MENYIMPAN Tukin & skornya
+     * DAN MENYIMPAN DATA SNAPSHOT KARYAWAN
      */
     public function saveOrUpdate(Request $request)
     {
@@ -163,8 +165,8 @@ class GajiController extends Controller
         ]);
 
         // --- AWAL REVISI (saveOrUpdate) ---
-        // 2. Ambil model Karyawan
-        $karyawan = Karyawan::find($validatedData['karyawan_id']);
+        // 2. Ambil model Karyawan (WAJIB Eager Load 'jabatan' untuk snapshot)
+        $karyawan = Karyawan::with('jabatan')->find($validatedData['karyawan_id']);
 
         // 3. Panggil fungsi kalkulasi (Anak, Pengabdian)
         $tunjanganDinamis = $this->hitungTunjanganDinamis($karyawan);
@@ -196,19 +198,29 @@ class GajiController extends Controller
 
         // --- AKHIR KALKULASI KINERJA ---
 
-        // 7. Gabungkan semua hasil kalkulasi ke data yang akan disimpan
+        // --- AWAL TAMBAHAN SNAPSHOT KARYAWAN ---
+        // 7. Siapkan data snapshot dari karyawan
+        $snapshotData = [
+            'nama_karyawan_snapshot' => $karyawan->nama,
+            'nip_snapshot' => $karyawan->nip, // Asumsi NIP ada di 'nip'
+            'jabatan_snapshot' => $karyawan->jabatan ? $karyawan->jabatan->nama_jabatan : null,
+        ];
+        // --- AKHIR TAMBAHAN SNAPSHOT KARYAWAN ---
+
+        // 8. Gabungkan semua hasil kalkulasi ke data yang akan disimpan
         $dataUntukDisimpan = array_merge(
             $validatedData,
             $tunjanganDinamis,
-            ['tunj_kinerja' => $tunjanganKinerjaNominal] // Timpa/Isi tunj_kinerja
+            ['tunj_kinerja' => $tunjanganKinerjaNominal], // Timpa/Isi tunj_kinerja
+            $snapshotData // TAMBAHKAN DATA SNAPSHOT
         );
         // --- AKHIR REVISI (saveOrUpdate) ---
 
-        // 8. Simpan ke database menggunakan service Anda
+        // 9. Simpan ke database menggunakan service Anda
         //    Service Anda akan menyimpan semua data di $dataUntukDisimpan ke tabel 'gajis'
         $gaji = $this->salaryService->saveGaji($dataUntukDisimpan);
 
-        // 9. Simpan rincian skor ke tabel 'penilaian_kinerjas'
+        // 10. Simpan rincian skor ke tabel 'penilaian_kinerjas'
         //    Hapus data skor lama (jika ada)
         $gaji->penilaianKinerjas()->delete();
         //    Simpan data skor baru
@@ -226,7 +238,7 @@ class GajiController extends Controller
             PenilaianKinerja::insert($dataSkorBatch);
         }
 
-        // 10. Ambil data terbaru dari service untuk dikirim balik ke view
+        // 11. Ambil data terbaru dari service untuk dikirim balik ke view
         $newData = $this->salaryService->calculateDetailsForForm($karyawan, $validatedData['bulan']);
 
         // --- AWAL REVISI (JSON Response) ---
