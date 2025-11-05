@@ -61,3 +61,4 @@ class Gaji extends Model
     {
         return $this->hasMany(PenilaianKinerja::class);
     }
+}
