@@ -25,6 +25,7 @@ class Karyawan extends Model
         'user_id',
         'tanggal_masuk', // <-- REVISI DITAMBAHKAN
         'jumlah_anak',   // <-- REVISI DITAMBAHKAN
+        'foto',
     ];
 
     protected $casts = [

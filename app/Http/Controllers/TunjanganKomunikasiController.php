@@ -15,12 +15,12 @@ class TunjanganKomunikasiController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validatedData = $request->validate([
             'nama_level' => 'required|string|max:255', // Ganti field
             'besaran' => 'required|numeric|min:0', // Ganti field
         ]);
 
-        TunjanganKomunikasi::create($request->all()); // Ganti Model
+        TunjanganKomunikasi::create($validatedData); // Ganti Model
 
         return redirect()->route('tunjangan-komunikasi.index') // Ganti route
             ->with('success', 'Tunjangan komunikasi berhasil ditambahkan.');

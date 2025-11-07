@@ -18,7 +18,7 @@
     {{-- Tampilkan foto saat ini di halaman edit --}}
     @if (isset($karyawan) && $karyawan->foto)
         <div class="mt-2">
-            <img src="{{ asset('storage/foto_pegawai/' . $karyawan->foto) }}" alt="Foto saat ini"
+            <img src="{{ asset('uploads/foto_pegawai/' . $karyawan->foto) }}" alt="Foto saat ini"
                 style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;">
             <small class="d-block text-muted">Foto saat ini. Upload file baru untuk mengganti.</small>
         </div>

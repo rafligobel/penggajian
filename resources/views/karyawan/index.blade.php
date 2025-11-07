@@ -33,6 +33,11 @@
             border: none;
             padding: 1rem 1.25rem;
         }
+
+        #fotoModal {
+            z-index: 1060;
+            /* Harus lebih tinggi dari z-index modal detail (default 1050) */
+        }
     </style>
 
     <div class="container py-1">
@@ -73,6 +78,7 @@
                     <tr>
                         <th>No.</th>
                         <th class="text-start">Nama</th>
+                        <th>Foto</th>
                         <th>NP</th>
                         <th class="text-start">Email</th>
                         <th class="text-start">Jabatan</th>
@@ -110,7 +116,16 @@
     {{-- Modal Konfirmasi Hapus (Reusable Component) --}}
     <x-delete-confirmation-modal title="Konfirmasi Hapus Pegawai"
         body="Apakah Anda yakin ingin menghapus data karyawan ini secara permanen? Tindakan ini tidak dapat dibatalkan." />
-
+    <div class="modal fade" id="fotoModal" tabindex="-1" aria-labelledby="fotoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content" style="background: none; border: none;">
+                <div class="modal-body text-center p-0">
+                    <img id="fotoModalImage" src="" class="img-fluid rounded" alt="Foto Pegawai"
+                        style="max-height: 80vh;">
+                </div>
+            </div>
+        </div>
+    </div>
 
     @push('scripts')
         <script>
@@ -125,9 +140,9 @@
                 const userIsBendahara = {{ Auth::user()->role === 'bendahara' ? 'true' : 'false' }};
 
                 // URL default untuk foto (logo Al-Azhar dari layout Anda)
-                const defaultAvatar = "{{ asset('logo/logoalazhar.png') }}";
+                const defaultAvatar = "{{ asset('logo/user.png') }}";
                 // URL dasar untuk foto pegawai
-                const storageBaseUrl = "{{ asset('storage/foto_pegawai') }}";
+                const storageBaseUrl = "{{ asset('uploads/foto_pegawai') }}";
 
                 function renderTable(dataToRender) {
                     tableBody.innerHTML = '';
@@ -149,6 +164,7 @@
 
                         const namaJabatan = karyawan.jabatan ? karyawan.jabatan.nama_jabatan :
                             '<span class="text-muted">Tidak ada jabatan</span>';
+                        const fotoUrl = karyawan.foto ? `${storageBaseUrl}/${karyawan.foto}` : defaultAvatar;
 
                         let actionButtons = `
                             <button type="button" class="btn btn-sm btn-info btn-detail" title="Lihat Detail"
@@ -167,6 +183,12 @@
                         row.innerHTML = `
                             <td class="text-center">${index + 1}</td>
                             <td class="text-start fw-bold">${karyawan.nama}</td>
+                            <td class="text-center">
+                                <img src="${fotoUrl}" 
+                                     class="img-fluid rounded-circle" 
+                                     style="width: 40px; height: 40px; object-fit: cover;" 
+                                     alt="Foto ${karyawan.nama}">
+                            </td>
                             <td class="text-center">${karyawan.nip}</td>
                             <td class="text-start">${karyawan.email || '-'}</td>
                             <td class="text-start">${namaJabatan}</td>
@@ -191,7 +213,7 @@
                         const modalTitle = detailModalEl.querySelector('.modal-title');
                         const modalBody = detailModalEl.querySelector('#detailKaryawanModalBody');
 
-                        modalTitle.textContent = 'Detail Pegawai: ' + karyawan.nama;
+                        // modalTitle.textContent = 'Detail Pegawai: ' + karyawan.nama;
 
                         const namaJabatanModal = karyawan.jabatan ? karyawan.jabatan.nama_jabatan :
                             '<span class="text-muted">Tidak ada jabatan</span>';
@@ -216,9 +238,11 @@
                                 <div class="col-md-4 text-center border-end">
                                     
                                     <img src="${fotoUrl}" 
-                                         class="img-fluid img-thumbnail rounded-circle mb-3" 
-                                         style="width: 150px; height: 150px; object-fit: cover;" 
-                                         alt="Foto ${karyawan.nama}">
+                                             id="fotoDetailPegawai" 
+                                             class="img-fluid img-thumbnail rounded-circle mb-3" 
+                                             style="width: 150px; height: 150px; object-fit: cover; cursor: pointer;" 
+                                             alt="Foto ${karyawan.nama}"
+                                             title="Klik untuk memperbesar">
                                     
                                     <h4 class="mb-0 fw-bold">${karyawan.nama}</h4>
                                     <p class="text-muted fs-6 mb-0">NP: ${karyawan.nip}</p>
@@ -259,6 +283,22 @@
                                 </div>
                             </div>
                         `;
+                        const fotoDiModal = modalBody.querySelector('#fotoDetailPegawai');
+                        const fotoModalElement = document.getElementById('fotoModal');
+                        const fotoModalInstance = bootstrap.Modal.getOrCreateInstance(fotoModalElement);
+                        const fotoModalImage = document.getElementById('fotoModalImage');
+
+                        fotoDiModal.addEventListener('click', function() {
+                            fotoModalImage.src = this.src; // Set src gambar di modal kedua
+                            fotoModalInstance.show(); // Tampilkan modal kedua
+                        });
+
+                        // Handle agar modal foto tertutup saat modal detail ditutup
+                        detailModalEl.addEventListener('hide.bs.modal', function() {
+                            fotoModalInstance.hide();
+                        }, {
+                            once: true
+                        }); // 'once: true' agar listener ini terhapus otomatis
                         // ================== AKHIR PERBAIKAN HTML MODAL ==================
                     });
                 }

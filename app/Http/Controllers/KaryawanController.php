@@ -67,7 +67,7 @@ class KaryawanController extends Controller
         if ($request->hasFile('foto')) {
             $filename = time() . '_' . $request->file('foto')->getClientOriginalName();
             // Simpan file ke storage/app/public/foto_pegawai
-            $request->file('foto')->storeAs('public/foto_pegawai', $filename);
+            $request->file('foto')->storeAs('foto_pegawai', $filename, 'public_uploads');
             $karyawanData['foto'] = $filename; // Simpan nama file ke database
         }
 
@@ -127,7 +127,7 @@ class KaryawanController extends Controller
 
             // Simpan foto baru
             $filename = time() . '_' . $request->file('foto')->getClientOriginalName();
-            $request->file('foto')->storeAs('public/foto_pegawai', $filename);
+            $request->file('foto')->storeAs('foto_pegawai', $filename, 'public_uploads');
             $dataToUpdate['foto'] = $filename; // Tambahkan nama file baru ke data update
         }
 
