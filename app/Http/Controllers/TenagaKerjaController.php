@@ -171,6 +171,7 @@ class TenagaKerjaController extends Controller
         if ($request->hasFile('foto')) {
             // Hapus foto lama jika ada
             if ($karyawan->foto) {
+                // Pastikan path-nya benar
                 Storage::disk('public_uploads')->delete('foto_pegawai/' . $karyawan->foto);
             }
 
@@ -183,6 +184,7 @@ class TenagaKerjaController extends Controller
         // Update data
         $karyawan->update($dataToUpdate);
 
+        // Redirect kembali ke dashboard
         return redirect()->route('tenaga_kerja.dashboard')
             ->with('success', 'Data kepegawaian Anda berhasil diperbarui.');
     }

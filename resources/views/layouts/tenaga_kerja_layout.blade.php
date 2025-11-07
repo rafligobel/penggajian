@@ -28,6 +28,13 @@
             color: #495057;
             font-weight: 500;
         }
+
+        #dataSayaModal .modal-body {
+            max-height: 70vh;
+            /* Atur tinggi maksimal (misal: 70% dari tinggi layar) */
+            overflow-y: auto;
+            /* Tambahkan scrollbar jika kontennya melebihi max-height */
+        }
     </style>
 </head>
 

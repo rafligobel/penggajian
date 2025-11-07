@@ -5,6 +5,19 @@
         {{-- Kartu Sambutan --}}
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-body">
+                {{-- Tambahkan notifikasi sukses di sini --}}
+                @if (session('success'))
+                    <div class="alert alert-success" role="alert">
+                        {{ session('success') }}
+                    </div>
+                @endif
+                {{-- Tambahkan notifikasi error jika ada --}}
+                @if (session('error'))
+                    <div class="alert alert-danger" role="alert">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
                 <h4 class="fw-bold text-primary">Selamat Datang, {{ $karyawan->nama }}!</h4>
                 <p class="text-muted mb-0">Ini adalah pusat kendali Anda. Semua yang Anda butuhkan ada di sini.</p>
             </div>
@@ -18,7 +31,6 @@
                         <div class="bg-success text-white p-3 rounded-3 me-3"><i class="fas fa-money-bill-wave fa-lg"></i>
                         </div>
                         <div>
-                            {{-- [PERBAIKAN SINTAKS BLADE FOKUS] Memastikan blok @if tertutup dengan benar --}}
                             <h6 class="card-title text-muted mb-1">Gaji Bulan Ini ({{ now()->translatedFormat('F Y') }})
                             </h6>
                             @if ($gajiBulanIni)
@@ -71,10 +83,16 @@
                 data-bs-target="#laporanGajiModal">
                 <i class="fas fa-file-invoice-dollar fa-fw me-3 text-primary"></i>Laporan Gaji
             </a>
+
             <a href="#" class="list-group-item list-group-item-action fs-5" data-bs-toggle="modal"
+                data-bs-target="#dataSayaModal">
+                <i class="fas fa-id-card fa-fw me-3 text-info"></i>Data Saya
+            </a>
+            {{-- Link slip gaji asli bisa Anda tambahkan lagi di sini jika mau --}}
+            {{-- <a href="#" class="list-group-item list-group-item-action fs-5" data-bs-toggle="modal"
                 data-bs-target="#slipGajiModal">
                 <i class="fas fa-receipt fa-fw me-3 text-success"></i>Unduh Slip Gaji
-            </a>
+            </a> --}}
         </div>
     </div>
 
@@ -120,13 +138,9 @@
         </div>
     </div>
 
-
     {{-- 5. Modal untuk menampung HASIL simulasi (AJAX) --}}
-    {{-- [PERBAIKAN] Blok @if (session(...)) dihapus. Modal ini sekarang 
-         kosong dan siap diisi oleh JavaScript. --}}
     <div class="modal fade" id="hasilSimulasiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-            {{-- Konten modal (header, body, footer) akan di-render di sini --}}
             <div class="modal-content" id="hasilSimulasiModalContent">
                 {{-- Dibiarkan kosong --}}
             </div>
@@ -134,8 +148,9 @@
     </div>
 
     <div class="modal fade" id="dataSayaModal" tabindex="-1" aria-labelledby="dataSayaModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
+                {{-- Form mengarah ke rute baru yang kita buat --}}
                 <form action="{{ route('tenaga_kerja.data_saya.update') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
@@ -157,7 +172,8 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Nomor Pegawai (NP)</label>
-                                <input type="text" class="form-control" value="{{ $karyawan->nip }}" readonly disabled>
+                                <input type="text" class="form-control" value="{{ $karyawan->nip }}" readonly
+                                    disabled>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Jabatan</label>
@@ -242,14 +258,15 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Inisialisasi modal Bootstrap
-            const simulasiModalEl = document.getElementById('simulasiModal');
-            const simulasiModal = new bootstrap.Modal(simulasiModalEl);
+            // ... (Kode JavaScript Anda yang sudah ada untuk simulasi, laporan gaji, dll.) ...
 
-            const hasilModalEl = document.getElementById('hasilSimulasiModal');
-            const hasilModal = new bootstrap.Modal(hasilModalEl);
-
-            const hasilModalContent = document.getElementById('hasilSimulasiModalContent');
+            // [PERBAIKAN] Logika auto-submit form tahun
+            const tahunSelect = document.getElementById('laporan-tahun-select');
+            if (tahunSelect) {
+                tahunSelect.addEventListener('change', function() {
+                    this.form.submit();
+                });
+            }
 
             // [PERBAIKAN] Logika untuk menampilkan modal LAPORAN GAJI
             const urlParams = new URLSearchParams(window.location.search);
@@ -260,44 +277,38 @@
                 }
             }
 
-            // [PERBAIKAN] Logika auto-submit form tahun
-            const tahunSelect = document.getElementById('laporan-tahun-select');
-            if (tahunSelect) {
-                tahunSelect.addEventListener('change', function() {
-                    this.form.submit();
-                });
-            }
-
-            // ===================================================================
             // [PERBAIKAN BARU: AJAX UNTUK SIMULASI GAJI]
-            // ===================================================================
             const formSimulasi = document.getElementById('form-simulasi');
             if (formSimulasi) {
                 formSimulasi.addEventListener('submit', function(e) {
-                    e.preventDefault(); // Hentikan submit form standar
+                    e.preventDefault();
 
                     const formData = new FormData(this);
                     const actionUrl = this.getAttribute('action');
                     const submitButton = this.querySelector('button[type="submit"]');
                     const originalButtonText = submitButton.innerHTML;
 
-                    // Tampilkan loading
                     submitButton.disabled = true;
                     submitButton.innerHTML =
                         '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menghitung...';
+
+                    const simulasiModalEl = document.getElementById('simulasiModal');
+                    const simulasiModal = bootstrap.Modal.getInstance(simulasiModalEl);
+                    const hasilModalEl = document.getElementById('hasilSimulasiModal');
+                    const hasilModal = bootstrap.Modal.getOrCreateInstance(hasilModalEl);
+                    const hasilModalContent = document.getElementById('hasilSimulasiModalContent');
 
                     fetch(actionUrl, {
                             method: 'POST',
                             body: formData,
                             headers: {
                                 'X-CSRF-TOKEN': formData.get('_token'),
-                                'Accept': 'text/html', // Minta HTML sebagai respons
-                                'X-Requested-With': 'XMLHttpRequest' // Tandai sebagai AJAX
+                                'Accept': 'text/html',
+                                'X-Requested-With': 'XMLHttpRequest'
                             }
                         })
                         .then(response => {
-                            if (response.status === 422) { // Error validasi
-                                // TODO: Tambahkan penanganan error validasi (misal: alert)
+                            if (response.status === 422) {
                                 alert('Input tidak valid. Periksa kembali data Anda.');
                                 return response.json().then(err => {
                                     throw err;
@@ -307,13 +318,10 @@
                                 alert('Terjadi kesalahan. Silakan coba lagi.');
                                 throw new Error('Network response was not ok');
                             }
-                            return response.text(); // Ambil HTML sebagai teks
+                            return response.text();
                         })
                         .then(html => {
-                            // Suntikkan HTML hasil ke modal hasil
                             hasilModalContent.innerHTML = html;
-
-                            // Tukar modal
                             simulasiModal.hide();
                             hasilModal.show();
                         })
@@ -321,7 +329,6 @@
                             console.error('Error:', error);
                         })
                         .finally(() => {
-                            // Kembalikan tombol ke keadaan semula
                             submitButton.disabled = false;
                             submitButton.innerHTML = originalButtonText;
                         });
@@ -329,19 +336,25 @@
             }
 
             // Menangani tombol "Hitung Ulang" dari modal hasil
-            // Tombol ini sudah dikonfigurasi di hasil.blade.php
-            // untuk menutup modal hasil dan membuka modal form
-            hasilModalEl.addEventListener('click', function(e) {
-                if (e.target && e.target.matches('[data-bs-target="#simulasiModal"]')) {
-                    hasilModal.hide();
-                    simulasiModal.show();
-                }
-            });
+            const hasilModalEl = document.getElementById('hasilSimulasiModal');
+            if (hasilModalEl) {
+                hasilModalEl.addEventListener('click', function(e) {
+                    if (e.target && e.target.matches('[data-bs-target="#simulasiModal"]')) {
+                        const hasilModal = bootstrap.Modal.getInstance(hasilModalEl);
+                        const simulasiModalEl = document.getElementById('simulasiModal');
+                        const simulasiModal = bootstrap.Modal.getOrCreateInstance(simulasiModalEl);
+                        hasilModal.hide();
+                        simulasiModal.show();
+                    }
+                });
+            }
+
+            // --- AWAL TAMBAHAN: Otomatis Buka Modal 'Data Saya' Jika Ada Error Validasi ---
             @if ($errors->has('telepon') || $errors->has('alamat') || $errors->has('jumlah_anak') || $errors->has('foto'))
                 const dataSayaModal = new bootstrap.Modal(document.getElementById('dataSayaModal'));
                 dataSayaModal.show();
             @endif
-
+            // --- AKHIR TAMBAHAN ---
         });
     </script>
 @endpush

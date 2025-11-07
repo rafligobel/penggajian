@@ -175,7 +175,7 @@ Route::middleware(['auth', 'role:tenaga_kerja'])->prefix('tenaga-kerja')->name('
         ->name('laporan_gaji.cetak');
 
     Route::get('/data-saya', [TenagaKerjaController::class, 'editDataSaya'])->name('data_saya.edit');
-    Route::put('/data-saya', [TenagaKerjaController::class, 'updateDataSaya'])->name('data_saya.update');   
+    Route::put('/data-saya', [TenagaKerjaController::class, 'updateDataSaya'])->name('data_saya.update');
 });
 
 
