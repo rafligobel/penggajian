@@ -1,9 +1,34 @@
+{{-- 
+  PASTIKAN BLOK INI ADA DI ATAS '<li>'
+  Logika untuk mengambil foto karyawan 
+--}}
+@php
+    // Ambil model Karyawan yang terhubung dengan User yang sedang login
+    $karyawan = Auth::user()->karyawan;
+
+    // Tentukan URL foto
+    $fotoUrl = null;
+    if ($karyawan && $karyawan->foto) {
+        // Gunakan path 'uploads' yang sudah kita perbaiki
+        $fotoUrl = asset('uploads/foto_pegawai/' . $karyawan->foto);
+    }
+@endphp
+
 <li class="nav-item dropdown">
-    {{-- PERBAIKAN: Tambahkan dua atribut di baris ini --}}
     <a id="navbarDropdown" class="nav-link dropdown-toggle profile-btn" href="#" role="button"
         data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-bs-container="body"
         data-bs-strategy="fixed">
-        <i class="fas fa-user-circle me-1"></i> {{ Auth::user()->name }}
+
+        {{-- Blok @if ini sekarang aman karena $fotoUrl sudah didefinisikan --}}
+        @if ($fotoUrl)
+            <img src="{{ $fotoUrl }}" class="rounded-circle me-2"
+                style="width: 30px; height: 30px; object-fit: cover;" alt="Foto Profil">
+        @else
+            {{-- Fallback ke ikon jika tidak ada foto --}}
+            <i class="fas fa-user-circle me-1"></i>
+        @endif
+
+        {{ Auth::user()->name }}
     </a>
 
     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">

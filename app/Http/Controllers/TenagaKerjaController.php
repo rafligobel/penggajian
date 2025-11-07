@@ -124,6 +124,71 @@ class TenagaKerjaController extends Controller
         ));
     }
 
+
+
+    public function editDataSaya()
+    {
+        // Ambil data karyawan yang terhubung dengan user yang login
+        $karyawan = Auth::user()->karyawan;
+
+        if (!$karyawan) {
+            // Jika user 'tenaga_kerja' tapi tidak punya data karyawan
+            return redirect()->route('tenaga_kerja.dashboard')
+                ->with('error', 'Data kepegawaian Anda tidak ditemukan.');
+        }
+
+        // Kita akan membuat view baru untuk ini
+        return view('tenaga_kerja.edit_data_saya', compact('karyawan'));
+    }
+
+    /**
+     * Memproses update data pegawai oleh dirinya sendiri.
+     */
+    public function updateDataSaya(Request $request)
+    {
+        $karyawan = Auth::user()->karyawan;
+
+        if (!$karyawan) {
+            return redirect()->back()->with('error', 'Data kepegawaian tidak ditemukan.');
+        }
+
+        // Validasi data yang boleh diubah oleh pegawai
+        $validated = $request->validate([
+            'alamat' => 'nullable|string|max:500',
+            'telepon' => 'nullable|string|max:15',
+            'jumlah_anak' => 'nullable|integer|min:0',
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ]);
+
+        // Siapkan data untuk diupdate
+        $dataToUpdate = [
+            'alamat' => $validated['alamat'],
+            'telepon' => $validated['telepon'],
+            'jumlah_anak' => $validated['jumlah_anak'] ?? $karyawan->jumlah_anak,
+        ];
+
+        // Logika Update Foto (menggunakan disk 'public_uploads' yang sudah kita buat)
+        if ($request->hasFile('foto')) {
+            // Hapus foto lama jika ada
+            if ($karyawan->foto) {
+                Storage::disk('public_uploads')->delete('foto_pegawai/' . $karyawan->foto);
+            }
+
+            // Simpan foto baru
+            $filename = time() . '_' . $request->file('foto')->getClientOriginalName();
+            $request->file('foto')->storeAs('foto_pegawai', $filename, 'public_uploads');
+            $dataToUpdate['foto'] = $filename; // Tambahkan nama file baru
+        }
+
+        // Update data
+        $karyawan->update($dataToUpdate);
+
+        return redirect()->route('tenaga_kerja.dashboard')
+            ->with('success', 'Data kepegawaian Anda berhasil diperbarui.');
+    }
+
+
+
     // FUNGSI INI DIBUAT SEMPURNA UNTUK MENGGANTIKAN FUNGSI LAMA
     public function downloadSlipGaji(Request $request)
     {
