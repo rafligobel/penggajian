@@ -4,6 +4,7 @@
     <div class="container ">
         <h3 class="fw-bold text-primary">Kelola Gaji</h3>
 
+        {{-- ... Bagian Filter dan Tombol (Tidak Berubah) ... --}}
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
                 <form method="GET" action="{{ route('gaji.index') }}">
@@ -32,6 +33,7 @@
 
         <div id="ajax-response-message" class="alert" style="display:none;"></div>
 
+        {{-- ... Bagian Tabel (Tidak Berubah) ... --}}
         <div class="card shadow-sm border-0">
             <div class="card-body">
                 <div class="table-responsive">
@@ -102,16 +104,82 @@
         </div>
     </div>
 
-    {{-- ============== MODALS (Struktur Asli Anda) ============== --}}
-    {{-- Modal Detail --}}
+    {{-- ==================================================================== --}}
+    {{-- ================== AWAL MODAL DETAIL (DIRAPIKAN) =================== --}}
+    {{-- ==================================================================== --}}
     <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="detailModalLabel">Detail Gaji Pegawai</h5>
+                    <h5 class="modal-title" id="detailModalLabel">Detail Gaji: <span id="detail-nama-title"></span>
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body" id="detail-content"></div>
+                <div class="modal-body" id="detail-content">
+                    {{-- Skeleton HTML dipindah ke sini dari JS --}}
+                    <p>
+                        <strong>Jabatan:</strong> <span id="detail-jabatan">-</span><br>
+                        <strong>Periode:</strong> <span id="detail-periode">-</span>
+                    </p>
+                    <hr>
+                    <div class="row">
+                        <div class="col-lg-6 mb-4 mb-lg-0 border-end">
+                            <h5 class="mb-3 text-primary">A. Pendapatan</h5>
+                            <div class="row mb-2">
+                                <div class="col-7">Gaji Pokok</div>
+                                <div class="col-5 text-end"><strong id="detail-gaji-pokok">Rp 0</strong></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-7">Tunjangan Jabatan</div>
+                                <div class="col-5 text-end"><strong id="detail-tunj-jabatan">Rp 0</strong></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-7">Tunjangan Anak</div>
+                                <div class="col-5 text-end"><strong id="detail-tunj-anak">Rp 0</strong></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-7">Tunjangan Komunikasi</div>
+                                <div class="col-5 text-end"><strong id="detail-tunj-komunikasi">Rp 0</strong></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-7">Tunjangan Pengabdian</div>
+                                <div class="col-5 text-end"><strong id="detail-tunj-pengabdian">Rp 0</strong></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-7">Tunjangan Kinerja</div>
+                                <div class="col-5 text-end"><strong id="detail-tunj-kinerja">Rp 0</strong></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-7">Tunj. Kehadiran (<span id="detail-total-kehadiran">0</span> hari)
+                                </div>
+                                <div class="col-5 text-end"><strong id="detail-tunj-kehadiran">Rp 0</strong></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-7">Lembur</div>
+                                <div class="col-5 text-end"><strong id="detail-lembur">Rp 0</strong></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <h5 class="mb-3 text-danger">B. Potongan</h5>
+                            <div class="row mb-2">
+                                <div class="col-7">Potongan Lain-lain</div>
+                                <div class="col-5 text-end"><strong class="text-danger" id="detail-potongan">(Rp
+                                        0)</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <div class="bg-light p-3 rounded">
+                        <div class="row align-items-center">
+                            <div class="col-7">
+                                <h5 class="mb-0">GAJI BERSIH (A - B)</h5>
+                            </div>
+                            <div class="col-5 text-end">
+                                <h5 class="mb-0 fw-bold text-success" id="detail-gaji-bersih">Rp 0</h5>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="modal-footer justify-content-between">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
                     <div>
@@ -124,8 +192,14 @@
             </div>
         </div>
     </div>
+    {{-- ================================================================== --}}
+    {{-- ================== AKHIR MODAL DETAIL (DIRAPIKAN) ================== --}}
+    {{-- ================================================================== --}}
 
-    {{-- Modal Edit --}}
+
+    {{-- ================================================================== --}}
+    {{-- ================== AWAL MODAL EDIT (DIRAPIKAN) =================== --}}
+    {{-- ================================================================== --}}
     <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -138,6 +212,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        {{-- Bagian 1: Info Umum --}}
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <label class="form-label">Periode</label>
@@ -148,10 +223,8 @@
                                     Kehadiran (Revisi 1)</label>
                                 <select name="tunjangan_kehadiran_id" id="tunjangan_kehadiran_id_modal"
                                     class="form-select" required>
-
                                     @foreach ($tunjanganKehadirans as $tunjangan)
                                         <option value="{{ $tunjangan->id }}">
-                                            {{-- PERBAIKAN: Menggunakan nama field yang konsisten dari TunjanganKehadiran Anda --}}
                                             {{ $tunjangan->jenis_tunjangan }}
                                             ({{ 'Rp ' . number_format($tunjangan->jumlah_tunjangan, 0, ',', '.') }}/hari)
                                         </option>
@@ -161,10 +234,8 @@
                         </div>
                         <hr>
 
-                        {{-- ================== AWAL TAMBAHAN HTML (TUNJANGAN KINERJA) ================== --}}
+                        {{-- Bagian 2: Tunjangan Kinerja --}}
                         <h6 class="form-label fw-bold">Penilaian Kinerja (untuk Tunjangan Kinerja)</h6>
-
-                        {{-- Variabel $aturanKinerja dan $indikatorKinerjas dikirim dari GajiController@index --}}
                         @if ($aturanKinerja && $aturanKinerja->maksimal_tunjangan > 0)
                             <div class="alert alert-info py-2" role="alert">
                                 Tunjangan Kinerja Maksimal: <strong>Rp
@@ -175,7 +246,6 @@
                         @else
                             <div class="alert alert-warning py-2" role="alert">
                                 Tunjangan Kinerja Maksimal belum diatur oleh Admin.
-                                {{-- PERUBAHAN ROUTE: Mengarah ke route terpadu --}}
                                 Silakan atur di menu <a href="{{ route('pengaturan-kinerja.index') }}"
                                     target="_blank">Aturan Kinerja</a>.
                             </div>
@@ -198,7 +268,6 @@
                                 <div class="col-12">
                                     <div class="alert alert-light" role="alert">
                                         Belum ada Master Indikator Kinerja yang diatur oleh Admin.
-                                        {{-- PERUBAHAN ROUTE: Mengarah ke route terpadu --}}
                                         <a href="{{ route('pengaturan-kinerja.index') }}" target="_blank">Atur di
                                             sini</a>.
                                     </div>
@@ -206,33 +275,88 @@
                             @endforelse
                         </div>
                         <hr>
-                        {{-- ================== AKHIR TAMBAHAN HTML (TUNJANGAN KINERJA) ================== --}}
 
+                        {{-- Bagian 3: Tunjangan dan Potongan Lain --}}
+                        <h6 class="form-label fw-bold">Input Tunjangan Lain & Potongan</h6>
+                        <div id="edit-form-content" class="row">
+                            {{-- Skeleton HTML dipindah ke sini dari JS --}}
 
-                        <h6 class="form-label fw-bold">Tunjangan Komunikasi</h6>
-                        <div class="row">
+                            {{-- Tunjangan Komunikasi (Sesuai HTML Asli Anda) --}}
                             <div class="col-md-6 mb-3">
-                                <label for="edit_tunj_komunikasi_select" class="form-label">
-                                    Pilih Level (Otomatis)
+                                <label for="modalTunjanganKomunikasi" class="form-label">
+                                    Tunjangan Komunikasi (Otomatis)
                                 </label>
-                                <select id="edit_tunj_komunikasi_select" class="form-select">
-                                    <option value="">-- Pilih Tunjangan --</option>
-                                    {{-- Opsi ini akan di-load oleh JavaScript dari master data --}}
+                                <select class="form-select" id="modalTunjanganKomunikasi" name="tunjangan_komunikasi_id">
+                                    <option value="">-- Tidak Dapat Tunjangan --</option>
+                                    @foreach ($tunjanganKomunikasis as $item)
+                                        <option value="{{ $item->id }}">
+                                            {{ $item->nama_level }}
+                                            ({{ 'Rp ' . number_format($item->besaran, 0, ',', '.') }})
+                                        </option>
+                                    @endforeach
                                 </select>
                             </div>
+
+                            {{-- Tunjangan Jabatan (Readonly) --}}
                             <div class="col-md-6 mb-3">
-                                <label for="edit_tunj_komunikasi" class="form-label">
-                                    Besaran (Rp)
-                                </label>
+                                <label class="form-label">Tunjangan Jabatan (Otomatis)</label>
                                 <div class="input-group">
                                     <span class="input-group-text">Rp</span>
-                                    <input type="number" class="form-control" id="edit_tunj_komunikasi"
-                                        name="tunj_komunikasi" value="0" min="0" required>
+                                    <input type="text" class="form-control" id="edit-tunj-jabatan" value="0"
+                                        readonly>
+                                </div>
+                            </div>
+
+                            {{-- Gaji Pokok (Editable) --}}
+                            <div class="col-md-6 mb-3">
+                                <label for="edit-gaji-pokok" class="form-label">Gaji Pokok</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">Rp</span>
+                                    <input type="number" class="form-control" id="edit-gaji-pokok" name="gaji_pokok"
+                                        value="0" min="0" required>
+                                </div>
+                            </div>
+
+                            {{-- Tunjangan Anak (Readonly) --}}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Tunjangan Anak (Otomatis)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">Rp</span>
+                                    <input type="text" class="form-control" id="edit-tunj-anak" value="0"
+                                        readonly>
+                                </div>
+                            </div>
+
+                            {{-- Tunjangan Pengabdian (Readonly) --}}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Tunj. Pengabdian (Otomatis)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">Rp</span>
+                                    <input type="text" class="form-control" id="edit-tunj-pengabdian" value="0"
+                                        readonly>
+                                </div>
+                            </div>
+
+                            {{-- Lembur (Editable) --}}
+                            <div class="col-md-6 mb-3">
+                                <label for="edit-lembur" class="form-label">Lembur</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">Rp</span>
+                                    <input type="number" class="form-control" id="edit-lembur" name="lembur"
+                                        value="0" min="0" required>
+                                </div>
+                            </div>
+
+                            {{-- Potongan (Editable) --}}
+                            <div class="col-md-6 mb-3">
+                                <label for="edit-potongan" class="form-label">Potongan</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">Rp</span>
+                                    <input type="number" class="form-control" id="edit-potongan" name="potongan"
+                                        value="0" min="0" required>
                                 </div>
                             </div>
                         </div>
-                        <hr>
-                        <div id="edit-form-content" class="row"></div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -242,13 +366,15 @@
             </div>
         </div>
     </div>
+    {{-- ================================================================== --}}
+    {{-- ================== AKHIR MODAL EDIT (DIRAPIKAN) ================== --}}
+    {{-- ================================================================== --}}
 @endsection
 
 @push('scripts')
     <script>
         // ================== AWAL PERBAIKAN (Menyimpan Data Master ke JS) ==================
-        // Pastikan GajiController mengirimkan variabel $tunjanganKomunikasis
-        // Kita tambahkan '?? []' sebagai fallback jika controller belum di-update.
+        // Tidak ada perubahan di sini, ini sudah benar.
         const masterTunjanganKomunikasi = @json($tunjanganKomunikasis ?? []);
         // ================== AKHIR PERBAIKAN ==================
 
@@ -262,12 +388,17 @@
             const editGajiForm = document.getElementById('editGajiForm');
             const responseMessageEl = document.getElementById('ajax-response-message');
 
-            // --- FUNGSI-FUNGSI HELPER ---
+            // --- FUNGSI-FUNGSI HELPER (Tidak Berubah) ---
             const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', {
                 style: 'currency',
                 currency: 'IDR',
                 minimumFractionDigits: 0
             }).format(angka || 0);
+
+            // Fungsi ini diformat ulang sedikit untuk input readonly
+            const formatRupiahInput = (angka) => {
+                return formatRupiah(angka).replace('Rp', '').trim();
+            };
 
             function showResponseMessage(message, isSuccess = true) {
                 responseMessageEl.textContent = message;
@@ -276,7 +407,7 @@
                 setTimeout(() => responseMessageEl.style.display = 'none', 5000);
             }
 
-            // ================== PERBAIKAN JAVASCRIPT (updateTableRow) ==================
+            // --- FUNGSI UPDATE TABLE ROW (Tidak Berubah) ---
             function updateTableRow(newData) {
                 // 'newData' adalah flat array dari SalaryService
                 const row = document.querySelector(
@@ -294,7 +425,7 @@
                     `<span class="badge bg-primary">Sudah Diproses</span>`;
             }
 
-            // --- EVENT LISTENER UNTUK SUBMIT FORM EDIT (AJAX) ---
+            // --- EVENT LISTENER UNTUK SUBMIT FORM EDIT (AJAX) (Tidak Berubah) ---
             editGajiForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 const form = e.target;
@@ -341,13 +472,13 @@
                     });
             });
 
-            // --- EVENT LISTENER UNTUK TOMBOL-TOMBOL AKSI DI TABEL ---
+            // --- EVENT LISTENER UNTUK TOMBOL-TOMBOL AKSI DI TABEL (Tidak Berubah) ---
             document.getElementById('gaji-table-body').addEventListener('click', function(e) {
                 const button = e.target.closest('.btn-detail, .btn-edit');
                 if (!button) return;
             });
 
-            // [REVISI] Gunakan event 'show.bs.modal' untuk 'editModal'
+            // --- EVENT LISTENER 'show.bs.modal' UNTUK MODAL EDIT ---
             editModalEl.addEventListener('show.bs.modal', function(event) {
                 const button = event.relatedTarget;
                 if (!button) return;
@@ -356,9 +487,11 @@
                 if (!row) return;
 
                 const gajiData = JSON.parse(row.getAttribute('data-gaji-json'));
+
+                // Panggil fungsi populate yang baru (lebih bersih)
                 populateEditModal(gajiData);
 
-                // ================== AWAL TAMBAHAN JS (MENGISI SKOR SAAT MODAL BUKA) ==================
+                // --- Logika untuk mengisi skor (Sudah Benar, Tidak Berubah) ---
                 // 1. Reset semua input skor ke 0 (atau nilai default)
                 editModalEl.querySelectorAll('.score-input').forEach(input => {
                     input.value = 0;
@@ -377,45 +510,15 @@
                         }
                     }
                 }
-                // ================== AKHIR TAMBAHAN JS ==================
-
+                // --- Akhir Logika Skor ---
 
                 // ================== AWAL PERBAIKAN (JS MENGISI TUNJ. KOMUNIKASI) ==================
-                const tunjKomunikasiInput = editModalEl.querySelector('#edit_tunj_komunikasi');
-                const tunjKomunikasiSelect = editModalEl.querySelector('#edit_tunj_komunikasi_select');
-
-                // 1. Isi input field dengan data yang ada
-                tunjKomunikasiInput.value = gajiData.tunj_komunikasi || 0;
-
-                // 2. Kosongkan dan isi dropdown dari master data
-                tunjKomunikasiSelect.innerHTML = '<option value="">-- Pilih Tunjangan --</option>';
-                masterTunjanganKomunikasi.forEach(function(tunjangan) {
-                    const option = document.createElement('option');
-                    option.value = tunjangan
-                        .id; // Kita pakai ID, tapi data-besaran yang penting
-                    option.text =
-                        `${tunjangan.nama_level} (${formatRupiah(tunjangan.besaran)})`;
-                    option.setAttribute('data-besaran', tunjangan.besaran);
-                    tunjKomunikasiSelect.appendChild(option);
-                });
-
-                // 3. Coba pilih dropdown secara otomatis berdasarkan nilai yang ada
-                const nilaiSekarang = gajiData.tunj_komunikasi || 0;
-                let found = false;
-                Array.from(tunjKomunikasiSelect.options).forEach(function(option) {
-                    if (option.getAttribute('data-besaran') == nilaiSekarang) {
-                        option.selected = true;
-                        found = true;
-                    }
-                });
-                if (!found) {
-                    tunjKomunikasiSelect.value = ''; // Jika tidak ada yang cocok, reset
-                }
-                // ================== AKHIR PERBAIKAN (JS MENGISI TUNJ. KOMUNIKASI) ==================
-
+                // Logika yang membingungkan dihapus, karena sudah ditangani
+                // di dalam 'populateEditModal' yang baru.
+                // ================== AKHIR PERBAIKAN ==================
             });
 
-            // [REVISI] Gunakan event 'show.bs.modal' untuk 'detailModal'
+            // --- EVENT LISTENER 'show.bs.modal' UNTUK MODAL DETAIL ---
             detailModalEl.addEventListener('show.bs.modal', function(event) {
                 const button = event.relatedTarget;
                 if (!button) return;
@@ -424,11 +527,13 @@
                 if (!row) return;
 
                 const gajiData = JSON.parse(row.getAttribute('data-gaji-json'));
+
+                // Panggil fungsi populate yang baru (lebih bersih)
                 populateDetailModal(gajiData);
             });
 
 
-            // --- FUNGSI PENCARIAN ---
+            // --- FUNGSI PENCARIAN (Tidak Berubah) ---
             document.getElementById('search-input').addEventListener('input', function() {
                 const searchTerm = this.value.toLowerCase().trim();
                 const rows = document.querySelectorAll('#gaji-table-body tr.karyawan-row');
@@ -450,28 +555,15 @@
             });
 
             // ================== AWAL PERBAIKAN (JS LISTENER DROPDOWN KOMUNIKASI) ==================
-            // Daftarkan listener di modal untuk menangani event 'change' pada dropdown
-            editModalEl.addEventListener('change', function(e) {
-                // Cek apakah target event adalah dropdown kita
-                if (e.target.id === 'edit_tunj_komunikasi_select') {
-                    const select = e.target;
-                    const selectedOption = select.options[select.selectedIndex];
-                    const besaran = selectedOption.getAttribute('data-besaran');
-
-                    const tunjKomunikasiInput = editModalEl.querySelector('#edit_tunj_komunikasi');
-
-                    if (besaran) {
-                        tunjKomunikasiInput.value = besaran;
-                    } else {
-                        // Jika "-- Pilih --" dipilih, set nilai ke 0
-                        tunjKomunikasiInput.value = 0;
-                    }
-                }
-            });
+            // Seluruh blok event listener 'change' untuk 'edit_tunj_komunikasi_select'
+            // telah dihapus karena elemen tersebut tidak ada lagi di HTML yang dirapikan.
+            // Form sekarang langsung mengirimkan ID dari <select id="modalTunjanganKomunikasi">.
             // ================== AKHIR PERBAIKAN ==================
 
 
-            // ================== [REVISI UTAMA JAVASCRIPT] (populateEditModal) ==================
+            // =========================================================================
+            // ================== [REVISI UTAMA] (populateEditModal) ===================
+            // =========================================================================
             function populateEditModal(data) {
                 const modal = editModalEl;
                 modal.querySelector('#editModalLabel').textContent = `Kelola Gaji: ${data.nama}`;
@@ -482,157 +574,67 @@
                     });
                 modal.querySelector('#edit-karyawan-id').value = data.karyawan_id;
 
-                // Periksa apakah tunjangan_kehadiran_id ada, jika tidak set default
+                // --- Mengisi Tunjangan Kehadiran ---
                 const tunjKehadiranSelect = modal.querySelector('#tunjangan_kehadiran_id_modal');
                 if (data.tunjangan_kehadiran_id) {
                     tunjKehadiranSelect.value = data.tunjangan_kehadiran_id;
                 } else if (tunjKehadiranSelect.options.length > 0) {
-                    // Set ke opsi pertama jika belum ada data
                     tunjKehadiranSelect.value = tunjKehadiranSelect.options[0].value;
                 }
 
-                const formContent = modal.querySelector('#edit-form-content');
+                // --- Mengisi Tunjangan Komunikasi ---
+                modal.querySelector('#modalTunjanganKomunikasi').value = data.tunjangan_komunikasi_id || '';
 
-                // PERBAIKAN: tunj_komunikasi sudah ditangani di HTML statis di atas.
-                // Jadi kita tidak perlu memasukkannya di 'fields' array ini.
-                const fields = [{
-                    name: 'tunj_jabatan',
-                    label: 'Tunjangan Jabatan',
-                    value: data.tunj_jabatan,
-                    readonly: true,
-                    isNumeric: false
-                }, {
-                    name: 'gaji_pokok',
-                    label: 'Gaji Pokok',
-                    value: data.gaji_pokok,
-                    readonly: false,
-                    isNumeric: true
-                }, {
-                    name: 'tunj_anak',
-                    label: 'Tunjangan Anak (Otomatis)',
-                    value: data.tunj_anak,
-                    readonly: true,
-                    isNumeric: true
-                }, {
-                    name: 'tunj_pengabdian',
-                    label: 'Tunj. Pengabdian (Otomatis)',
-                    value: data.tunj_pengabdian,
-                    readonly: true,
-                    isNumeric: true
-                }, {
-                    // tunj_kinerja dihapus dari sini karena diinput di atas
-                }, {
-                    name: 'lembur',
-                    label: 'Lembur',
-                    value: data.lembur,
-                    readonly: false,
-                    isNumeric: true
-                }, {
-                    name: 'potongan',
-                    label: 'Potongan',
-                    value: data.potongan,
-                    readonly: false,
-                    isNumeric: true
-                }];
+                // --- Mengisi Input Readonly (Format Rupiah) ---
+                modal.querySelector('#edit-tunj-jabatan').value = formatRupiahInput(data.tunj_jabatan);
+                modal.querySelector('#edit-tunj-anak').value = formatRupiahInput(data.tunj_anak);
+                modal.querySelector('#edit-tunj-pengabdian').value = formatRupiahInput(data.tunj_pengabdian);
 
-                let fieldsHtml = fields.map(f => {
-                    if (!f || !f.name) return '';
+                // --- Mengisi Input Editable (Angka) ---
+                modal.querySelector('#edit-gaji-pokok').value = parseFloat(data.gaji_pokok || 0);
+                modal.querySelector('#edit-lembur').value = parseFloat(data.lembur || 0);
+                modal.querySelector('#edit-potongan').value = parseFloat(data.potongan || 0);
 
-                    const inputType = f.isNumeric ? 'number' : 'text';
-                    const readonlyAttr = f.readonly ? 'readonly' : '';
-                    const inputName = f.readonly ? '' : `name="${f.name}"`;
-                    const requiredAttr = f.readonly ? '' : 'required';
-
-                    // Jika readonly, format sebagai Rupiah. Jika tidak, tampilkan angka mentah.
-                    const displayValue = f.readonly ?
-                        formatRupiah(f.value).replace(/\D/g, '') // Ambil angkanya saja untuk input
-                        :
-                        parseFloat(f.value || 0);
-
-                    // Gunakan formatRupiah untuk display readonly, tapi value tetap angka
-                    if (f.readonly) {
-                        return `
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">${f.label}</label>
-                            <div class="input-group">
-                                <span class="input-group-text">Rp</span>
-                                <input type="text" class="form-control" value="${formatRupiah(f.value).replace('Rp', '').trim()}" readonly>
-                            </div>
-                        </div>`;
-                    } else {
-                        return `
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">${f.label}</label>
-                            <div class="input-group">
-                                <span class="input-group-text">Rp</span>
-                                <input type="${inputType}" ${inputName} class="form-control" value="${displayValue}" ${readonlyAttr} ${requiredAttr} min="0">
-                            </div>
-                        </div>`;
-                    }
-                }).join('');
-
-                formContent.innerHTML = fieldsHtml;
+                // Konten dinamis (fields, fieldsHtml) tidak diperlukan lagi
             }
 
-            // ================== [PERBAIKAN FOKUS: JAVASCRIPT] (populateDetailModal) ==================
+            // =========================================================================
+            // ================== [REVISI UTAMA] (populateDetailModal) =================
+            // =========================================================================
             function populateDetailModal(data) {
                 const modal = detailModalEl;
-                modal.querySelector('#detailModalLabel').textContent = `Detail Gaji: ${data.nama}`;
-                const detailContent = modal.querySelector('#detail-content');
-                const rincianHtml = (items) => items.map(item =>
-                    `<div class="row mb-2"><div class="col-7">${item.label}</div><div class="col-5 text-end">${item.value}</div></div>`
-                ).join('');
 
-                const pendapatanItems = [{
-                    label: 'Gaji Pokok',
-                    value: data.gaji_pokok_string
-                }, {
-                    label: 'Tunjangan Jabatan',
-                    value: data.tunj_jabatan_string
-                }, {
-                    label: 'Tunjangan Anak',
-                    value: data.tunj_anak_string
-                }, {
-                    label: 'Tunjangan Komunikasi', // Ini sudah benar ada di sini
-                    value: data.tunj_komunikasi_string
-                }, {
-                    label: 'Tunjangan Pengabdian',
-                    value: data.tunj_pengabdian_string
-                }, {
-                    label: 'Tunjangan Kinerja',
-                    value: data.tunj_kinerja_string
-                }, {
-                    label: `Tunj. Kehadiran (${data.total_kehadiran} hari)`,
-                    value: data.total_tunjangan_kehadiran_string
-                }, {
-                    label: 'Lembur',
-                    value: data.lembur_string
-                }, ];
+                // --- Mengisi Info Header ---
+                modal.querySelector('#detail-nama-title').textContent = data.nama;
+                modal.querySelector('#detail-jabatan').textContent = data.jabatan || '-';
+                modal.querySelector('#detail-periode').textContent = new Date(data.bulan + '-02')
+                    .toLocaleDateString('id-ID', {
+                        month: 'long',
+                        year: 'numeric'
+                    });
 
-                detailContent.innerHTML = `
-                <p><strong>Jabatan:</strong> ${data.jabatan}</p><hr>
-                <div class="row">
-                    <div class="col-lg-6 mb-4 mb-lg-0 border-end">
-                        <h5 class="mb-3 text-primary">A. Pendapatan</h5>
-                        ${rincianHtml(pendapatanItems)}
-                    </div>
-                    <div class="col-lg-6">
-                        <h5 class="mb-3 text-danger">B. Potongan</h5>
-                        ${rincianHtml([{ label: 'Potongan Lain-lain', value: `<span class="text-danger">(${data.potongan_string})</span>` }])}
-                    </div>
-                </div>
-                <hr class="my-4">
-                <div class="bg-light p-3 rounded">
-                    <div class="row align-items-center">
-                        <div class="col-7"><h5 class="mb-0">GAJI BERSIH (A - B)</h5></div>
-                        <div class="col-5 text-end"><h5 class="mb-0 fw-bold text-success">${data.gaji_bersih_string}</h5></div>
-                    </div>
-                </div>
-            `;
+                // --- Mengisi Rincian Pendapatan ---
+                modal.querySelector('#detail-gaji-pokok').textContent = data.gaji_pokok_string;
+                modal.querySelector('#detail-tunj-jabatan').textContent = data.tunj_jabatan_string;
+                modal.querySelector('#detail-tunj-anak').textContent = data.tunj_anak_string;
+                modal.querySelector('#detail-tunj-komunikasi').textContent = data.tunj_komunikasi_string;
+                modal.querySelector('#detail-tunj-pengabdian').textContent = data.tunj_pengabdian_string;
+                modal.querySelector('#detail-tunj-kinerja').textContent = data.tunj_kinerja_string;
+                modal.querySelector('#detail-total-kehadiran').textContent = data.total_kehadiran || 0;
+                modal.querySelector('#detail-tunj-kehadiran').textContent = data.total_tunjangan_kehadiran_string;
+                modal.querySelector('#detail-lembur').textContent = data.lembur_string;
 
+                // --- Mengisi Rincian Potongan ---
+                modal.querySelector('#detail-potongan').textContent = `(${data.potongan_string})`;
+
+                // --- Mengisi Total Gaji Bersih ---
+                modal.querySelector('#detail-gaji-bersih').textContent = data.gaji_bersih_string;
+
+                // --- Logika Tombol (Tidak Berubah, hanya dipindah) ---
                 const downloadBtn = modal.querySelector('.btn-download-slip');
                 const emailBtn = modal.querySelector('.btn-send-email');
 
+                // Clone & replace untuk hapus event listener lama
                 const newDownloadBtn = downloadBtn.cloneNode(true);
                 downloadBtn.parentNode.replaceChild(newDownloadBtn, downloadBtn);
                 const newEmailBtn = emailBtn.cloneNode(true);
@@ -690,6 +692,7 @@
                     newEmailBtn.disabled = true;
                 }
             }
+            // --- Akhir populateDetailModal ---
         });
     </script>
 @endpush

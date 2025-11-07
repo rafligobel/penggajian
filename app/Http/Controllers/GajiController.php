@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Cache;
 use App\Models\AturanKinerja;
 use App\Models\IndikatorKinerja;
 use App\Models\PenilaianKinerja;
+// --- PERBAIKAN: Pastikan Model TunjanganKomunikasi di-use ---
 use App\Models\TunjanganKomunikasi;
 
 class GajiController extends Controller
@@ -43,7 +44,7 @@ class GajiController extends Controller
         // --- Revisi 2: Tunjangan Anak ---
         // Ambil aturan nilai per anak (kita cache 60 menit)
         $aturanAnak = Cache::remember('aturan_tunjangan_anak_single', 3600, function () {
-            return AturanTunjanganAnak::first(); // Asumsi hanya ada 1 baris
+            return AturanTunjanganAnak::first();
         });
 
         $nilaiPerAnak = $aturanAnak ? $aturanAnak->nilai_per_anak : 0;
@@ -54,13 +55,9 @@ class GajiController extends Controller
         $tunjanganPengabdian = 0;
         if ($karyawan->tanggal_masuk) {
             $lamaKerjaTahun = $karyawan->tanggal_masuk->diffInYears(Carbon::now());
-
-            // Ambil SEMUA aturan pengabdian (cache 60 menit)
             $aturanPengabdian = Cache::remember('aturan_tunjangan_pengabdian_all', 3600, function () {
                 return AturanTunjanganPengabdian::all();
             });
-
-            // Cari aturan yang cocok
             $aturanYangBerlaku = $aturanPengabdian
                 ->where('minimal_tahun_kerja', '<=', $lamaKerjaTahun)
                 ->where('maksimal_tahun_kerja', '>=', $lamaKerjaTahun)
@@ -72,16 +69,12 @@ class GajiController extends Controller
         }
 
         // --- Revisi 1: Tunjangan Komunikasi ---
-        // Sesuai permintaan, 'tunj_komunikasi' tidak dipakai lagi.
-        // Kita set 0 agar tidak error di service.
         $tunjanganKomunikasi = 0;
 
-
-        // Kembalikan dalam array yang sesuai dengan nama kolom di tabel 'gajis'
         return [
             'tunj_anak' => $tunjanganAnak,
             'tunj_pengabdian' => $tunjanganPengabdian,
-            'tunj_komunikasi' => $tunjanganKomunikasi, // Set 0
+            'tunj_komunikasi' => $tunjanganKomunikasi,
         ];
     }
 
@@ -98,6 +91,7 @@ class GajiController extends Controller
 
         // Revisi 1: Ambil data Tunjangan Kehadiran untuk dropdown modal
         $tunjanganKehadirans = TunjanganKehadiran::all();
+        // Ambil data Tunjangan Komunikasi untuk dropdown modal
         $tunjanganKomunikasis = TunjanganKomunikasi::all();
 
         // --- TAMBAHAN BARU UNTUK KINERJA ---
@@ -127,7 +121,12 @@ class GajiController extends Controller
                 // 3. Timpa (overwrite) nilai dari service dengan nilai kalkulasi kita
                 $detailGaji['tunj_anak'] = $tunjanganDinamis['tunj_anak'];
                 $detailGaji['tunj_pengabdian'] = $tunjanganDinamis['tunj_pengabdian'];
-                $detailGaji['tunj_komunikasi'] = $tunjanganDinamis['tunj_komunikasi']; // Akan 0
+
+                // PERBAIKAN:
+                // Jika gaji_id null, tunj_komunikasi (dari master) belum ada.
+                // Kita set 0 sebagai default di tampilan, nanti diisi di modal.
+                // $detailGaji['tunj_komunikasi'] = $tunjanganDinamis['tunj_komunikasi']; // Akan 0
+                // Biarkan nilai dari SalaryService (yang akan 0 jika $gajiTersimpan null)
             }
             // --- AKHIR PERBAIKAN ---
 
@@ -142,13 +141,15 @@ class GajiController extends Controller
             'tunjanganKehadirans',
             'indikatorKinerjas', // Kirim master indikator
             'aturanKinerja',
-            'tunjanganKomunikasis'      // Kirim aturan (nilai maks)
+            'tunjanganKomunikasis'      // Kirim data master komunikasi
         ));
     }
 
     /**
      * [REVISI] Method saveOrUpdate di-update agar MENGHITUNG dan MENYIMPAN Tukin & skornya
      * DAN MENYIMPAN DATA SNAPSHOT KARYAWAN
+     *
+     * [PERBAIKAN BUG Tunjangan Komunikasi]
      */
     public function saveOrUpdate(Request $request)
     {
@@ -157,10 +158,14 @@ class GajiController extends Controller
             'karyawan_id' => 'required|exists:karyawans,id',
             'bulan' => 'required|date_format:Y-m',
             'gaji_pokok' => 'required|numeric|min:0',
-            // 'tunj_kinerja' DIHAPUS dari validasi, akan dihitung
             'lembur' => 'required|numeric|min:0',
             'potongan' => 'required|numeric|min:0',
             'tunjangan_kehadiran_id' => 'required|exists:tunjangan_kehadirans,id',
+
+            // --- AWAL PERBAIKAN BUG ---
+            // Tambahkan validasi untuk ID tunjangan komunikasi (sesuai kode Anda)
+            'tunjangan_komunikasi_id' => 'nullable|exists:tunjangan_komunikasis,id',
+            // --- AKHIR PERBAIKAN BUG ---
 
             // Validasi untuk input skor
             'scores' => 'nullable|array',
@@ -172,6 +177,7 @@ class GajiController extends Controller
         $karyawan = Karyawan::with('jabatan')->find($validatedData['karyawan_id']);
 
         // 3. Panggil fungsi kalkulasi (Anak, Pengabdian)
+        //    Ini akan menghasilkan 'tunj_komunikasi' => 0, TAPI tidak apa-apa
         $tunjanganDinamis = $this->hitungTunjanganDinamis($karyawan);
 
         // --- AWAL KALKULASI KINERJA (SESUAI PERMINTAAN BARU) ---
@@ -201,8 +207,21 @@ class GajiController extends Controller
 
         // --- AKHIR KALKULASI KINERJA ---
 
+        // --- AWAL PERBAIKAN BUG TUNJANGAN KOMUNIKASI ---
+        // 7. Ambil nominal Tunjangan Komunikasi dari ID yang di-request
+        $tunjanganKomunikasiNominal = 0;
+        if (!empty($validatedData['tunjangan_komunikasi_id'])) {
+            // Cari master tunjangan komunikasi berdasarkan ID dari form
+            $aturanKomunikasi = TunjanganKomunikasi::find($validatedData['tunjangan_komunikasi_id']);
+            if ($aturanKomunikasi) {
+                // Ambil nominal 'besaran'
+                $tunjanganKomunikasiNominal = $aturanKomunikasi->besaran;
+            }
+        }
+        // --- AKHIR PERBAIKAN BUG TUNJANGAN KOMUNIKASI ---
+
         // --- AWAL TAMBAHAN SNAPSHOT KARYAWAN ---
-        // 7. Siapkan data snapshot dari karyawan
+        // 8. Siapkan data snapshot dari karyawan
         $snapshotData = [
             'nama_karyawan_snapshot' => $karyawan->nama,
             'nip_snapshot' => $karyawan->nip, // Asumsi NIP ada di 'nip'
@@ -210,23 +229,27 @@ class GajiController extends Controller
         ];
         // --- AKHIR TAMBAHAN SNAPSHOT KARYAWAN ---
 
-        // 8. Gabungkan semua hasil kalkulasi ke data yang akan disimpan
+        // 9. Gabungkan semua hasil kalkulasi ke data yang akan disimpan
         $dataUntukDisimpan = array_merge(
             $validatedData,
-            $tunjanganDinamis,
+            $tunjanganDinamis, // Ini mengandung 'tunj_komunikasi' => 0
             ['tunj_kinerja' => $tunjanganKinerjaNominal], // Timpa/Isi tunj_kinerja
             $snapshotData // TAMBAHKAN DATA SNAPSHOT
         );
-        // --- AKHIR REVISI (saveOrUpdate) ---
 
-        // 9. Simpan ke database menggunakan service Anda
-        //    Service Anda akan menyimpan semua data di $dataUntukDisimpan ke tabel 'gajis'
+        // --- AWAL PERBAIKAN BUG: Timpa tunj_komunikasi ---
+        // Timpa 'tunj_komunikasi' => 0 dari $tunjanganDinamis
+        // dengan nilai nominal yang benar dari kalkulasi kita.
+        $dataUntukDisimpan['tunj_komunikasi'] = $tunjanganKomunikasiNominal;
+        // --- AKHIR PERBAIKAN BUG ---
+
+        // 10. Simpan ke database menggunakan service Anda
         $gaji = $this->salaryService->saveGaji($dataUntukDisimpan);
 
-        // 10. Simpan rincian skor ke tabel 'penilaian_kinerjas'
-        //    Hapus data skor lama (jika ada)
+        // 11. Simpan rincian skor ke tabel 'penilaian_kinerjas'
+        //     Hapus data skor lama (jika ada)
         $gaji->penilaianKinerjas()->delete();
-        //    Simpan data skor baru
+        //     Simpan data skor baru
         if (!empty($scores)) {
             $dataSkorBatch = [];
             foreach ($scores as $indikator_id => $skor) {
@@ -241,7 +264,7 @@ class GajiController extends Controller
             PenilaianKinerja::insert($dataSkorBatch);
         }
 
-        // 11. Ambil data terbaru dari service untuk dikirim balik ke view
+        // 12. Ambil data terbaru dari service untuk dikirim balik ke view
         $newData = $this->salaryService->calculateDetailsForForm($karyawan, $validatedData['bulan']);
 
         // --- AWAL REVISI (JSON Response) ---
@@ -249,7 +272,12 @@ class GajiController extends Controller
         // (Ini diperlukan agar data di baris tabel langsung update dengan benar)
         $newData['tunj_anak'] = $tunjanganDinamis['tunj_anak'];
         $newData['tunj_pengabdian'] = $tunjanganDinamis['tunj_pengabdian'];
-        $newData['tunj_komunikasi'] = $tunjanganDinamis['tunj_komunikasi']; // Akan 0
+
+        // --- AWAL PERBAIKAN BUG (JSON Response) ---
+        // $newData['tunj_komunikasi'] = $tunjanganDinamis['tunj_komunikasi']; // Hapus baris ini
+        $newData['tunj_komunikasi'] = $tunjanganKomunikasiNominal; // Ganti dengan nilai yg benar
+        // --- AKHIR PERBAIKAN BUG (JSON Response) ---
+
         // Tunjangan Kinerja sudah dihitung ulang oleh service, jadi tidak perlu ditimpa
         // --- AKHIR REVISI (JSON Response) ---
 

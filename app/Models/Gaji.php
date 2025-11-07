@@ -69,4 +69,9 @@ class Gaji extends Model
     {
         return $this->hasMany(PenilaianKinerja::class);
     }
+
+    public function tunjanganKomunikasi()
+    {
+        return $this->belongsTo(\App\Models\TunjanganKomunikasi::class, 'tunjangan_komunikasi_id');
+    }
 }

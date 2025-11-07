@@ -52,4 +52,9 @@ class Karyawan extends Model
     {
         return $this->hasMany(Gaji::class, 'karyawan_id');
     }
+
+    public function tunjanganKomunikasi()
+    {
+        return $this->belongsTo(\App\Models\TunjanganKomunikasi::class, 'tunjangan_komunikasi_id');
+    }
 }
