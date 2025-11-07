@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Cache;
 use App\Models\AturanKinerja;
 use App\Models\IndikatorKinerja;
 use App\Models\PenilaianKinerja;
+use App\Models\TunjanganKomunikasi;
 
 class GajiController extends Controller
 {
@@ -97,6 +98,7 @@ class GajiController extends Controller
 
         // Revisi 1: Ambil data Tunjangan Kehadiran untuk dropdown modal
         $tunjanganKehadirans = TunjanganKehadiran::all();
+        $tunjanganKomunikasis = TunjanganKomunikasi::all();
 
         // --- TAMBAHAN BARU UNTUK KINERJA ---
         // Ambil data Master Indikator
@@ -139,7 +141,8 @@ class GajiController extends Controller
             'selectedMonth',
             'tunjanganKehadirans',
             'indikatorKinerjas', // Kirim master indikator
-            'aturanKinerja'      // Kirim aturan (nilai maks)
+            'aturanKinerja',
+            'tunjanganKomunikasis'      // Kirim aturan (nilai maks)
         ));
     }
 

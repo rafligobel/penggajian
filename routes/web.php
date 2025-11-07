@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\AturanTunjanganAnakController;
 use App\Http\Controllers\AturanTunjanganPengabdianController;
 use App\Http\Controllers\PengaturanKinerjaController;
+use App\Http\Controllers\TunjanganKomunikasiController;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -83,6 +85,7 @@ Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
     Route::resource('users', UserController::class);
     Route::resource('jabatan', JabatanController::class);
     Route::resource('tunjangan-kehadiran', TunjanganKehadiranController::class)->except(['create', 'edit', 'show']);
+    Route::resource('tunjangan-komunikasi', TunjanganKomunikasiController::class)->except(['create', 'edit', 'show']);
 
     // Resource Karyawan sekarang aman di dalam middleware admin
     Route::get('karyawan/create', [KaryawanController::class, 'create'])->name('karyawan.create');

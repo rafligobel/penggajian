@@ -274,15 +274,15 @@ class TenagaKerjaController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Sesi absensi sedang tidak dibuka saat ini. Keterangan: ' . ($statusInfo['keterangan'] ?? $statusInfo['status'])], 403);
         }
 
+        // [INI ADALAH FUNGSI KUNCI YANG SUDAH BENAR]
         $sudahAbsen = Absensi::where('karyawan_id', $karyawan->id)
             ->where('tanggal', $todayDate)
             ->exists();
 
         if ($sudahAbsen) {
-            return response()->json(['status' => 'error', 'message' => 'Anda sudah melakukan absensi hari ini.'], 409);
+            return response()->json(['status' => 'error', 'message' => 'Anda sudah melakukan absensi hari ini.'], 409); // 409 = Conflict
         }
 
-        // [PERBAIKAN] Gunakan sesi_id dari service
         if (empty($statusInfo['sesi_id'])) {
             Log::error('FATAL: Tidak ada sesi absensi (default atau khusus) yang ditemukan di database.', ['statusInfo' => $statusInfo]);
             return response()->json(['status' => 'error', 'message' => 'Sistem tidak dapat menemukan sesi absensi yang valid.'], 500);

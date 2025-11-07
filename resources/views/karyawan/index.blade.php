@@ -115,6 +115,7 @@
     @push('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', function() {
+                // Ambil data karyawan dari controller
                 const allKaryawanData = @json($karyawans);
                 const searchInput = document.getElementById('search-input');
                 const tableBody = document.getElementById('karyawan-table-body');
@@ -123,6 +124,10 @@
                 const userIsAdmin = {{ in_array(Auth::user()->role, ['superadmin', 'admin']) ? 'true' : 'false' }};
                 const userIsBendahara = {{ Auth::user()->role === 'bendahara' ? 'true' : 'false' }};
 
+                // URL default untuk foto (logo Al-Azhar dari layout Anda)
+                const defaultAvatar = "{{ asset('logo/logoalazhar.png') }}";
+                // URL dasar untuk foto pegawai
+                const storageBaseUrl = "{{ asset('storage/foto_pegawai') }}";
 
                 function renderTable(dataToRender) {
                     tableBody.innerHTML = '';
@@ -142,7 +147,6 @@
                             `<span class="badge bg-success">Aktif</span>` :
                             `<span class="badge bg-danger">Tidak Aktif</span>`;
 
-                        // === PERBAIKAN 1: Ambil nama jabatan dari objek relasi ===
                         const namaJabatan = karyawan.jabatan ? karyawan.jabatan.nama_jabatan :
                             '<span class="text-muted">Tidak ada jabatan</span>';
 
@@ -187,46 +191,78 @@
                         const modalTitle = detailModalEl.querySelector('.modal-title');
                         const modalBody = detailModalEl.querySelector('#detailKaryawanModalBody');
 
-                        modalTitle.textContent = 'Detail Karyawan: ' + karyawan.nama;
-                        const statusBadge = karyawan.status_aktif ?
-                            '<span class="badge bg-success">Aktif</span>' :
-                            '<span class="badge bg-danger">Tidak Aktif</span>';
+                        modalTitle.textContent = 'Detail Pegawai: ' + karyawan.nama;
 
-                        // === PERBAIKAN 2: Ambil juga nama jabatan untuk modal detail ===
                         const namaJabatanModal = karyawan.jabatan ? karyawan.jabatan.nama_jabatan :
                             '<span class="text-muted">Tidak ada jabatan</span>';
 
-                        const formatDate = (dateString) => new Date(dateString).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        });
+                        // Fungsi helper format tanggal (hanya tanggal, bulan, tahun)
+                        const formatDate = (dateString) => {
+                            if (!dateString) return '<span class="text-muted">-</span>';
+                            return new Date(dateString).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric'
+                            });
+                        };
 
+                        // Tentukan URL Foto
+                        const fotoUrl = karyawan.foto ? `${storageBaseUrl}/${karyawan.foto}` : defaultAvatar;
+
+                        // ================== AWAL PERBAIKAN HTML MODAL ==================
+                        // Ini adalah layout baru yang lebih menarik
                         modalBody.innerHTML = `
-                            <div class="row">
-                                <div class="col-lg-6">
-                                    <dl class="row">
-                                        <dt class="col-sm-4">Nama Lengkap</dt><dd class="col-sm-8">: ${karyawan.nama}</dd>
-                                        <dt class="col-sm-4">NIP</dt><dd class="col-sm-8">: ${karyawan.nip}</dd>
-                                        <dt class="col-sm-4">Email</dt><dd class="col-sm-8">: ${karyawan.email || 'Tidak ada'}</dd>
-                                        <dt class="col-sm-4">Jabatan</dt><dd class="col-sm-8">: ${namaJabatanModal}</dd>
-                                    </dl>
+                            <div class="row g-4">
+                                <div class="col-md-4 text-center border-end">
+                                    
+                                    <img src="${fotoUrl}" 
+                                         class="img-fluid img-thumbnail rounded-circle mb-3" 
+                                         style="width: 150px; height: 150px; object-fit: cover;" 
+                                         alt="Foto ${karyawan.nama}">
+                                    
+                                    <h4 class="mb-0 fw-bold">${karyawan.nama}</h4>
+                                    <p class="text-muted fs-6 mb-0">NP: ${karyawan.nip}</p>
+                                    <p class="text-primary fs-6">${namaJabatanModal}</p>
                                 </div>
-                                <div class="col-lg-6">
-                                    <dl class="row">
-                                        <dt class="col-sm-4">Alamat</dt><dd class="col-sm-8">: ${karyawan.alamat}</dd>
-                                        <dt class="col-sm-4">Telepon</dt><dd class="col-sm-8">: ${karyawan.telepon}</dd>
-                                        <dt class="col-sm-4">Tgl. Bergabung</dt><dd class="col-sm-8">: ${formatDate(karyawan.created_at)}</dd>
-                                        <dt class="col-sm-4">Diperbarui</dt><dd class="col-sm-8">: ${formatDate(karyawan.updated_at)}</dd>
-                                    </dl>
+                                
+                                <div class="col-md-8">
+                                    <h5 class="text-primary fw-bold mb-3">Data Personal & Kepegawaian</h5>
+                                    <table class="table table-borderless table-sm" style="font-size: 0.95rem;">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 30%;">Email (Akun)</th>
+                                                <td>: ${karyawan.email || '<span class="text-muted">-</span>'}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>No. Telepon</th>
+                                                <td>: ${karyawan.telepon || '<span class="text-muted">-</span>'}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Alamat</th>
+                                                <td>: ${karyawan.alamat || '<span class="text-muted">-</span>'}</td>
+                                            </tr>
+                                            <tr><td colspan="2" class="pt-3"></td></tr>
+                                            <tr>
+                                                <th>Tgl. Masuk</th>
+                                                <td>: ${formatDate(karyawan.tanggal_masuk)}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Jumlah Anak</th>
+                                                <td>: ${karyawan.jumlah_anak} Anak</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Data Dibuat</th>
+                                                <td>: ${formatDate(karyawan.created_at)}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
-                            </div>`;
+                            </div>
+                        `;
+                        // ================== AKHIR PERBAIKAN HTML MODAL ==================
                     });
                 }
 
-                // ... (sisa event listener Anda) ...
 
                 searchInput.addEventListener('input', filterAndRender);
                 renderTable(allKaryawanData); // Initial render

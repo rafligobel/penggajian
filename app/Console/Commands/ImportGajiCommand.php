@@ -129,7 +129,8 @@ class ImportGajiCommand extends Command
 
                 // 3. Proses Gaji (menentukan tunjangan kehadiran ID berdasarkan perhitungan)
                 $gajiData = $this->prepareGajiData($row, $tkLookup, $defaultTunjanganId);
-
+                $gajiData['nama_karyawan_snapshot'] = $karyawan->nama;
+                $gajiData['nip_snapshot'] = $karyawan->nip;
                 Gaji::updateOrCreate(
                     ['karyawan_id' => $karyawan->id, 'bulan' => $bulanString],
                     $gajiData

@@ -101,14 +101,11 @@ class SesiAbsensiController extends Controller
                 'hari_kerja.array' => 'Hari kerja harus berupa pilihan yang valid.'
             ]);
 
-            // == PERBAIKAN BUG TIPE DATA ==
-            // Ubah array string dari form (misal ["1", "5"]) menjadi array integer [1, 5]
-            // agar cocok dengan tipe data yang dicari oleh AbsensiService.
+
             $hariKerjaDipilih = array_map(
-                'intval', // Fungsi untuk mengubah string ke integer
+                'intval',
                 $validated['hari_kerja'] ?? []
             );
-            // ============================
 
             $hariLiburDefault = array_diff([1, 2, 3, 4, 5, 6, 7], $hariKerjaDipilih);
 

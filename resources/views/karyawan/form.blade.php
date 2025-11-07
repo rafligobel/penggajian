@@ -8,16 +8,22 @@
     @enderror
 </div>
 
-{{-- EMAIL DI TABEL KARYAWAN TIDAK DIPERLUKAN LAGI, KARENA AKAN DIAMBIL DARI AKUN USER --}}
-{{-- <div class="mb-3">
-    <label for="email">Email (Untuk Pengiriman Slip Gaji)</label>
-    <input type="email" name="email" id="email" class="form-control @error('email') is-invalid @enderror"
-        value="{{ old('email', $karyawan->email ?? '') }}">
-    @error('email')
+<div class="mb-3">
+    <label for="foto" class="form-label">Foto Pegawai</label>
+    <input class="form-control @error('foto') is-invalid @enderror" type="file" id="foto" name="foto">
+    @error('foto')
         <div class="invalid-feedback">{{ $message }}</div>
     @enderror
-</div> --}}
 
+    {{-- Tampilkan foto saat ini di halaman edit --}}
+    @if (isset($karyawan) && $karyawan->foto)
+        <div class="mt-2">
+            <img src="{{ asset('storage/foto_pegawai/' . $karyawan->foto) }}" alt="Foto saat ini"
+                style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;">
+            <small class="d-block text-muted">Foto saat ini. Upload file baru untuk mengganti.</small>
+        </div>
+    @endif
+</div>
 <div class="mb-3">
     <label for="nip">NIP</label>
     <input type="text" name="nip" id="nip" class="form-control @error('nip') is-invalid @enderror"

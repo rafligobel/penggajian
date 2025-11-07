@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage; // <-- TAMBAHAN: Import Storage facade
 
 class KaryawanController extends Controller
 {
@@ -35,10 +36,9 @@ class KaryawanController extends Controller
             'jabatan_id' => 'nullable|exists:jabatans,id',
             'user_email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
-            // --- AWAL REVISI (store) ---
             'tanggal_masuk' => 'nullable|date',
             'jumlah_anak' => 'nullable|integer|min:0',
-            // --- AKHIR REVISI (store) ---
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', // <-- TAMBAHAN: Validasi foto
         ]);
 
         // 1. Buat Akun User terlebih dahulu
@@ -49,8 +49,8 @@ class KaryawanController extends Controller
             'role' => 'tenaga_kerja', // Sesuai file Anda
         ]);
 
-        // 2. Buat Karyawan dan hubungkan user_id
-        Karyawan::create([
+        // 2. Siapkan Data Karyawan
+        $karyawanData = [
             'user_id' => $user->id,
             'nama' => $validated['nama'],
             'nip' => $validated['nip'],
@@ -58,17 +58,28 @@ class KaryawanController extends Controller
             'telepon' => $validated['telepon'],
             'jabatan_id' => $validated['jabatan_id'],
             'email' => $validated['user_email'],
-            // --- AWAL REVISI (store) ---
             'tanggal_masuk' => $validated['tanggal_masuk'] ?? null,
             'jumlah_anak' => $validated['jumlah_anak'] ?? 0,
-            // --- AKHIR REVISI (store) ---
-        ]);
+            'foto' => null, // Default
+        ];
+
+        // 3. TAMBAHAN: Logika Upload Foto
+        if ($request->hasFile('foto')) {
+            $filename = time() . '_' . $request->file('foto')->getClientOriginalName();
+            // Simpan file ke storage/app/public/foto_pegawai
+            $request->file('foto')->storeAs('public/foto_pegawai', $filename);
+            $karyawanData['foto'] = $filename; // Simpan nama file ke database
+        }
+
+        // 4. Buat Karyawan
+        Karyawan::create($karyawanData);
 
         return redirect()->route('karyawan.index')->with('success', 'Data karyawan dan akun login berhasil dibuat.');
     }
 
     public function show(Karyawan $karyawan)
     {
+        // Tampilkan foto di halaman show jika diperlukan (opsional)
         return view('karyawan.show', compact('karyawan'));
     }
 
@@ -90,27 +101,40 @@ class KaryawanController extends Controller
             'jabatan_id' => 'nullable|exists:jabatans,id',
             'user_email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore(optional($karyawan->user)->id)],
             'password' => 'nullable|string|min:8',
-            // --- AWAL REVISI (update) ---
             'tanggal_masuk' => 'nullable|date',
             'jumlah_anak' => 'nullable|integer|min:0',
-            // --- AKHIR REVISI (update) ---
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', // <-- TAMBAHAN: Validasi foto
         ]);
 
-        // 1. Update data karyawan
-        $karyawan->update([
+        // 1. Siapkan data update karyawan
+        $dataToUpdate = [
             'nama' => $validated['nama'],
             'nip' => $validated['nip'],
             'alamat' => $validated['alamat'],
             'telepon' => $validated['telepon'],
             'jabatan_id' => $validated['jabatan_id'],
             'email' => $validated['user_email'],
-            // --- AWAL REVISI (update) ---
             'tanggal_masuk' => $validated['tanggal_masuk'] ?? null,
             'jumlah_anak' => $validated['jumlah_anak'] ?? 0,
-            // --- AKHIR REVISI (update) ---
-        ]);
+        ];
 
-        // 2. Update data user yang terhubung
+        // 2. TAMBAHAN: Logika Update Foto
+        if ($request->hasFile('foto')) {
+            // Hapus foto lama jika ada
+            if ($karyawan->foto) {
+                Storage::delete('public/foto_pegawai/' . $karyawan->foto);
+            }
+
+            // Simpan foto baru
+            $filename = time() . '_' . $request->file('foto')->getClientOriginalName();
+            $request->file('foto')->storeAs('public/foto_pegawai', $filename);
+            $dataToUpdate['foto'] = $filename; // Tambahkan nama file baru ke data update
+        }
+
+        // 3. Update data karyawan
+        $karyawan->update($dataToUpdate);
+
+        // 4. Update data user yang terhubung
         if ($karyawan->user) {
             $karyawan->user->name = $validated['nama'];
             $karyawan->user->email = $validated['user_email'];
@@ -125,10 +149,16 @@ class KaryawanController extends Controller
 
     public function destroy(Karyawan $karyawan)
     {
-        // Hapus juga user yang terhubung untuk menjaga kebersihan data
+        // TAMBAHAN: Hapus foto dari storage
+        if ($karyawan->foto) {
+            Storage::delete('public/foto_pegawai/' . $karyawan->foto);
+        }
+
+        // Hapus juga user yang terhubung
         if ($karyawan->user) {
             $karyawan->user->delete();
         }
+
         $karyawan->delete();
 
         return redirect()->route('karyawan.index')->with('success', 'Data karyawan berhasil dihapus.');

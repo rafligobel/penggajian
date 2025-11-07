@@ -89,6 +89,9 @@
                         <li class="{{ Request::routeIs('tunjangan-kehadiran.*') ? 'active' : '' }}">
                             <a href="{{ route('tunjangan-kehadiran.index') }}">Tunjangan Kehadiran</a>
                         </li>
+                        <li class="{{ Request::routeIs('tunjangan-komunikasi.*') ? 'active' : '' }}">
+                            <a href="{{ route('tunjangan-komunikasi.index') }}">Tunjangan Komunikasi</a>
+                        </li>
                         <li class="{{ Request::routeIs('aturan-anak.*') ? 'active' : '' }}">
                             <a href="{{ route('aturan-anak.index') }}">Aturan Tunjangan Anak</a>
                         </li>

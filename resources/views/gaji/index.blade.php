@@ -48,32 +48,26 @@
                             </tr>
                         </thead>
                         <tbody id="gaji-table-body">
-                            {{-- ================== PERBAIKAN BLADE DIMULAI (Kode Asli Anda) ================== --}}
+                            {{-- Kode Blade Anda sudah benar, menggunakan data dari SalaryService --}}
                             @forelse ($dataGaji as $gajiData)
-                                {{-- Tidak perlu @php, $gajiData adalah array yang kita gunakan --}}
                                 <tr data-gaji-json="{{ json_encode($gajiData) }}" class="karyawan-row"
                                     data-karyawan-id="{{ $gajiData['karyawan_id'] }}">
                                     <td>{{ $loop->iteration }}</td>
                                     <td>
                                         <strong class="nama-karyawan">{{ $gajiData['nama'] }}</strong><br>
-                                        {{-- NIP sudah diambil dari SalaryService --}}
                                         <small class="text-muted nip-karyawan">NP: {{ $gajiData['nip'] }}</small>
                                     </td>
                                     <td class="text-end gaji-pokok-col">
-                                        {{-- Ambil 'gaji_pokok_string' dari service, sudah termasuk Rp --}}
                                         {{ $gajiData['gaji_pokok_string'] }}
                                     </td>
                                     <td class="text-end tunj-jabatan-col">
-                                        {{-- Ambil 'tunj_jabatan_string' dari service, sudah termasuk Rp --}}
                                         {{ $gajiData['tunj_jabatan_string'] }}
                                     </td>
                                     <td class="text-end fw-bold gaji-bersih-col">
-                                        {{-- Ambil 'gaji_bersih_string' dan cek 'gaji_id', sudah termasuk Rp --}}
                                         <span
                                             class="badge {{ $gajiData['gaji_id'] ? 'bg-success' : 'bg-light text-dark' }}">{{ $gajiData['gaji_bersih_string'] }}</span>
                                     </td>
                                     <td class="text-center status-col">
-                                        {{-- Cek 'gaji_id' (dari $gajiTersimpan->id di service) --}}
                                         @if ($gajiData['gaji_id'])
                                             <span class="badge bg-primary">Sudah Diproses</span>
                                         @else
@@ -98,8 +92,6 @@
                                         aktif.</td>
                                 </tr>
                             @endforelse
-                            {{-- ================== PERBAIKAN BLADE SELESAI ================== --}}
-
                             <tr id="no-search-results" style="display: none;">
                                 <td colspan="7" class="text-center fst-italic py-4">Karyawan tidak ditemukan.</td>
                             </tr>
@@ -159,9 +151,9 @@
 
                                     @foreach ($tunjanganKehadirans as $tunjangan)
                                         <option value="{{ $tunjangan->id }}">
-                                            {{ $tunjangan->nama_tunjangan }}
-
-                                            ({{ 'Rp ' . number_format($tunjangan->nilai ?? $tunjangan->jumlah_tunjangan, 0, ',', '.') }}/hari)
+                                            {{-- PERBAIKAN: Menggunakan nama field yang konsisten dari TunjanganKehadiran Anda --}}
+                                            {{ $tunjangan->jenis_tunjangan }}
+                                            ({{ 'Rp ' . number_format($tunjangan->jumlah_tunjangan, 0, ',', '.') }}/hari)
                                         </option>
                                     @endforeach
                                 </select>
@@ -217,6 +209,29 @@
                         {{-- ================== AKHIR TAMBAHAN HTML (TUNJANGAN KINERJA) ================== --}}
 
 
+                        <h6 class="form-label fw-bold">Tunjangan Komunikasi</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_tunj_komunikasi_select" class="form-label">
+                                    Pilih Level (Otomatis)
+                                </label>
+                                <select id="edit_tunj_komunikasi_select" class="form-select">
+                                    <option value="">-- Pilih Tunjangan --</option>
+                                    {{-- Opsi ini akan di-load oleh JavaScript dari master data --}}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_tunj_komunikasi" class="form-label">
+                                    Besaran (Rp)
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">Rp</span>
+                                    <input type="number" class="form-control" id="edit_tunj_komunikasi"
+                                        name="tunj_komunikasi" value="0" min="0" required>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
                         <div id="edit-form-content" class="row"></div>
                     </div>
                     <div class="modal-footer">
@@ -231,6 +246,12 @@
 
 @push('scripts')
     <script>
+        // ================== AWAL PERBAIKAN (Menyimpan Data Master ke JS) ==================
+        // Pastikan GajiController mengirimkan variabel $tunjanganKomunikasis
+        // Kita tambahkan '?? []' sebagai fallback jika controller belum di-update.
+        const masterTunjanganKomunikasi = @json($tunjanganKomunikasis ?? []);
+        // ================== AKHIR PERBAIKAN ==================
+
         document.addEventListener('DOMContentLoaded', function() {
             // Inisialisasi Modal
             const detailModalEl = document.getElementById('detailModal');
@@ -357,6 +378,41 @@
                     }
                 }
                 // ================== AKHIR TAMBAHAN JS ==================
+
+
+                // ================== AWAL PERBAIKAN (JS MENGISI TUNJ. KOMUNIKASI) ==================
+                const tunjKomunikasiInput = editModalEl.querySelector('#edit_tunj_komunikasi');
+                const tunjKomunikasiSelect = editModalEl.querySelector('#edit_tunj_komunikasi_select');
+
+                // 1. Isi input field dengan data yang ada
+                tunjKomunikasiInput.value = gajiData.tunj_komunikasi || 0;
+
+                // 2. Kosongkan dan isi dropdown dari master data
+                tunjKomunikasiSelect.innerHTML = '<option value="">-- Pilih Tunjangan --</option>';
+                masterTunjanganKomunikasi.forEach(function(tunjangan) {
+                    const option = document.createElement('option');
+                    option.value = tunjangan
+                        .id; // Kita pakai ID, tapi data-besaran yang penting
+                    option.text =
+                        `${tunjangan.nama_level} (${formatRupiah(tunjangan.besaran)})`;
+                    option.setAttribute('data-besaran', tunjangan.besaran);
+                    tunjKomunikasiSelect.appendChild(option);
+                });
+
+                // 3. Coba pilih dropdown secara otomatis berdasarkan nilai yang ada
+                const nilaiSekarang = gajiData.tunj_komunikasi || 0;
+                let found = false;
+                Array.from(tunjKomunikasiSelect.options).forEach(function(option) {
+                    if (option.getAttribute('data-besaran') == nilaiSekarang) {
+                        option.selected = true;
+                        found = true;
+                    }
+                });
+                if (!found) {
+                    tunjKomunikasiSelect.value = ''; // Jika tidak ada yang cocok, reset
+                }
+                // ================== AKHIR PERBAIKAN (JS MENGISI TUNJ. KOMUNIKASI) ==================
+
             });
 
             // [REVISI] Gunakan event 'show.bs.modal' untuk 'detailModal'
@@ -393,6 +449,28 @@
                 noResultsRow.style.display = (visibleRows === 0 && searchTerm) ? '' : 'none';
             });
 
+            // ================== AWAL PERBAIKAN (JS LISTENER DROPDOWN KOMUNIKASI) ==================
+            // Daftarkan listener di modal untuk menangani event 'change' pada dropdown
+            editModalEl.addEventListener('change', function(e) {
+                // Cek apakah target event adalah dropdown kita
+                if (e.target.id === 'edit_tunj_komunikasi_select') {
+                    const select = e.target;
+                    const selectedOption = select.options[select.selectedIndex];
+                    const besaran = selectedOption.getAttribute('data-besaran');
+
+                    const tunjKomunikasiInput = editModalEl.querySelector('#edit_tunj_komunikasi');
+
+                    if (besaran) {
+                        tunjKomunikasiInput.value = besaran;
+                    } else {
+                        // Jika "-- Pilih --" dipilih, set nilai ke 0
+                        tunjKomunikasiInput.value = 0;
+                    }
+                }
+            });
+            // ================== AKHIR PERBAIKAN ==================
+
+
             // ================== [REVISI UTAMA JAVASCRIPT] (populateEditModal) ==================
             function populateEditModal(data) {
                 const modal = editModalEl;
@@ -415,6 +493,8 @@
 
                 const formContent = modal.querySelector('#edit-form-content');
 
+                // PERBAIKAN: tunj_komunikasi sudah ditangani di HTML statis di atas.
+                // Jadi kita tidak perlu memasukkannya di 'fields' array ini.
                 const fields = [{
                     name: 'tunj_jabatan',
                     label: 'Tunjangan Jabatan',
@@ -513,7 +593,7 @@
                     label: 'Tunjangan Anak',
                     value: data.tunj_anak_string
                 }, {
-                    label: 'Tunjangan Komunikasi',
+                    label: 'Tunjangan Komunikasi', // Ini sudah benar ada di sini
                     value: data.tunj_komunikasi_string
                 }, {
                     label: 'Tunjangan Pengabdian',
