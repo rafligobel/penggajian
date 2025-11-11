@@ -8,26 +8,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon; // Pastikan ini di-import
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Gaji extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'karyawan_id',
         'bulan',
-
-        // --- AWAL TAMBAHAN SNAPSHOT ---
         'nama_karyawan_snapshot',
         'nip_snapshot',
         'jabatan_snapshot',
-        // --- AKHIR TAMBAHAN SNAPSHOT ---
-
         'gaji_pokok',
         'tunj_anak',
         'tunj_komunikasi',
@@ -36,42 +28,62 @@ class Gaji extends Model
         'lembur',
         'potongan',
         'tunjangan_kehadiran_id',
+        'tunjangan_komunikasi_id', // <-- TAMBAHKAN INI
     ];
 
-    /**
-     * [PERBAIKAN 1: WAJIB DITAMBAHKAN]
-     * The attributes that should be cast.
-     * Secara otomatis mengubah 'bulan' menjadi objek Carbon.
-     *
-     * @var array
-     */
     protected $casts = [
         'bulan' => 'date',
     ];
 
-    /**
-     * Relasi ke model Karyawan.
-     */
-    public function karyawan()
+    protected static function booted()
     {
-        return $this->belongsTo(\App\Models\Karyawan::class, 'karyawan_id');
+        static::creating(function ($gaji) {
+            $karyawan = $gaji->karyawan;
+            if ($karyawan) {
+                $gaji->nama_karyawan_snapshot = $karyawan->nama;
+                $gaji->nip_snapshot = $karyawan->nip;
+                $gaji->jabatan_snapshot = $karyawan->jabatan->nama_jabatan ?? null;
+            }
+        });
     }
 
-    /**
-     * Relasi ke model TunjanganKehadiran.
-     */
-    public function tunjanganKehadiran()
+    public function karyawan(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\TunjanganKehadiran::class, 'tunjangan_kehadiran_id');
+        return $this->belongsTo(Karyawan::class);
     }
 
-    public function penilaianKinerjas()
+    public function tunjanganKehadiran(): BelongsTo
+    {
+        return $this->belongsTo(TunjanganKehadiran::class);
+    }
+
+    // <-- TAMBAHKAN RELASI INI ---
+    /**
+     * Mendapat aturan tunjangan komunikasi yang digunakan (Snapshot).
+     */
+    public function tunjanganKomunikasi(): BelongsTo
+    {
+        return $this->belongsTo(TunjanganKomunikasi::class);
+    }
+    // <-- AKHIR TAMBAHAN ---
+
+    public function penilaianKinerjas(): HasMany
     {
         return $this->hasMany(PenilaianKinerja::class);
     }
 
-    public function tunjanganKomunikasi()
+    public function getTotalGajiAttribute()
     {
-        return $this->belongsTo(\App\Models\TunjanganKomunikasi::class, 'tunjangan_komunikasi_id');
+        return $this->gaji_pokok + $this->total_tunjangan + $this->lembur;
+    }
+
+    public function getTotalTunjanganAttribute()
+    {
+        return $this->tunj_anak + $this->tunj_komunikasi + $this->tunj_pengabdian + $this->tunj_kinerja;
+    }
+
+    public function getTotalGajiBersihAttribute()
+    {
+        return $this->total_gaji - $this->potongan;
     }
 }

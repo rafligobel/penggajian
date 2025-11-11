@@ -22,15 +22,16 @@ class Karyawan extends Model
         'alamat',
         'telepon',
         'jabatan_id',
+        'tunjangan_komunikasi_id',
         'user_id',
-        'tanggal_masuk', // <-- REVISI DITAMBAHKAN
-        'jumlah_anak',   // <-- REVISI DITAMBAHKAN
+        'tanggal_masuk',
+        'jumlah_anak',
         'foto',
     ];
 
     protected $casts = [
         'status_aktif' => 'boolean',
-        'tanggal_masuk' => 'date', // <-- REVISI DITAMBAHKAN
+        'tanggal_masuk' => 'date',
     ];
 
     public function user(): BelongsTo
@@ -53,8 +54,17 @@ class Karyawan extends Model
         return $this->hasMany(Gaji::class, 'karyawan_id');
     }
 
-    public function tunjanganKomunikasi()
+    public function tunjanganKomunikasi(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\TunjanganKomunikasi::class, 'tunjangan_komunikasi_id');
+        return $this->belongsTo(TunjanganKomunikasi::class);
+    }
+    public function setFotoAttribute($value)
+    {
+        $this->setImageAttribute($value, 'foto', 'uploads/foto_pegawai');
+    }
+
+    public function getFotoUrlAttribute()
+    {
+        return $this->getImageUrlAttribute('foto');
     }
 }

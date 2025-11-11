@@ -6,6 +6,7 @@ use App\Models\Karyawan;
 use App\Models\Jabatan;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Models\TunjanganKomunikasi;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage; // <-- TAMBAHAN: Import Storage facade
@@ -22,8 +23,9 @@ class KaryawanController extends Controller
     {
         $karyawan = new Karyawan(); // Kirim model kosong ke view
         $jabatans = Jabatan::orderBy('nama_jabatan')->get();
+        $tunjanganKomunikasis = TunjanganKomunikasi::all();
         // Variabel $tombol disesuaikan dengan form Anda
-        return view('karyawan.create', compact('karyawan', 'jabatans'))->with('tombol', 'Simpan');
+        return view('karyawan.create', compact('karyawan', 'jabatans', 'tunjanganKomunikasis'))->with('tombol', 'Simpan');
     }
 
     public function store(Request $request)
