@@ -8,31 +8,30 @@ use App\Models\Karyawan;
 use App\Models\TunjanganKehadiran;
 use Illuminate\Http\Request;
 use App\Services\SalaryService;
+use App\Services\AbsensiService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Jobs\GenerateIndividualSlip;
 use App\Jobs\SendSlipToEmail;
-
-// --- REVISI: Tambahkan Model & Cache ---
 use App\Models\AturanTunjanganAnak;
 use App\Models\AturanTunjanganPengabdian;
 use Illuminate\Support\Facades\Cache;
-
-// --- TAMBAHAN BARU UNTUK KINERJA ---
 use App\Models\AturanKinerja;
 use App\Models\IndikatorKinerja;
 use App\Models\PenilaianKinerja;
-// --- PERBAIKAN: Pastikan Model TunjanganKomunikasi di-use ---
 use App\Models\TunjanganKomunikasi;
+use App\Models\potongan;
 use Illuminate\Support\Facades\DB;
 
 class GajiController extends Controller
 {
     protected SalaryService $salaryService;
+    protected AbsensiService $absensiService;
 
-    public function __construct(SalaryService $salaryService)
+    public function __construct(SalaryService $salaryService, AbsensiService $absensiService)
     {
         $this->salaryService = $salaryService;
+        $this->absensiService = $absensiService;
     }
 
     /**
@@ -95,7 +94,7 @@ class GajiController extends Controller
     public function index(Request $request)
     {
         $selectedMonth = $request->input('bulan', Carbon::now()->format('Y-m'));
-
+        $bulanCarbon = Carbon::createFromFormat('Y-m', $selectedMonth);
         $karyawans = Karyawan::with('jabatan')->orderBy('nama')->get();
 
         // Ambil data Tunjangan Kehadiran untuk dropdown modal
@@ -106,10 +105,10 @@ class GajiController extends Controller
         // Ambil data Master Indikator
         $indikatorKinerjas = IndikatorKinerja::all();
         // Ambil aturan Tukin (nominal maksimal)
-        $aturanKinerja = Cache::remember('aturan_kinerja_single', 3600, function () {
-            return AturanKinerja::first();
-        });
-
+        $aturanKinerja = Cache::remember('aturan_kinerja_single', 3600, fn() => AturanKinerja::first());
+        $potongan = potongan::first() ?? new potongan(['tarif_lembur_per_jam' => 0, 'tarif_potongan_absen' => 0]);
+        $rekapAbsensiRaw = $this->absensiService->getAttendanceRecap($bulanCarbon);
+        $rekapAbsensi = $rekapAbsensiRaw['rekapData']->keyBy('id');
 
         $dataGaji = [];
         foreach ($karyawans as $karyawan) {
@@ -117,7 +116,15 @@ class GajiController extends Controller
             //    Service ini sudah benar memuat $gajiTersimpan (data historis)
             //    DAN SUDAH MEMUAT Gaji Pokok dari master jika data baru
             $detailGaji = $this->salaryService->calculateDetailsForForm($karyawan, $selectedMonth);
-
+            $dataAbsenKaryawan = $rekapAbsensi->get($karyawan->id);
+            $jumlahAlpha = $dataAbsenKaryawan ? $dataAbsenKaryawan['summary']['total_alpha'] : 0;
+            $detailGaji['data_pendukung'] = [
+                'jumlah_alpha' => $jumlahAlpha,
+                'tarif_potongan_absen' => $potongan->tarif_potongan_absen,
+                'tarif_lembur_per_jam' => $potongan->tarif_lembur_per_jam,
+                // Hitung potongan otomatis (hanya saran, nanti JS yang eksekusi real-time)
+                'potongan_alpha_otomatis' => $jumlahAlpha * $potongan->tarif_potongan_absen,
+            ];
             // Hanya hitung & timpa tunjangan dinamis JIKA gaji belum diproses
             // (gaji_id masih null). Jika sudah diproses, kita gunakan
             // data historis yang sudah dimuat oleh SalaryService.
@@ -128,7 +135,7 @@ class GajiController extends Controller
                 // 3. Timpa (overwrite) nilai dari service dengan nilai kalkulasi kita
                 $detailGaji['tunj_anak'] = $tunjanganDinamis['tunj_anak'];
                 $detailGaji['tunj_pengabdian'] = $tunjanganDinamis['tunj_pengabdian'];
-
+                $detailGaji['potongan'] = $detailGaji['data_pendukung']['potongan_alpha_otomatis'];
                 // Update string-nya juga
                 $detailGaji['tunj_anak_string'] = 'Rp ' . number_format($detailGaji['tunj_anak'], 0, ',', '.');
                 $detailGaji['tunj_pengabdian_string'] = 'Rp ' . number_format($detailGaji['tunj_pengabdian'], 0, ',', '.');
@@ -144,7 +151,8 @@ class GajiController extends Controller
             'tunjanganKehadirans',
             'indikatorKinerjas', // Kirim master indikator
             'aturanKinerja',
-            'tunjanganKomunikasis'      // Kirim data master komunikasi
+            'tunjanganKomunikasis',
+            'potongan'   // Kirim data master komunikasi
         ));
     }
 
@@ -158,7 +166,8 @@ class GajiController extends Controller
             'karyawan_id' => 'required|exists:karyawans,id',
             'bulan' => 'required|date_format:Y-m',
             'gaji_pokok' => 'required|numeric|min:0',
-            'lembur' => 'required|numeric|min:0',
+            'jam_lembur' => 'nullable|numeric|min:0',
+            'lembur_nominal_manual' => 'required|numeric|min:0',
             'potongan' => 'required|numeric|min:0',
             'tunjangan_kehadiran_id' => 'required|exists:tunjangan_kehadirans,id',
             'tunjangan_komunikasi_id' => 'nullable|exists:tunjangan_komunikasis,id',
@@ -192,9 +201,18 @@ class GajiController extends Controller
             // 4. [CRITICAL] Snapshot Tunjangan Jabatan
             // Kita ambil nilai saat ini dari master jabatan, dan simpan mati ke tabel gaji
             $tunjJabatanSnapshot = $karyawan->jabatan->tunj_jabatan ?? 0;
+            $lemburFinal = $validated['lembur_nominal_manual'];
 
             // 5. Prepare Data Save
             $dataSave = array_merge($validated, [
+                'karyawan_id' => $validated['karyawan_id'],
+                'bulan' => $validated['bulan'],
+                'gaji_pokok' => $validated['gaji_pokok'],
+                'lembur' => $lemburFinal, // Simpan Nominal
+                'potongan' => $validated['potongan'],
+                'tunjangan_kehadiran_id' => $validated['tunjangan_kehadiran_id'],
+                'tunjangan_komunikasi_id' => $validated['tunjangan_komunikasi_id'],
+
                 'tunj_anak' => $tunjanganDinamis['tunj_anak'],
                 'tunj_pengabdian' => $tunjanganDinamis['tunj_pengabdian'],
                 'tunj_komunikasi' => $tunjKomunikasiNominal,

@@ -78,19 +78,19 @@
                     </a>
                 </li> --}}
                 <li
-                    class="{{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*', 'pengaturan-kinerja.*', 'tunjangan-komunikasi.*']) ? 'active' : '' }}">
+                    class="{{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*', 'pengaturan-kinerja.*', 'tunjangan-komunikasi.*', 'potongan.*']) ? 'active' : '' }}">
                     <a href="#tunjanganSubmenu" data-bs-toggle="collapse"
-                        aria-expanded="{{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*', 'pengaturan-kinerja.*', 'tunjangan-komunikasi.*']) ? '' : 'false' }}"
+                        aria-expanded="{{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*', 'pengaturan-kinerja.*', 'tunjangan-komunikasi.*', 'potongan.*']) ? '' : 'false' }}"
                         class="dropdown-toggle">
                         <i class="fas fa-wallet"></i> Kelola Tunjangan
                     </a>
-                    <ul class="collapse list-unstyled {{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*', 'pengaturan-kinerja.*', 'tunjangan-komunikasi.*']) ? 'show' : '' }}"
+                    <ul class="collapse list-unstyled {{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*', 'pengaturan-kinerja.*', 'tunjangan-komunikasi.*', 'potongan.*']) ? 'show' : '' }}"
                         id="tunjanganSubmenu">
                         <li class="{{ Request::routeIs('tunjangan-kehadiran.*') ? 'active' : '' }}">
-                            <a href="{{ route('tunjangan-kehadiran.index') }}">Tunjangan Kehadiran</a>
+                            <a href="{{ route('tunjangan-kehadiran.index') }}">Aturan Tunjangan Kehadiran</a>
                         </li>
                         <li class="{{ Request::routeIs('tunjangan-komunikasi.*') ? 'active' : '' }}">
-                            <a href="{{ route('tunjangan-komunikasi.index') }}">Tunjangan Komunikasi</a>
+                            <a href="{{ route('tunjangan-komunikasi.index') }}">Aturan Tunjangan Komunikasi</a>
                         </li>
                         <li class="{{ Request::routeIs('aturan-anak.*') ? 'active' : '' }}">
                             <a href="{{ route('aturan-anak.index') }}">Aturan Tunjangan Anak</a>
@@ -99,7 +99,10 @@
                             <a href="{{ route('aturan-pengabdian.index') }}">Aturan Tunjangan Pengabdian</a>
                         </li>
                         <li class="{{ Request::routeIs('pengaturan-kinerja.index') ? 'active' : '' }}">
-                            <a href="{{ route('pengaturan-kinerja.index') }}">Aturan & Indikator Kinerja</a>
+                            <a href="{{ route('pengaturan-kinerja.index') }}">Aturan & Tunjangan Kinerja</a>
+                        </li>
+                        <li class="{{ Request::routeIs('potongan.index') ? 'active' : '' }}">
+                            <a href="{{ route('potongan.index') }}">Aturan Lembur & Potongan</a>
                         </li>
                     </ul>
                 </li>

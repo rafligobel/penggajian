@@ -17,6 +17,7 @@ return new class extends Migration
             $table->date('bulan');
             // Kolom-kolom ini adalah INPUT MANUAL atau TEMPLATE
             $table->unsignedInteger('gaji_pokok')->default(0);
+            $table->unsignedInteger('tunj_jabatan')->default(0);
             $table->unsignedInteger('tunj_anak')->default(0);
             $table->unsignedInteger('tunj_komunikasi')->default(0);
             $table->unsignedInteger('tunj_pengabdian')->default(0);

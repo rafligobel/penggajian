@@ -20,6 +20,7 @@ use App\Http\Controllers\AturanTunjanganAnakController;
 use App\Http\Controllers\AturanTunjanganPengabdianController;
 use App\Http\Controllers\PengaturanKinerjaController;
 use App\Http\Controllers\TunjanganKomunikasiController;
+use App\Http\Controllers\PotonganController;
 
 /*
 |--------------------------------------------------------------------------
@@ -107,6 +108,9 @@ Route::middleware(['auth', 'role:superadmin,admin'])->group(function () {
     Route::post('pengaturan-kinerja/indikator', [PengaturanKinerjaController::class, 'storeIndikator'])->name('pengaturan-kinerja.indikator.store');
     Route::put('pengaturan-kinerja/indikator/{indikator}', [PengaturanKinerjaController::class, 'updateIndikator'])->name('pengaturan-kinerja.indikator.update');
     Route::delete('pengaturan-kinerja/indikator/{indikator}', [PengaturanKinerjaController::class, 'destroyIndikator'])->name('pengaturan-kinerja.indikator.destroy');
+
+    Route::get('/potongan', [PotonganController::class, 'index'])->name('potongan.index');
+    Route::post('/potongan', [PotonganController::class, 'update'])->name('potongan.update');
 });
 
 Route::middleware(['auth', 'role:superadmin,admin,bendahara'])->group(function () {
