@@ -149,15 +149,7 @@ class AbsensiService
                 'keterangan' => $sesiSpesifik->keterangan ?? 'Sesi absensi khusus untuk hari ini.',
                 'sesi_id' => $sesiSpesifik->id,
             ];
-        }
-
-        // 2. Cek apakah ada Sesi Spesifik (Pengecualian) 'libur'
-        $sesiLibur = SesiAbsensi::where('tanggal', $todayDateString)
-            ->where('tipe', 'libur')
-            ->where('is_default', false)
-            ->first();
-
-        if ($sesiLibur) {
+            } else {
             return [
                 'is_active' => false,
                 'waktu_mulai' => null,
