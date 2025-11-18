@@ -35,7 +35,7 @@
                                 <th>No.</th>
                                 <th>Nama Aturan</th>
                                 <th>Masa Kerja</th>
-                                <th class="text-end">Nilai Tunjangan</th>
+                                <th class="text-center">Nilai (Persen)</th>
                                 <th class="text-center">Aksi</th>
                             </tr>
                         </thead>
@@ -45,8 +45,7 @@
                                     <td>{{ $loop->iteration }}</td>
                                     <td>{{ $aturan->nama_aturan }}</td>
                                     <td>{{ $aturan->minimal_tahun_kerja }} - {{ $aturan->maksimal_tahun_kerja }} Tahun</td>
-                                    <td class="text-end">{{ 'Rp ' . number_format($aturan->nilai_tunjangan, 0, ',', '.') }}
-                                    </td>
+                                    <td class="text-center fw-bold">{{ $aturan->nilai_tunjangan }} %</td>
                                     <td class="text-center">
                                         <button class="btn btn-sm btn-warning btn-edit" data-bs-toggle="modal"
                                             data-bs-target="#editAturanPengabdianModal" data-id="{{ $aturan->id }}"
@@ -77,6 +76,7 @@
         </div>
     </div>
 
+    {{-- Modal Tambah Aturan --}}
     <div class="modal fade" id="createAturanPengabdianModal" tabindex="-1" aria-labelledby="createModalLabel"
         aria-hidden="true">
         <div class="modal-dialog">
@@ -91,7 +91,8 @@
                         <div class="mb-3">
                             <label for="nama_aturan" class="form-label">Nama Aturan</label>
                             <input type="text" class="form-control @error('nama_aturan') is-invalid @enderror"
-                                id="nama_aturan" name="nama_aturan" value="{{ old('nama_aturan') }}" required>
+                                id="nama_aturan" name="nama_aturan" value="{{ old('nama_aturan', 'Tunj. Pengabdian') }}"
+                                required>
                             @error('nama_aturan')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -122,13 +123,14 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="nilai_tunjangan" class="form-label">Nilai Tunjangan</label>
+                            <label for="nilai_tunjangan" class="form-label">Nilai Tunjangan (Persen)</label>
                             <div class="input-group">
-                                <span class="input-group-text">Rp</span>
                                 <input type="number" class="form-control @error('nilai_tunjangan') is-invalid @enderror"
                                     id="nilai_tunjangan" name="nilai_tunjangan" value="{{ old('nilai_tunjangan', 0) }}"
                                     min="0" required>
+                                <span class="input-group-text">%</span>
                             </div>
+                            <small class="form-text text-muted">Masukkan angka saja, misal: 5 atau 10.</small>
                             @error('nilai_tunjangan')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
@@ -143,6 +145,7 @@
         </div>
     </div>
 
+    {{-- Modal Edit Aturan --}}
     <div class="modal fade" id="editAturanPengabdianModal" tabindex="-1" aria-labelledby="editModalLabel"
         aria-hidden="true">
         <div class="modal-dialog">
@@ -182,7 +185,7 @@
 
                 var content = editModal.querySelector('#edit-form-content');
                 // Mengisi konten form dengan data
-                // Ini adalah implementasi dari "form digabung ke index"
+                // PERBAIKAN: Ubah input-group dari "Rp" ke "%" di modal edit
                 content.innerHTML = `
                 <div class="mb-3">
                     <label for="edit_nama_aturan" class="form-label">Nama Aturan</label>
@@ -199,11 +202,12 @@
                     </div>
                 </div>
                 <div class="mb-3">
-                    <label for="edit_nilai_tunjangan" class="form-label">Nilai Tunjangan</label>
+                    <label for="edit_nilai_tunjangan" class="form-label">Nilai Tunjangan (Persen)</label>
                     <div class="input-group">
-                        <span class="input-group-text">Rp</span>
                         <input type="number" class="form-control" id="edit_nilai_tunjangan" name="nilai_tunjangan" value="${item.nilai_tunjangan}" min="0" required>
+                        <span class="input-group-text">%</span>
                     </div>
+                    <small class="form-text text-muted">Masukkan angka saja, misal: 5 atau 10.</small>
                 </div>
             `;
             });

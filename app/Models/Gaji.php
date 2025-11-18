@@ -21,6 +21,7 @@ class Gaji extends Model
         'nip_snapshot',
         'jabatan_snapshot',
         'gaji_pokok',
+        'tunj_jabatan',
         'tunj_anak',
         'tunj_komunikasi',
         'tunj_pengabdian',
@@ -33,6 +34,9 @@ class Gaji extends Model
 
     protected $casts = [
         'bulan' => 'date',
+        'gaji_pokok' => 'integer',
+        'tunj_jabatan' => 'integer',
+        'potongan' => 'integer',
     ];
 
     protected static function booted()
@@ -79,7 +83,28 @@ class Gaji extends Model
 
     public function getTotalTunjanganAttribute()
     {
-        return $this->tunj_anak + $this->tunj_komunikasi + $this->tunj_pengabdian + $this->tunj_kinerja;
+        return $this->tunj_jabatan +
+            $this->tunj_anak +
+            $this->tunj_komunikasi +
+            $this->tunj_pengabdian +
+            $this->tunj_kinerja +
+            $this->nominal_tunjangan_kehadiran;
+    }
+
+    public function getNominalTunjanganKehadiranAttribute()
+    {
+        // Cek apakah relasi tunjanganKehadiran ada
+        if (!$this->tunjanganKehadiran) {
+            return 0;
+        }
+
+        // Hitung jumlah kehadiran di bulan tersebut
+        $jumlahKehadiran = Absensi::where('karyawan_id', $this->karyawan_id)
+            ->whereYear('tanggal', $this->bulan->year)
+            ->whereMonth('tanggal', $this->bulan->month)
+            ->count();
+
+        return $jumlahKehadiran * $this->tunjanganKehadiran->jumlah_tunjangan;
     }
 
     public function getTotalGajiBersihAttribute()

@@ -36,11 +36,12 @@ class KaryawanController extends Controller
             'alamat' => 'nullable|string',
             'telepon' => 'nullable|string|max:15',
             'jabatan_id' => 'nullable|exists:jabatans,id',
+            'gaji_pokok_default' => 'required|numeric|min:0', // <-- PERBAIKAN: Tambah validasi
             'user_email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
             'tanggal_masuk' => 'nullable|date',
             'jumlah_anak' => 'nullable|integer|min:0',
-            'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', // <-- TAMBAHAN: Validasi foto
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
         // 1. Buat Akun User terlebih dahulu
@@ -56,20 +57,24 @@ class KaryawanController extends Controller
             'user_id' => $user->id,
             'nama' => $validated['nama'],
             'nip' => $validated['nip'],
-            'alamat' => $validated['alamat'],
-            'telepon' => $validated['telepon'],
-            'jabatan_id' => $validated['jabatan_id'],
+            'alamat' => $validated['alamat'] ?? null, // PERBAIKAN: Lebih aman
+            'telepon' => $validated['telepon'] ?? null, // PERBAIKAN: Lebih aman
+            'jabatan_id' => $validated['jabatan_id'] ?? null, // PERBAIKAN: Mengatasi error jika 'jabatan_id' null
+            'gaji_pokok_default' => $validated['gaji_pokok_default'] ?? 0,
             'email' => $validated['user_email'],
-            'tanggal_masuk' => $validated['tanggal_masuk'] ?? null,
-            'jumlah_anak' => $validated['jumlah_anak'] ?? 0,
-            'foto' => null, // Default
+            'tanggal_masuk' => $validated['tanggal_masuk'] ?? null, // PERBAIKAN: Lebih aman
+            'jumlah_anak' => $validated['jumlah_anak'] ?? 0, // PERBAIKAN: Lebih aman
+            'foto' => null,
         ];
 
         // 3. TAMBAHAN: Logika Upload Foto
         if ($request->hasFile('foto')) {
             $filename = time() . '_' . $request->file('foto')->getClientOriginalName();
             // Simpan file ke storage/app/public/foto_pegawai
-            $request->file('foto')->storeAs('foto_pegawai', $filename, 'public_uploads');
+            // Pastikan Anda sudah menjalankan `php artisan storage:link`
+            // Dan pastikan 'public_uploads' disk dikonfigurasi di config/filesystems.php
+            // Jika 'public_uploads' tidak ada, ganti ke 'public'
+            $path = $request->file('foto')->storeAs('foto_pegawai', $filename, 'public_uploads');
             $karyawanData['foto'] = $filename; // Simpan nama file ke database
         }
 
@@ -101,23 +106,25 @@ class KaryawanController extends Controller
             'alamat' => 'nullable|string',
             'telepon' => 'nullable|string|max:15',
             'jabatan_id' => 'nullable|exists:jabatans,id',
+            'gaji_pokok_default' => 'required|numeric|min:0', // <-- PERBAIKAN: Tambah validasi
             'user_email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore(optional($karyawan->user)->id)],
             'password' => 'nullable|string|min:8',
             'tanggal_masuk' => 'nullable|date',
             'jumlah_anak' => 'nullable|integer|min:0',
-            'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048', // <-- TAMBAHAN: Validasi foto
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
         // 1. Siapkan data update karyawan
         $dataToUpdate = [
             'nama' => $validated['nama'],
             'nip' => $validated['nip'],
-            'alamat' => $validated['alamat'],
-            'telepon' => $validated['telepon'],
-            'jabatan_id' => $validated['jabatan_id'],
+            'alamat' => $validated['alamat'] ?? null, // PERBAIKAN: Lebih aman
+            'telepon' => $validated['telepon'] ?? null, // PERBAIKAN: Lebih aman
+            'jabatan_id' => $validated['jabatan_id'] ?? null, // PERBAIKAN: Mengatasi error
+            'gaji_pokok_default' => $validated['gaji_pokok_default'] ?? 0,
             'email' => $validated['user_email'],
-            'tanggal_masuk' => $validated['tanggal_masuk'] ?? null,
-            'jumlah_anak' => $validated['jumlah_anak'] ?? 0,
+            'tanggal_masuk' => $validated['tanggal_masuk'] ?? null, // PERBAIKAN: Lebih aman
+            'jumlah_anak' => $validated['jumlah_anak'] ?? 0, // PERBAIKAN: Lebih aman
         ];
 
         // 2. TAMBAHAN: Logika Update Foto

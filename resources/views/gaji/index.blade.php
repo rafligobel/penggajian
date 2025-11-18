@@ -247,7 +247,7 @@
                             <div class="alert alert-warning py-2" role="alert">
                                 Tunjangan Kinerja Maksimal belum diatur oleh Admin.
                                 Silakan atur di menu <a href="{{ route('pengaturan-kinerja.index') }}"
-                                    target="_blank">Aturan Kinerja</a>.
+                                    target="_blank"></a>.
                             </div>
                         @endif
 
@@ -266,10 +266,9 @@
                                 </div>
                             @empty
                                 <div class="col-12">
-                                    <div class="alert alert-light" role="alert">
+                                    <div class="alert alert-warning py-2" role="alert">
                                         Belum ada Master Indikator Kinerja yang diatur oleh Admin.
-                                        <a href="{{ route('pengaturan-kinerja.index') }}" target="_blank">Atur di
-                                            sini</a>.
+
                                     </div>
                                 </div>
                             @endforelse
@@ -284,7 +283,7 @@
                             {{-- Tunjangan Komunikasi (Sesuai HTML Asli Anda) --}}
                             <div class="col-md-6 mb-3">
                                 <label for="modalTunjanganKomunikasi" class="form-label">
-                                    Tunjangan Komunikasi (Otomatis)
+                                    Tunjangan Komunikasi
                                 </label>
                                 <select class="form-select" id="modalTunjanganKomunikasi" name="tunjangan_komunikasi_id">
                                     <option value="">-- Tidak Dapat Tunjangan --</option>
@@ -313,7 +312,7 @@
                                 <div class="input-group">
                                     <span class="input-group-text">Rp</span>
                                     <input type="number" class="form-control" id="edit-gaji-pokok" name="gaji_pokok"
-                                        value="0" min="0" required>
+                                        value="0" min="0" readonly>
                                 </div>
                             </div>
 

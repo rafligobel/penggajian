@@ -1,5 +1,4 @@
 <?php
-// File: app/Services/SalaryService.php
 
 namespace App\Services;
 
@@ -10,7 +9,6 @@ use App\Models\TunjanganKehadiran;
 use App\Models\TunjanganKomunikasi;
 use Carbon\Carbon;
 
-// --- REVISI: Tambahkan Model untuk perhitungan default ---
 use App\Models\AturanTunjanganAnak;
 use App\Models\AturanTunjanganPengabdian;
 use App\Models\AturanKinerja;
@@ -21,7 +19,7 @@ class SalaryService
 {
     /**
      * [REVISI BESAR] Mengkalkulasi detail gaji untuk form admin.
-     * Jika gaji bulan ini belum ada, ambil data dari gaji terakhir.
+     * Jika gaji bulan ini belum ada, ambil data Gaji Pokok dari master Karyawan.
      */
     public function calculateDetailsForForm(Karyawan $karyawan, string $bulan): array
     {
@@ -91,7 +89,7 @@ class SalaryService
                 }
             }
         } else {
-            // --- KASUS 2: Gaji Bulan Ini BELUM ADA (Logika Baru) ---
+            // Gaji Bulan Ini BELUM ADA (Logika Baru) ---
 
             // Cari Gaji Terakhir (bulan apa saja)
             $gajiTerakhir = Gaji::with('tunjanganKehadiran') // Eager load relasinya
@@ -116,11 +114,10 @@ class SalaryService
                 // (Ini diisi manual oleh Bendahara)
 
             } else {
-                // JIKA KARYAWAN BARU (Tidak ada riwayat gaji): Ambil dari master/default
                 $gajiPokok = $karyawan->gaji_pokok_default ?? 0;
 
-                // Hitung tunjangan dinamis untuk karyawan baru
-                $tunjanganDinamis = $this->hitungTunjanganDinamisDefault($karyawan);
+                // Hitung tunjangan dinamis berdasarkan Gaji Pokok master
+                $tunjanganDinamis = $this->hitungTunjanganDinamisDefault($karyawan, $gajiPokok); // <-- PERBAIKAN
                 $tunjAnak = $tunjanganDinamis['tunj_anak'];
                 $tunjPengabdian = $tunjanganDinamis['tunj_pengabdian'];
 
@@ -129,6 +126,8 @@ class SalaryService
                     $tunjanganKehadiranId = $aturanDefaultKehadiran->id;
                     $tunjanganPerKehadiran = $aturanDefaultKehadiran->jumlah_tunjangan;
                 }
+                // Tunj Komunikasi, Kinerja, Lembur, Potongan default 0
+                // (Ini diisi manual oleh Bendahara saat form)
             }
         }
 
@@ -192,10 +191,13 @@ class SalaryService
     }
 
     /**
-     * [BARU] Fungsi helper untuk menghitung tunjangan dinamis HANYA untuk karyawan baru.
+     * [REVISI] Fungsi helper untuk menghitung tunjangan dinamis HANYA untuk karyawan baru.
      * (Dipindah dari GajiController)
+     * @param Karyawan $karyawan
+     * @param float $gajiPokok Wajib ada untuk hitung Tunjangan Pengabdian
+     * @return array
      */
-    private function hitungTunjanganDinamisDefault(Karyawan $karyawan): array
+    private function hitungTunjanganDinamisDefault(Karyawan $karyawan, float $gajiPokok): array
     {
         // --- Tunjangan Anak ---
         $aturanAnak = Cache::remember('aturan_tunjangan_anak_single', 3600, function () {
@@ -205,19 +207,26 @@ class SalaryService
         $jumlahAnak = $karyawan->jumlah_anak ?? 0;
         $tunjanganAnak = $nilaiPerAnak * $jumlahAnak;
 
-        // --- Tunjangan Pengabdian ---
+        // --- Tunjangan Pengabdian 
         $tunjanganPengabdian = 0;
-        if ($karyawan->tanggal_masuk) {
+        // Cek apakah karyawan punya tanggal masuk DAN gaji pokok lebih dari 0
+        if ($karyawan->tanggal_masuk && $gajiPokok > 0) {
             $lamaKerjaTahun = $karyawan->tanggal_masuk->diffInYears(Carbon::now());
+
             $aturanPengabdian = Cache::remember('aturan_tunjangan_pengabdian_all', 3600, function () {
                 return AturanTunjanganPengabdian::all();
             });
+
             $aturanYangBerlaku = $aturanPengabdian
                 ->where('minimal_tahun_kerja', '<=', $lamaKerjaTahun)
                 ->where('maksimal_tahun_kerja', '>=', $lamaKerjaTahun)
                 ->first();
+
             if ($aturanYangBerlaku) {
-                $tunjanganPengabdian = $aturanYangBerlaku->nilai_tunjangan;
+                // Asumsi: nilai_tunjangan di DB adalah persentase (e.g., 5, 10, 15)
+                $persentase = $aturanYangBerlaku->nilai_tunjangan;
+                // Hitung tunjangan berdasarkan persentase Gaji Pokok
+                $tunjanganPengabdian = ($persentase / 100) * $gajiPokok;
             }
         }
 
@@ -234,30 +243,37 @@ class SalaryService
      */
     public function saveGaji(array $data): Gaji
     {
-        // ... (Fungsi saveGaji Anda tidak perlu diubah) ...
         $bulanCarbon = Carbon::createFromFormat('Y-m', $data['bulan'])->startOfMonth();
+
+        // Ambil data untuk disimpan, pastikan semua key ada
+        $saveData = [
+            // Data Finansial
+            'gaji_pokok' => $data['gaji_pokok'] ?? 0,
+            'tunj_anak' => $data['tunj_anak'] ?? 0,
+            'tunj_komunikasi' => $data['tunj_komunikasi'] ?? 0,
+            'tunj_pengabdian' => $data['tunj_pengabdian'] ?? 0,
+            'tunj_kinerja' => $data['tunj_kinerja'] ?? 0,
+            'lembur' => $data['lembur'] ?? 0,
+            'potongan' => $data['potongan'] ?? 0,
+            'tunjangan_kehadiran_id' => $data['tunjangan_kehadiran_id'],
+            'tunj_jabatan' => $data['tunj_jabatan'] ?? 0,
+
+            // PERBAIKAN: Pastikan ID tunjangan komunikasi juga tersimpan
+            // Ini akan diambil dari GajiController jika ada
+            'tunjangan_komunikasi_id' => $data['tunjangan_komunikasi_id'] ?? null,
+
+            // Data Snapshot (dari GajiController)
+            'nama_karyawan_snapshot' => $data['nama_karyawan_snapshot'] ?? null,
+            'nip_snapshot' => $data['nip_snapshot'] ?? null,
+            'jabatan_snapshot' => $data['jabatan_snapshot'] ?? null,
+        ];
 
         return Gaji::updateOrCreate(
             [
                 'karyawan_id' => $data['karyawan_id'],
                 'bulan' => $bulanCarbon,
             ],
-            [
-                // Data Snapshot (dari GajiController)
-                'nama_karyawan_snapshot' => $data['nama_karyawan_snapshot'] ?? null,
-                'nip_snapshot' => $data['nip_snapshot'] ?? null,
-                'jabatan_snapshot' => $data['jabatan_snapshot'] ?? null,
-
-                // Data Finansial
-                'gaji_pokok' => $data['gaji_pokok'] ?? 0,
-                'tunj_anak' => $data['tunj_anak'] ?? 0,
-                'tunj_komunikasi' => $data['tunj_komunikasi'] ?? 0,
-                'tunj_pengabdian' => $data['tunj_pengabdian'] ?? 0,
-                'tunj_kinerja' => $data['tunj_kinerja'] ?? 0,
-                'lembur' => $data['lembur'] ?? 0,
-                'potongan' => $data['potongan'] ?? 0,
-                'tunjangan_kehadiran_id' => $data['tunjangan_kehadiran_id'],
-            ]
+            $saveData
         );
     }
 

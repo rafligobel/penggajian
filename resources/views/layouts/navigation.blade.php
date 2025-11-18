@@ -78,13 +78,13 @@
                     </a>
                 </li> --}}
                 <li
-                    class="{{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*']) ? 'active' : '' }}">
+                    class="{{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*', 'pengaturan-kinerja.*', 'tunjangan-komunikasi.*']) ? 'active' : '' }}">
                     <a href="#tunjanganSubmenu" data-bs-toggle="collapse"
-                        aria-expanded="{{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*']) ? '' : 'false' }}"
+                        aria-expanded="{{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*', 'pengaturan-kinerja.*', 'tunjangan-komunikasi.*']) ? '' : 'false' }}"
                         class="dropdown-toggle">
                         <i class="fas fa-wallet"></i> Kelola Tunjangan
                     </a>
-                    <ul class="collapse list-unstyled {{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*']) ? 'show' : '' }}"
+                    <ul class="collapse list-unstyled {{ Request::routeIs(['tunjangan-kehadiran.*', 'aturan-anak.*', 'aturan-pengabdian.*', 'pengaturan-kinerja.*', 'tunjangan-komunikasi.*']) ? 'show' : '' }}"
                         id="tunjanganSubmenu">
                         <li class="{{ Request::routeIs('tunjangan-kehadiran.*') ? 'active' : '' }}">
                             <a href="{{ route('tunjangan-kehadiran.index') }}">Tunjangan Kehadiran</a>

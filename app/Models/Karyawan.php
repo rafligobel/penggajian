@@ -22,6 +22,7 @@ class Karyawan extends Model
         'alamat',
         'telepon',
         'jabatan_id',
+        'gaji_pokok_default',
         'tunjangan_komunikasi_id',
         'user_id',
         'tanggal_masuk',
@@ -60,7 +61,13 @@ class Karyawan extends Model
     }
     public function setFotoAttribute($value)
     {
-        $this->setImageAttribute($value, 'foto', 'uploads/foto_pegawai');
+        // Jika Anda memiliki logika untuk memproses $value (misalnya, memindah file),
+        // lakukan di sini dan pastikan $value berisi nama file final.
+
+        // PERBAIKAN: Gunakan $this->attributes['nama_kolom']
+        // Ini adalah cara yang benar untuk mengatur nilai di dalam mutator
+        // untuk menghindari pemanggilan berulang (infinite loop).
+        $this->attributes['foto'] = $value;
     }
 
     public function getFotoUrlAttribute()

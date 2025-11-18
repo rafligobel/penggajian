@@ -141,7 +141,7 @@
 
                 // URL default untuk foto (logo Al-Azhar dari layout Anda)
                 const defaultAvatar = "{{ asset('logo/user.png') }}";
-                // URL dasar untuk foto pegawai
+                // Jalur foto ini sudah benar sesuai KaryawanController Anda
                 const storageBaseUrl = "{{ asset('uploads/foto_pegawai') }}";
 
                 function renderTable(dataToRender) {
@@ -228,6 +228,19 @@
                             });
                         };
 
+                        // --- AWAL PERBAIKAN: Fungsi format Rupiah ---
+                        const formatCurrency = (number) => {
+                            if (isNaN(number)) {
+                                number = 0;
+                            }
+                            return new Intl.NumberFormat('id-ID', {
+                                style: 'currency',
+                                currency: 'IDR',
+                                minimumFractionDigits: 0
+                            }).format(number);
+                        };
+                        // --- AKHIR PERBAIKAN ---
+
                         // Tentukan URL Foto
                         const fotoUrl = karyawan.foto ? `${storageBaseUrl}/${karyawan.foto}` : defaultAvatar;
 
@@ -266,6 +279,10 @@
                                                 <td>: ${karyawan.alamat || '<span class="text-muted">-</span>'}</td>
                                             </tr>
                                             <tr><td colspan="2" class="pt-3"></td></tr>
+                                            <tr>
+                                                <th>Gaji Pokok (Master)</th>
+                                                <td class="fw-bold">: ${formatCurrency(karyawan.gaji_pokok_default)}</td>
+                                            </tr>
                                             <tr>
                                                 <th>Tgl. Masuk</th>
                                                 <td>: ${formatDate(karyawan.tanggal_masuk)}</td>
