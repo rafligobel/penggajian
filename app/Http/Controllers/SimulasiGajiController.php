@@ -21,7 +21,7 @@ class SimulasiGajiController extends Controller
      */
     public function hitung(Request $request)
     {
-        // [PERBAIKAN] Menambahkan validasi untuk semua field di form
+        // tambahkan validasi untuk semua field di form
         $validated = $request->validate([
             'jumlah_hari_masuk' => 'required|integer|min:0|max:31',
             'tunj_anak'         => 'nullable|numeric|min:0',
