@@ -182,6 +182,14 @@ Route::middleware(['auth', 'role:tenaga_kerja'])->prefix('tenaga-kerja')->name('
     Route::put('/data-saya', [TenagaKerjaController::class, 'updateDataSaya'])->name('data_saya.update');
 });
 
-
+Route::get('/cek-lokasi', function () {
+    return [
+        '1. Config Latitude' => config('absensi.office_latitude'),
+        '2. Config Longitude' => config('absensi.office_longitude'),
+        '3. Env Latitude (Langsung)' => env('OFFICE_LATITUDE'),
+        '4. Env Longitude (Langsung)' => env('OFFICE_LONGITUDE'),
+        '5. Radius' => config('absensi.max_radius'),
+    ];
+});
 // --- AUTHENTICATION ROUTES ---
 require __DIR__ . '/auth.php';

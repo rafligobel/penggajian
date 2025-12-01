@@ -8,22 +8,25 @@ use App\Models\Absensi;
 use App\Models\TunjanganKehadiran;
 use App\Models\TunjanganKomunikasi;
 use Carbon\Carbon;
-
 use App\Models\AturanTunjanganAnak;
 use App\Models\AturanTunjanganPengabdian;
-use App\Models\AturanKinerja;
 use Illuminate\Support\Facades\Cache;
-
 
 class SalaryService
 {
     /**
-     * [REVISI BESAR] Mengkalkulasi detail gaji untuk form admin.
-     * Jika gaji bulan ini belum ada, ambil data Gaji Pokok dari master Karyawan.
+     * [OPTIMASI] Mengkalkulasi detail gaji untuk form admin.
+     * Menambahkan parameter $preloadedData untuk mencegah N+1 Query.
+     * * @param Karyawan $karyawan
+     * @param string $bulan Format Y-m
+     * @param array $preloadedData Array opsional berisi 'gaji_record' dan 'jumlah_kehadiran'
      */
-    public function calculateDetailsForForm(Karyawan $karyawan, string $bulan): array
+    public function calculateDetailsForForm(Karyawan $karyawan, string $bulan, array $preloadedData = []): array
     {
-        $karyawan->loadMissing('jabatan');
+        // Cek relation, jika belum ada load (Mencegah query berulang jika sudah di-eager load)
+        if (!$karyawan->relationLoaded('jabatan')) {
+            $karyawan->load('jabatan');
+        }
 
         try {
             $tanggal = Carbon::parse($bulan)->startOfMonth();
@@ -31,18 +34,28 @@ class SalaryService
             $tanggal = Carbon::now()->startOfMonth();
         }
 
-        // 1. Cek Gaji Bulan Ini
-        $gajiTersimpan = Gaji::with(['tunjanganKehadiran', 'penilaianKinerjas'])
-            ->where('karyawan_id', $karyawan->id)
-            ->whereYear('bulan', $tanggal->year)
-            ->whereMonth('bulan', $tanggal->month)
-            ->first();
+        // 1. [OPTIMASI] Cek Data Gaji (Prioritaskan Data Preloaded)
+        if (array_key_exists('gaji_record', $preloadedData)) {
+            $gajiTersimpan = $preloadedData['gaji_record'];
+        } else {
+            // Fallback: Query sendiri jika tidak disediakan (Backward Compatibility)
+            $gajiTersimpan = Gaji::with(['tunjanganKehadiran', 'penilaianKinerjas'])
+                ->where('karyawan_id', $karyawan->id)
+                ->whereYear('bulan', $tanggal->year)
+                ->whereMonth('bulan', $tanggal->month)
+                ->first();
+        }
 
-        // 2. Hitung Kehadiran (Selalu real-time)
-        $jumlahKehadiran = Absensi::where('karyawan_id', $karyawan->id)
-            ->whereYear('tanggal', $tanggal->year)
-            ->whereMonth('tanggal', $tanggal->month)
-            ->count();
+        // 2. [OPTIMASI] Hitung Kehadiran (Prioritaskan Data Preloaded)
+        if (array_key_exists('jumlah_kehadiran', $preloadedData)) {
+            $jumlahKehadiran = $preloadedData['jumlah_kehadiran'];
+        } else {
+            // Fallback: Hitung query sendiri
+            $jumlahKehadiran = Absensi::where('karyawan_id', $karyawan->id)
+                ->whereYear('tanggal', $tanggal->year)
+                ->whereMonth('tanggal', $tanggal->month)
+                ->count();
+        }
 
         // Variabel default
         $gajiPokok = 0;
@@ -59,8 +72,10 @@ class SalaryService
         $penilaianKinerja = [];
         $gajiId = null;
 
-        // Ambil aturan default Tunjangan Kehadiran (fallback)
-        $aturanDefaultKehadiran = TunjanganKehadiran::orderBy('id', 'asc')->first();
+        // Ambil aturan default Tunjangan Kehadiran (Cache 1 jam untuk performa)
+        $aturanDefaultKehadiran = Cache::remember('tunjangan_kehadiran_default', 3600, function () {
+            return TunjanganKehadiran::orderBy('id', 'asc')->first();
+        });
 
         if ($gajiTersimpan) {
             // --- KASUS 1: Gaji Bulan Ini SUDAH ADA ---
@@ -72,7 +87,12 @@ class SalaryService
             $tunjKinerja = $gajiTersimpan->tunj_kinerja;
             $lembur = $gajiTersimpan->lembur;
             $potongan = $gajiTersimpan->potongan;
-            $penilaianKinerja = $gajiTersimpan->penilaianKinerjas->pluck('skor', 'indikator_kinerja_id');
+
+            // Gunakan null safe operator atau cek relasi
+            $penilaianKinerja = $gajiTersimpan->penilaianKinerjas
+                ? $gajiTersimpan->penilaianKinerjas->pluck('skor', 'indikator_kinerja_id')
+                : collect([]);
+
             $tunjanganKehadiranId = $gajiTersimpan->tunjangan_kehadiran_id;
 
             if ($gajiTersimpan->tunjanganKehadiran) {
@@ -83,22 +103,23 @@ class SalaryService
 
             // Logika tunjangan komunikasi ID
             if ($gajiTersimpan->tunj_komunikasi > 0) {
+                // Optimasi: Sebaiknya ini juga dicache atau diload via relasi, tapi untuk sekarang query ringan tidak masalah
                 $aturanKomunikasi = TunjanganKomunikasi::where('besaran', $gajiTersimpan->tunj_komunikasi)->first();
                 if ($aturanKomunikasi) {
                     $tunjanganKomunikasiId = $aturanKomunikasi->id;
                 }
             }
         } else {
-            // Gaji Bulan Ini BELUM ADA (Logika Baru) ---
+            // --- KASUS 2: Gaji Bulan Ini BELUM ADA ---
 
-            // Cari Gaji Terakhir (bulan apa saja)
-            $gajiTerakhir = Gaji::with('tunjanganKehadiran') // Eager load relasinya
+            // Cari Gaji Terakhir (bulan apa saja) untuk menyalin settingan sebelumnya
+            $gajiTerakhir = Gaji::with('tunjanganKehadiran')
                 ->where('karyawan_id', $karyawan->id)
                 ->orderBy('bulan', 'desc')
                 ->first();
 
             if ($gajiTerakhir) {
-                // JIKA ADA RIWAYAT GAJI: Ambil data dari riwayat
+                // COPY dari riwayat sebelumnya
                 $gajiPokok = $gajiTerakhir->gaji_pokok;
                 $tunjAnak = $gajiTerakhir->tunj_anak;
                 $tunjPengabdian = $gajiTerakhir->tunj_pengabdian;
@@ -109,15 +130,12 @@ class SalaryService
                 } elseif ($aturanDefaultKehadiran) {
                     $tunjanganPerKehadiran = $aturanDefaultKehadiran->jumlah_tunjangan;
                 }
-
-                // Tunj Komunikasi, Kinerja, Lembur, Potongan default 0
-                // (Ini diisi manual oleh Bendahara)
-
             } else {
+                // KARYAWAN BARU (Belum pernah terima gaji)
                 $gajiPokok = $karyawan->gaji_pokok_default ?? 0;
 
-                // Hitung tunjangan dinamis berdasarkan Gaji Pokok master
-                $tunjanganDinamis = $this->hitungTunjanganDinamisDefault($karyawan, $gajiPokok); // <-- PERBAIKAN
+                // Hitung tunjangan dinamis default
+                $tunjanganDinamis = $this->hitungTunjanganDinamisDefault($karyawan, $gajiPokok);
                 $tunjAnak = $tunjanganDinamis['tunj_anak'];
                 $tunjPengabdian = $tunjanganDinamis['tunj_pengabdian'];
 
@@ -126,19 +144,16 @@ class SalaryService
                     $tunjanganKehadiranId = $aturanDefaultKehadiran->id;
                     $tunjanganPerKehadiran = $aturanDefaultKehadiran->jumlah_tunjangan;
                 }
-                // Tunj Komunikasi, Kinerja, Lembur, Potongan default 0
-                // (Ini diisi manual oleh Bendahara saat form)
             }
         }
 
-        // 3. Kalkulasi Total (Selalu real-time)
+        // 3. Kalkulasi Total
         $tunjKehadiran = $jumlahKehadiran * $tunjanganPerKehadiran;
 
         $gajiBersihNumeric = ($gajiPokok + $tunjJabatan + $tunjKehadiran + $tunjAnak + $tunjKomunikasi + $tunjPengabdian + $tunjKinerja + $lembur) - $potongan;
         $gajiBersihString = 'Rp ' . number_format($gajiBersihNumeric, 0, ',', '.');
 
-        // 4. Susun Array Hasil
-        $result = [
+        return [
             'gaji_id' => $gajiId,
             'karyawan_id' => $karyawan->id,
             'nip' => $karyawan->nip,
@@ -147,7 +162,7 @@ class SalaryService
             'jabatan' => $karyawan->jabatan->nama_jabatan ?? 'Tidak Ada Jabatan',
             'bulan' => $tanggal->format('Y-m'),
 
-            // Data Numerik untuk Form
+            // Data Numerik
             'gaji_pokok' => (float) $gajiPokok,
             'tunj_jabatan' => (float) $tunjJabatan,
             'tunj_anak' => (float) $tunjAnak,
@@ -158,13 +173,13 @@ class SalaryService
             'potongan' => (float) $potongan,
             'tunj_kehadiran' => (float) $tunjKehadiran,
 
-            // Data ID untuk Dropdown
+            // Data ID
             'tunjangan_kehadiran_id' => $tunjanganKehadiranId,
             'tunjangan_komunikasi_id' => $tunjanganKomunikasiId,
 
             // Data Tampilan
-            'total_kehadiran' => $jumlahKehadiran, // Nama alias
-            'jumlah_kehadiran' => $jumlahKehadiran, // Nama asli
+            'total_kehadiran' => $jumlahKehadiran,
+            'jumlah_kehadiran' => $jumlahKehadiran,
             'gaji_bersih_numeric' => $gajiBersihNumeric,
 
             'gaji_pokok_string' => 'Rp ' . number_format($gajiPokok, 0, ',', '.'),
@@ -178,7 +193,6 @@ class SalaryService
             'total_tunjangan_kehadiran_string' => 'Rp ' . number_format($tunjKehadiran, 0, ',', '.'),
             'gaji_bersih_string' => $gajiBersihString,
 
-            // Data Rincian Modal
             'penilaian_kinerja' => $penilaianKinerja,
             'tunj_kehadiran_rincian' => [
                 'per_hari' => $tunjanganPerKehadiran,
@@ -186,16 +200,10 @@ class SalaryService
                 'total_string' => 'Rp ' . number_format($tunjKehadiran, 0, ',', '.'),
             ],
         ];
-
-        return $result;
     }
 
     /**
-     * [REVISI] Fungsi helper untuk menghitung tunjangan dinamis HANYA untuk karyawan baru.
-     * (Dipindah dari GajiController)
-     * @param Karyawan $karyawan
-     * @param float $gajiPokok Wajib ada untuk hitung Tunjangan Pengabdian
-     * @return array
+     * Fungsi helper untuk menghitung tunjangan dinamis HANYA untuk karyawan baru.
      */
     private function hitungTunjanganDinamisDefault(Karyawan $karyawan, float $gajiPokok): array
     {
@@ -209,7 +217,6 @@ class SalaryService
 
         // --- Tunjangan Pengabdian 
         $tunjanganPengabdian = 0;
-        // Cek apakah karyawan punya tanggal masuk DAN gaji pokok lebih dari 0
         if ($karyawan->tanggal_masuk && $gajiPokok > 0) {
             $lamaKerjaTahun = $karyawan->tanggal_masuk->diffInYears(Carbon::now());
 
@@ -223,9 +230,7 @@ class SalaryService
                 ->first();
 
             if ($aturanYangBerlaku) {
-                // Asumsi: nilai_tunjangan di DB adalah persentase (e.g., 5, 10, 15)
                 $persentase = $aturanYangBerlaku->nilai_tunjangan;
-                // Hitung tunjangan berdasarkan persentase Gaji Pokok
                 $tunjanganPengabdian = ($persentase / 100) * $gajiPokok;
             }
         }
@@ -236,18 +241,14 @@ class SalaryService
         ];
     }
 
-
     /**
-     * [PERBAIKAN] Menyimpan atau update data gaji.
-     * (Tidak ada perubahan di sini, sudah benar)
+     * Menyimpan atau update data gaji.
      */
     public function saveGaji(array $data): Gaji
     {
         $bulanCarbon = Carbon::createFromFormat('Y-m', $data['bulan'])->startOfMonth();
 
-        // Ambil data untuk disimpan, pastikan semua key ada
         $saveData = [
-            // Data Finansial
             'gaji_pokok' => $data['gaji_pokok'] ?? 0,
             'tunj_anak' => $data['tunj_anak'] ?? 0,
             'tunj_komunikasi' => $data['tunj_komunikasi'] ?? 0,
@@ -257,12 +258,7 @@ class SalaryService
             'potongan' => $data['potongan'] ?? 0,
             'tunjangan_kehadiran_id' => $data['tunjangan_kehadiran_id'],
             'tunj_jabatan' => $data['tunj_jabatan'] ?? 0,
-
-            // PERBAIKAN: Pastikan ID tunjangan komunikasi juga tersimpan
-            // Ini akan diambil dari GajiController jika ada
             'tunjangan_komunikasi_id' => $data['tunjangan_komunikasi_id'] ?? null,
-
-            // Data Snapshot (dari GajiController)
             'nama_karyawan_snapshot' => $data['nama_karyawan_snapshot'] ?? null,
             'nip_snapshot' => $data['nip_snapshot'] ?? null,
             'jabatan_snapshot' => $data['jabatan_snapshot'] ?? null,
@@ -278,7 +274,7 @@ class SalaryService
     }
 
     /**
-     * Fungsi simulasi (tidak diubah)
+     * Fungsi simulasi.
      */
     public function calculateSimulasi(Karyawan $karyawan, array $data): array
     {
@@ -304,7 +300,6 @@ class SalaryService
             'jumlah_hari_masuk' => $jumlahKehadiran,
             'gaji_bersih' => $gajiBersih,
             'rincian' => [
-
                 'gaji_pokok' => $gajiPokok,
                 'tunj_jabatan' => $tunjJabatan,
                 'tunj_anak' => $tunjAnak,

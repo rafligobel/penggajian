@@ -9,16 +9,16 @@ use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
 
 class AbsensiService
 {
     /**
-     * Menghitung jarak antara dua titik koordinat geografis menggunakan formula Haversine.
-     * (Fungsi ini tidak diubah)
+     * Menghitung jarak antara dua titik koordinat (Haversine).
      */
     public function calculateDistance(float $lat1, float $lon1, float $lat2, float $lon2): float
     {
-        $earthRadius = 6371000; // Radius bumi dalam meter
+        $earthRadius = 6371000; 
 
         $latFrom = deg2rad($lat1);
         $lonFrom = deg2rad($lon1);
@@ -28,16 +28,14 @@ class AbsensiService
         $latDelta = $latTo - $latFrom;
         $lonDelta = $lonTo - $lonFrom;
 
-        // Rumus Haversine
         $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
             cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
 
-        return $angle * $earthRadius; // Mengembalikan jarak dalam meter
+        return $angle * $earthRadius; 
     }
 
     /**
-     * Mengambil rekap absensi untuk satu bulan.
-     * (Fungsi ini tidak diubah, sudah benar)
+     * [OPTIMASI] Mengambil rekap absensi dengan teknik Eager Loading & Memory Checking.
      */
     public function getAttendanceRecap(Carbon $month, ?array $karyawanIds = null): array
     {
@@ -45,57 +43,73 @@ class AbsensiService
         $endOfMonth = $month->copy()->endOfMonth();
         $daysInMonth = $endOfMonth->day;
 
+        // 1. Ambil Data Karyawan
         $query = Karyawan::with('jabatan')->orderBy('nama');
         if ($karyawanIds) {
             $query->whereIn('id', $karyawanIds);
         }
         $karyawans = $query->get();
 
+        // 2. Ambil Data Absensi Sekaligus (Bulk Fetch)
         $absensiBulanIni = Absensi::whereBetween('tanggal', [$startOfMonth->toDateString(), $endOfMonth->toDateString()])
             ->get()
             ->keyBy(function ($item) {
-                // Buat kunci unik per karyawan per tanggal
                 return $item->karyawan_id . '_' . $item->tanggal;
             });
 
+        // 3. Ambil Sesi Spesifik & Default Sekaligus
+        $sesiSpesifikBulanIni = SesiAbsensi::whereBetween('tanggal', [$startOfMonth->toDateString(), $endOfMonth->toDateString()])
+            ->where('is_default', false)
+            ->get()
+            ->keyBy('tanggal');
+            
+        $sesiDefaults = SesiAbsensi::where('is_default', true)->get();
+
         $rekapData = collect();
         $workingDaysCount = 0;
-
-        // Iterasi setiap hari dalam bulan untuk menghitung hari kerja
         $period = CarbonPeriod::create($startOfMonth, $endOfMonth);
+
+        // 4. Hitung Hari Kerja (Tanpa Query Loop)
         foreach ($period as $date) {
-            $sessionStatus = $this->getSessionStatus($date);
+            // [FIX] Tambahkan type hint ini agar Intelephense tidak error
+            /** @var Carbon $date */
+            
+            $sessionStatus = $this->checkSessionInMemory($date, $sesiSpesifikBulanIni, $sesiDefaults);
             if ($sessionStatus['is_active']) {
                 $workingDaysCount++;
             }
         }
 
-        // Proses data untuk setiap karyawan
+        // 5. Proses Data Per Karyawan
         foreach ($karyawans as $karyawan) {
             $totalHadir = 0;
             $detailHarian = [];
+            
+            // Reset periode untuk loop karyawan
             $period = CarbonPeriod::create($startOfMonth, $endOfMonth);
 
             foreach ($period as $date) {
+                // [FIX] Tambahkan type hint ini juga di sini
+                /** @var Carbon $date */
+
                 $tanggalString = $date->toDateString();
                 $dayNumber = $date->day;
                 $keyAbsensi = $karyawan->id . '_' . $tanggalString;
-                $sessionStatusHariIni = $this->getSessionStatus($date); // Cek sesi untuk hari ini
+                
+                // Cek status sesi dari MEMORI
+                $sessionStatusHariIni = $this->checkSessionInMemory($date, $sesiSpesifikBulanIni, $sesiDefaults);
 
-                $status = '-'; // Default status
+                $status = '-';
                 $jam = '-';
 
                 if (isset($absensiBulanIni[$keyAbsensi])) {
-                    // Jika ada data absensi pada hari ini
-                    $status = 'H'; // Hadir
+                    $status = 'H'; 
                     $jam = Carbon::parse($absensiBulanIni[$keyAbsensi]->jam)->format('H:i');
                     $totalHadir++;
                 } elseif ($sessionStatusHariIni['is_active']) {
-                    // Jika hari kerja (sesi aktif) tapi tidak ada data absensi
-                    $status = 'A'; // Alfa/Absen
+                    $status = 'A'; 
                 } elseif (!$sessionStatusHariIni['is_active'] && $sessionStatusHariIni['status'] != 'Tidak Ada Sesi') {
-                    // Jika sesi tidak aktif dan statusnya bukan 'Tidak Ada Sesi' (berarti libur spesifik/default)
-                    $status = 'L'; // Libur
+                    $status = 'L'; 
                 }
 
                 $detailHarian[$dayNumber] = [
@@ -111,7 +125,7 @@ class AbsensiService
                 'jabatan' => $karyawan->jabatan->nama_jabatan ?? 'N/A',
                 'summary' => [
                     'total_hadir' => $totalHadir,
-                    'total_alpha' => $workingDaysCount - $totalHadir, // total_alpha
+                    'total_alpha' => max(0, $workingDaysCount - $totalHadir),
                 ],
                 'detail' => $detailHarian,
             ]);
@@ -125,51 +139,42 @@ class AbsensiService
     }
 
     /**
-     * Memeriksa status sesi untuk tanggal tertentu dengan logika yang benar dan berurutan.
-     * [PERBAIKAN] Mengganti `whereJsonContains` (penyebab crash) dengan logika PHP manual
-     * untuk kompatibilitas database yang lebih baik.
+     * Helper function untuk mengecek status sesi dari Collection (Memori).
      */
-    public function getSessionStatus(Carbon $date): array
+    private function checkSessionInMemory(Carbon $date, Collection $sesiSpesifikCollection, Collection $sesiDefaults): array
     {
         $todayDateString = $date->toDateString();
-        $appDayOfWeek = $date->dayOfWeekIso; // 1 for Monday, 7 for Sunday
+        $appDayOfWeek = $date->dayOfWeekIso;
 
-        // 1. Cari Sesi Spesifik (Pengecualian) 'aktif'
-        $sesiSpesifik = SesiAbsensi::where('tanggal', $todayDateString)
-            ->where('tipe', 'aktif')
-            ->where('is_default', false)
-            ->first();
-
-        if ($sesiSpesifik) {
-            return [
-                'is_active' => true,
-                'waktu_mulai' => $sesiSpesifik->waktu_mulai,
-                'waktu_selesai' => $sesiSpesifik->waktu_selesai,
-                'status' => 'Sesi Spesifik Aktif',
-                'keterangan' => $sesiSpesifik->keterangan ?? 'Sesi absensi khusus untuk hari ini.',
-                'sesi_id' => $sesiSpesifik->id,
-            ];
+        // 1. Cek Sesi Spesifik di Memori
+        if ($sesiSpesifikCollection->has($todayDateString)) {
+            $sesi = $sesiSpesifikCollection->get($todayDateString);
+            if ($sesi->tipe === 'aktif') {
+                return [
+                    'is_active' => true,
+                    'waktu_mulai' => $sesi->waktu_mulai,
+                    'waktu_selesai' => $sesi->waktu_selesai,
+                    'status' => 'Sesi Spesifik Aktif',
+                    'keterangan' => $sesi->keterangan,
+                    'sesi_id' => $sesi->id,
+                ];
             } else {
-            return [
-                'is_active' => false,
-                'waktu_mulai' => null,
-                'waktu_selesai' => null,
-                'status' => 'Libur Spesifik',
-                'keterangan' => $sesiLibur->keterangan ?? 'Hari ini ditetapkan sebagai hari libur.',
-                'sesi_id' => $sesiLibur->id,
-            ];
+                return [
+                    'is_active' => false,
+                    'waktu_mulai' => null,
+                    'waktu_selesai' => null,
+                    'status' => 'Libur Spesifik',
+                    'keterangan' => $sesi->keterangan,
+                    'sesi_id' => $sesi->id,
+                ];
+            }
         }
 
-        // 3. & 4. Cek Sesi Default (Aktif dan Libur)
-        // [PERBAIKAN] Ambil semua sesi default (biasanya hanya 2) dan cek manual di PHP
-        $sesiDefaults = SesiAbsensi::where('is_default', true)->get();
-
-        // Cek Sesi Default Aktif
+        // 2. Cek Sesi Default di Memori
         $sesiDefaultAktif = $sesiDefaults->first(function ($sesi) use ($appDayOfWeek) {
-            // Cek manual menggunakan PHP in_array
             return $sesi->tipe === 'aktif' &&
-                is_array($sesi->hari_kerja) && // Pastikan 'hari_kerja' adalah array
-                in_array($appDayOfWeek, $sesi->hari_kerja, true); // 'true' untuk strict checking (integer vs integer)
+                is_array($sesi->hari_kerja) &&
+                in_array($appDayOfWeek, $sesi->hari_kerja, true);
         });
 
         if ($sesiDefaultAktif) {
@@ -178,17 +183,15 @@ class AbsensiService
                 'waktu_mulai' => $sesiDefaultAktif->waktu_mulai,
                 'waktu_selesai' => $sesiDefaultAktif->waktu_selesai,
                 'status' => 'Sesi Default Aktif',
-                'keterangan' => $sesiDefaultAktif->keterangan ?? 'Sesi absensi reguler.',
+                'keterangan' => $sesiDefaultAktif->keterangan,
                 'sesi_id' => $sesiDefaultAktif->id,
             ];
         }
 
-        // Cek Sesi Default Libur
         $sesiDefaultLibur = $sesiDefaults->first(function ($sesi) use ($appDayOfWeek) {
-            // Cek manual menggunakan PHP in_array
             return $sesi->tipe === 'libur' &&
-                is_array($sesi->hari_kerja) && // Pastikan 'hari_kerja' adalah array
-                in_array($appDayOfWeek, $sesi->hari_kerja, true); // 'true' untuk strict checking
+                is_array($sesi->hari_kerja) &&
+                in_array($appDayOfWeek, $sesi->hari_kerja, true);
         });
 
         if ($sesiDefaultLibur) {
@@ -197,26 +200,38 @@ class AbsensiService
                 'waktu_mulai' => null,
                 'waktu_selesai' => null,
                 'status' => 'Libur Default',
-                'keterangan' => $sesiDefaultLibur->keterangan ?? 'Hari libur reguler.',
+                'keterangan' => $sesiDefaultLibur->keterangan,
                 'sesi_id' => $sesiDefaultLibur->id,
             ];
         }
 
-        // 5. Jika tidak cocok sama sekali (tidak ada aturan untuk hari ini)
         return [
             'is_active' => false,
             'waktu_mulai' => null,
             'waktu_selesai' => null,
             'status' => 'Tidak Ada Sesi',
-            'keterangan' => 'Tidak ada jadwal sesi absensi aktif maupun libur yang ditemukan untuk hari ini.',
+            'keterangan' => 'Tidak ada jadwal sesi absensi aktif maupun libur.',
             'sesi_id' => null,
         ];
     }
 
     /**
-     * Mengambil daftar hari libur nasional dari API.
-     * (Fungsi ini tidak diubah)
+     * Memeriksa status sesi untuk SATU tanggal (tetap pakai DB query).
      */
+    public function getSessionStatus(Carbon $date): array
+    {
+        $todayDateString = $date->toDateString();
+        
+        $sesiSpesifik = SesiAbsensi::where('tanggal', $todayDateString)
+            ->where('is_default', false)
+            ->get()
+            ->keyBy('tanggal');
+
+        $sesiDefaults = SesiAbsensi::where('is_default', true)->get();
+
+        return $this->checkSessionInMemory($date, $sesiSpesifik, $sesiDefaults);
+    }
+    
     public function getNationalHolidays(int $year): array
     {
         $apiUrl = "https://api-harilibur.vercel.app/api?year={$year}";
