@@ -234,14 +234,21 @@
                                 <div class="mb-3">
                                     <label class="form-label small text-muted">Tunjangan Kehadiran</label>
                                     <select name="tunjangan_kehadiran_id" id="tunjangan_kehadiran_id_modal"
-                                        class="form-select form-select-sm" required>
+                                        class="form-select form-select-sm" required onchange="calculateLive()">
                                         @foreach ($tunjanganKehadirans as $tunjangan)
-                                            <option value="{{ $tunjangan->id }}">
+                                            <option value="{{ $tunjangan->id }}" data-nominal="{{ $tunjangan->jumlah_tunjangan }}">
                                                 {{ $tunjangan->jenis_tunjangan }}
                                                 ({{ 'Rp ' . number_format($tunjangan->jumlah_tunjangan, 0, ',', '.') }}/hari)
                                             </option>
                                         @endforeach
                                     </select>
+                                    {{-- Info Estimasi Total Tunj. Kehadiran --}}
+                                    <div class="mt-1 d-flex justify-content-between align-items-center">
+                                        <small class="text-muted"><i class="fas fa-calculator me-1"></i>Estimasi (<span id="info-total-hadir">0</span> hari)</small>
+                                        <span class="fw-bold text-success small" id="display-total-tunj-kehadiran">Rp 0</span>
+                                        {{-- Hidden input untuk menyimpan kehadiran bersih pegawai (Total Hari - Alpha) utk perhitungan JS --}}
+                                        <input type="hidden" id="hidden-total-kehadiran-bersih" value="0">
+                                    </div>
                                 </div>
 
                                 <div class="mb-3">
@@ -301,7 +308,7 @@
                                                 <div class="input-group input-group-sm">
                                                     {{-- Input Jam: Bendahara mengisi ini --}}
                                                     <input type="number" class="form-control" id="input-jam-lembur"
-                                                        name="jam_lembur" min="0" step="0.5" value="0">
+                                                        name="jam_lembur" min="0" step="0.5" value="0" oninput="calculateLive()">
                                                     <span class="input-group-text">Jam</span>
                                                 </div>
                                                 <small class="text-muted" style="font-size: 10px;">Tarif: Rp <span
@@ -356,7 +363,7 @@
                                                 <div class="input-group input-group-sm">
                                                     <span class="input-group-text">Rp</span>
                                                     <input type="number" class="form-control" id="input-potongan-lain"
-                                                        value="0" min="0">
+                                                        value="0" min="0" oninput="calculateLive()">
                                                 </div>
                                             </div>
                                             <div class="col-6">
@@ -437,14 +444,15 @@
             }
 
             // ================== 1. LOGIKA LIVE CALCULATION (NEW FEATURE) ==================
-            function calculateLive() {
+            window.calculateLive = function() {
                 // --- A. Hitung Lembur ---
                 const jamLembur = parseFloat(document.getElementById('input-jam-lembur').value) || 0;
                 const tarifLembur = parseFloat(document.getElementById('hidden-tarif-lembur').value) || 0;
 
                 // Total Lembur = Jam * Tarif
                 const totalLembur = Math.round(jamLembur * tarifLembur);
-                document.getElementById('input-lembur-nominal').value = totalLembur; // Value int untuk DB
+                const inputLemburNominal = document.getElementById('input-lembur-nominal');
+                if(inputLemburNominal) inputLemburNominal.value = totalLembur;
 
                 // --- B. Hitung Potongan ---
                 // 1. Potongan Absen (Fix dari Data Absensi)
@@ -453,22 +461,44 @@
 
                 const potonganAbsen = Math.round(jumlahAlpha * tarifPotongan);
                 // Tampilkan format rupiah di field info (readonly)
-                document.getElementById('info-potongan-absen').value = formatRupiahNoSymbol(potonganAbsen);
+                const infoPotonganAbsen = document.getElementById('info-potongan-absen');
+                if(infoPotonganAbsen) infoPotonganAbsen.value = formatRupiahNoSymbol(potonganAbsen);
 
                 // 2. Potongan Lain (Manual Input)
                 const potonganLain = parseFloat(document.getElementById('input-potongan-lain').value) || 0;
 
                 // 3. Total Potongan = Absen + Lainnya
                 const totalPotongan = potonganAbsen + potonganLain;
-                document.getElementById('input-total-potongan').value = totalPotongan; // Value int untuk DB
-            }
+                const inputTotalPotongan = document.getElementById('input-total-potongan');
+                if(inputTotalPotongan) inputTotalPotongan.value = totalPotongan;
 
-            // Pasang Event Listener untuk kalkulasi otomatis saat user mengetik
+                // --- C. Hitung Tunjangan Kehadiran (New!) ---
+                const selectTunjangan = document.getElementById('tunjangan_kehadiran_id_modal');
+                const totalHadirBersih = parseFloat(document.getElementById('hidden-total-kehadiran-bersih').value) || 0;
+                
+                if (selectTunjangan && selectTunjangan.selectedIndex >= 0) {
+                    const selectedOption = selectTunjangan.options[selectTunjangan.selectedIndex];
+                    const tarifPerHari = parseFloat(selectedOption.getAttribute('data-nominal')) || 0;
+                    
+                    const totalTunjanganHadir = Math.round(totalHadirBersih * tarifPerHari);
+                    
+                    // Update UI
+                    const displayTotalHadir = document.getElementById('display-total-tunj-kehadiran');
+                    if(displayTotalHadir) displayTotalHadir.textContent = formatRupiah(totalTunjanganHadir);
+                    
+                    // Update Info Hari
+                    const infoTotalHadir = document.getElementById('info-total-hadir');
+                    if(infoTotalHadir) infoTotalHadir.textContent = totalHadirBersih;
+                }
+            };
+            
+            // ... (Event Listeners tetap sama) ...
+            // Pasang Event Listener untuk kalkulasi otomatis saat user mengetik (Backup listener)
             const inputJamLembur = document.getElementById('input-jam-lembur');
             const inputPotonganLain = document.getElementById('input-potongan-lain');
 
-            if (inputJamLembur) inputJamLembur.addEventListener('input', calculateLive);
-            if (inputPotonganLain) inputPotonganLain.addEventListener('input', calculateLive);
+            if (inputJamLembur) inputJamLembur.addEventListener('input', window.calculateLive);
+            if (inputPotonganLain) inputPotonganLain.addEventListener('input', window.calculateLive);
 
 
             // ================== 2. POPULATE MODAL EDIT ==================
@@ -523,6 +553,11 @@
 
                 // Set Jumlah Alpha (Readonly)
                 document.getElementById('info-jumlah-alpha').value = pendukung.jumlah_alpha;
+                
+                // Set Total Kehadiran Bersih (Untuk Kalkulasi Tunjangan Kehadiran)
+                // Kita ambil dari data.total_kehadiran yang sudah dihitung di Controller (Hari Kerja - Absen/Izin)
+                const totalHadir = data.total_kehadiran || 0; 
+                document.getElementById('hidden-total-kehadiran-bersih').value = totalHadir;
 
                 // E. LOGIKA REVERSE ENGINEER (Mengisi Input dari Data DB yang sudah ada)
 

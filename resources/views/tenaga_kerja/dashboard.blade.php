@@ -102,16 +102,16 @@
 
     {{-- 1. Modal Absensi (Statis) --}}
     @include('tenaga_kerja.modals.absensi', [
-        'isSesiDibuka' => $isSesiDibuka,
-        'sudahAbsen' => $sudahAbsen,
-        'pesanSesi' => $pesanSesi,
+        'isSesiDibuka' => $isSesiDibuka ?? false,
+        'sudahAbsen' => $sudahAbsen ?? false,
+        'pesanSesi' => $pesanSesi ?? null,
     ])
 
     {{-- 2. Modal Simulasi Gaji (Form) --}}
     <div class="modal fade" id="simulasiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                @include('tenaga_kerja.modals.simulasi', ['gajiTerakhir' => $gajiTerakhir])
+                @include('tenaga_kerja.modals.simulasi', ['gajiTerakhir' => $gajiTerakhir ?? null])
             </div>
         </div>
     </div>
@@ -133,7 +133,9 @@
     <div class="modal fade" id="slipGajiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                @include('tenaga_kerja.modals.slip_gaji', ['availableMonths' => $slipTersedia])
+                @include('tenaga_kerja.modals.slip_gaji', [
+                    'availableMonths' => $slipTersedia ?? collect(),
+                ])
             </div>
         </div>
     </div>
@@ -142,11 +144,12 @@
     <div class="modal fade" id="hasilSimulasiModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
             <div class="modal-content" id="hasilSimulasiModalContent">
-                {{-- Dibiarkan kosong --}}
+                {{-- Dibiarkan kosong, akan diisi oleh AJAX --}}
             </div>
         </div>
     </div>
 
+    {{-- 6. Modal Data Saya --}}
     <div class="modal fade" id="dataSayaModal" tabindex="-1" aria-labelledby="dataSayaModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
@@ -258,9 +261,8 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // ... (Kode JavaScript Anda yang sudah ada untuk simulasi, laporan gaji, dll.) ...
 
-            // [PERBAIKAN] Logika auto-submit form tahun
+            // 1. Logika auto-submit form tahun laporan
             const tahunSelect = document.getElementById('laporan-tahun-select');
             if (tahunSelect) {
                 tahunSelect.addEventListener('change', function() {
@@ -268,93 +270,50 @@
                 });
             }
 
-            // [PERBAIKAN] Logika untuk menampilkan modal LAPORAN GAJI
+            // 2. Logika untuk otomatis menampilkan modal LAPORAN GAJI (jika ada param 'tahun')
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('tahun')) {
                 const laporanModalEl = document.getElementById('laporanGajiModal');
                 if (laporanModalEl) {
-                    new bootstrap.Modal(laporanModalEl).show();
+                    const laporanModal = bootstrap.Modal.getOrCreateInstance(laporanModalEl);
+                    laporanModal.show();
                 }
             }
 
-            // [PERBAIKAN BARU: AJAX UNTUK SIMULASI GAJI]
+            // 3. Logika AJAX SIMULASI GAJI (DINONAKTIFKAN AGAR REDIRECT KE HALAMAN BARU)
+            /*
             const formSimulasi = document.getElementById('form-simulasi');
             if (formSimulasi) {
                 formSimulasi.addEventListener('submit', function(e) {
-                    e.preventDefault();
-
-                    const formData = new FormData(this);
-                    const actionUrl = this.getAttribute('action');
-                    const submitButton = this.querySelector('button[type="submit"]');
-                    const originalButtonText = submitButton.innerHTML;
-
-                    submitButton.disabled = true;
-                    submitButton.innerHTML =
-                        '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menghitung...';
-
-                    const simulasiModalEl = document.getElementById('simulasiModal');
-                    const simulasiModal = bootstrap.Modal.getInstance(simulasiModalEl);
-                    const hasilModalEl = document.getElementById('hasilSimulasiModal');
-                    const hasilModal = bootstrap.Modal.getOrCreateInstance(hasilModalEl);
-                    const hasilModalContent = document.getElementById('hasilSimulasiModalContent');
-
-                    fetch(actionUrl, {
-                            method: 'POST',
-                            body: formData,
-                            headers: {
-                                'X-CSRF-TOKEN': formData.get('_token'),
-                                'Accept': 'text/html',
-                                'X-Requested-With': 'XMLHttpRequest'
-                            }
-                        })
-                        .then(response => {
-                            if (response.status === 422) {
-                                alert('Input tidak valid. Periksa kembali data Anda.');
-                                return response.json().then(err => {
-                                    throw err;
-                                });
-                            }
-                            if (!response.ok) {
-                                alert('Terjadi kesalahan. Silakan coba lagi.');
-                                throw new Error('Network response was not ok');
-                            }
-                            return response.text();
-                        })
-                        .then(html => {
-                            hasilModalContent.innerHTML = html;
-                            simulasiModal.hide();
-                            hasilModal.show();
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                        })
-                        .finally(() => {
-                            submitButton.disabled = false;
-                            submitButton.innerHTML = originalButtonText;
-                        });
+                   // Dinonaktifkan agar form melakukan POST standar ke halaman hasil
                 });
             }
+            */
 
-            // Menangani tombol "Hitung Ulang" dari modal hasil
+            // 4. Menangani tombol "Hitung Ulang" dari modal hasil
             const hasilModalEl = document.getElementById('hasilSimulasiModal');
             if (hasilModalEl) {
                 hasilModalEl.addEventListener('click', function(e) {
-                    if (e.target && e.target.matches('[data-bs-target="#simulasiModal"]')) {
-                        const hasilModal = bootstrap.Modal.getInstance(hasilModalEl);
+                    // Delegasi event untuk tombol yang mungkin dirender via AJAX
+                    if (e.target && e.target.closest('[data-bs-target="#simulasiModal"]')) {
+                        const hasilModal = bootstrap.Modal.getOrCreateInstance(hasilModalEl);
                         const simulasiModalEl = document.getElementById('simulasiModal');
                         const simulasiModal = bootstrap.Modal.getOrCreateInstance(simulasiModalEl);
+
                         hasilModal.hide();
                         simulasiModal.show();
                     }
                 });
             }
 
-            // --- AWAL TAMBAHAN: Otomatis Buka Modal 'Data Saya' Jika Ada Error Validasi ---
+            // 5. Otomatis Buka Modal 'Data Saya' Jika Ada Error Validasi (Laravel Validation)
             @if ($errors->has('telepon') || $errors->has('alamat') || $errors->has('jumlah_anak') || $errors->has('foto'))
-                const dataSayaModal = new bootstrap.Modal(document.getElementById('dataSayaModal'));
-                dataSayaModal.show();
+                const dataSayaModalEl = document.getElementById('dataSayaModal');
+                if (dataSayaModalEl) {
+                    const dataSayaModal = bootstrap.Modal.getOrCreateInstance(dataSayaModalEl);
+                    dataSayaModal.show();
+                }
             @endif
-            // --- AKHIR TAMBAHAN ---
         });
     </script>
 @endpush

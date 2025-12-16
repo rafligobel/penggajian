@@ -273,15 +273,22 @@ class TenagaKerjaController extends Controller
         $data['gaji_pokok'] = $gajiTerakhir->gaji_pokok ?? $karyawan->gaji_pokok_default ?? 0;
         $data['tunj_jabatan'] = $karyawan->jabatan->tunj_jabatan ?? 0;
         $hasil = $this->salaryService->calculateSimulasi($karyawan, $data);
-        return view('tenaga_kerja.modals.hasil', compact('hasil'));
+        return view('simulasi.hasil', compact('hasil'));
     }
 
     // [PERBAIKAN UTAMA: KEAMANAN DAN KONSISTENSI DATA]
     public function prosesAbsensi(Request $request)
     {
         $validated = $request->validate([
-            'latitude' => 'required|numeric',  // Hapus 'between' sementara jika ragu
+            'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
+        ]);
+
+        Log::info('Proses Absensi Request Masuk:', [
+            'user_id' => Auth::id(),
+            'lat' => $request->latitude,
+            'lon' => $request->longitude,
+            'time' => now()->toDateTimeString()
         ]);
 
         $userLat = (float) $request->latitude;
@@ -309,52 +316,60 @@ class TenagaKerjaController extends Controller
         }
 
         // [PERBAIKAN 2] Gunakan Transaction & Locking untuk mencegah Race Condition
-        return DB::transaction(function () use ($request, $userLat, $userLon, $distance) {
-            $karyawan = Auth::user()->karyawan;
-            $todayDate = now()->toDateString();
+        try {
+            return DB::transaction(function () use ($request, $userLat, $userLon, $distance) {
+                $karyawan = Auth::user()->karyawan;
+                $todayDate = now()->toDateString();
 
-            // Cek Sesi (Menggunakan Service yang sudah dioptimasi)
-            $statusInfo = $this->absensiService->getSessionStatus(now());
+                // Cek Sesi (Menggunakan Service yang sudah dioptimasi)
+                $statusInfo = $this->absensiService->getSessionStatus(now());
 
-            if (!$statusInfo['is_active']) {
-                return response()->json(['status' => 'error', 'message' => 'Sesi absensi belum dibuka.'], 403);
-            }
+                if (!$statusInfo['is_active']) {
+                    return response()->json(['status' => 'error', 'message' => 'Sesi absensi belum dibuka.'], 403);
+                }
 
-            // Validasi Jam (Double Check)
-            $now = now();
-            $start = Carbon::parse($statusInfo['waktu_mulai']);
-            $end = Carbon::parse($statusInfo['waktu_selesai']);
-            if (!$now->between($start, $end)) {
-                return response()->json(['status' => 'error', 'message' => 'Diluar jam absensi.'], 403);
-            }
+                // Validasi Jam (Double Check)
+                $now = now();
+                $start = Carbon::parse($statusInfo['waktu_mulai']);
+                $end = Carbon::parse($statusInfo['waktu_selesai']);
+                if (!$now->between($start, $end)) {
+                    return response()->json(['status' => 'error', 'message' => 'Diluar jam absensi.'], 403);
+                }
 
-            // [CRITICAL] Lock baris untuk mencegah double submit dalam milidetik yang sama
-            $sudahAbsen = Absensi::where('karyawan_id', $karyawan->id)
-                ->where('tanggal', $todayDate)
-                ->lockForUpdate() // KUNCI DATA
-                ->exists();
+                // [CRITICAL] Lock baris untuk mencegah double submit dalam milidetik yang sama
+                $sudahAbsen = Absensi::where('karyawan_id', $karyawan->id)
+                    ->where('tanggal', $todayDate)
+                    ->lockForUpdate() // KUNCI DATA
+                    ->exists();
 
-            if ($sudahAbsen) {
-                return response()->json(['status' => 'error', 'message' => 'Anda sudah absen hari ini.'], 409);
-            }
+                if ($sudahAbsen) {
+                    return response()->json(['status' => 'error', 'message' => 'Anda sudah absen hari ini.'], 409);
+                }
 
-            if (empty($statusInfo['sesi_id'])) {
-                return response()->json(['status' => 'error', 'message' => 'Sesi tidak valid.'], 500);
-            }
+                if (empty($statusInfo['sesi_id'])) {
+                    return response()->json(['status' => 'error', 'message' => 'Sesi tidak valid.'], 500);
+                }
 
-            Absensi::create([
-                'sesi_absensi_id' => $statusInfo['sesi_id'],
-                'karyawan_id' => $karyawan->id,
-                'tanggal' => $todayDate,
-                'jam' => now()->toTimeString(),
-                'koordinat' => $userLat . ',' . $userLon,
-                'jarak' => round($distance)
-            ]);
+                Absensi::create([
+                    'sesi_absensi_id' => $statusInfo['sesi_id'],
+                    'karyawan_id' => $karyawan->id,
+                    'tanggal' => $todayDate,
+                    'jam' => now()->toTimeString(),
+                    'koordinat' => $userLat . ',' . $userLon,
+                    'jarak' => round($distance)
+                ]);
 
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Absensi berhasil! Jarak: ' . round($distance) . 'm.'
+                ]);
+            });
+        } catch (\Throwable $e) {
+            Log::error('Gagal Proses Absensi: ' . $e->getMessage());
             return response()->json([
-                'status' => 'success',
-                'message' => 'Absensi berhasil! Jarak: ' . round($distance) . 'm.'
-            ]);
-        });
+                'status' => 'error', // Pesan ini akan ditangkap oleh modal
+                'message' => 'Gagal menyimpan absensi: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

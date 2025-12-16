@@ -235,19 +235,26 @@
                             }
                         })
                         .then(response => {
-                            // Cek jika response bukan JSON (misal error 500)
-                            if (!response.ok) {
-                                // Coba parse error JSON jika ada, jika tidak, lempar error HTTP
-                                return response.json().then(errData => {
-                                    throw {
-                                        responseData: errData,
-                                        status: response.status
+                            // Cek header content-type
+                            const contentType = response.headers.get("content-type");
+                            if (contentType && contentType.indexOf("application/json") !== -1) {
+                                return response.json().then(data => {
+                                    if (!response.ok) {
+                                        throw { responseData: data, status: response.status };
+                                    }
+                                    return data;
+                                });
+                            } else {
+                                // Jika bukan JSON (misal HTML error dari server)
+                                return response.text().then(text => {
+                                    console.error("Non-JSON Response:", text);
+                                    throw { 
+                                        status: response.status, 
+                                        message: "Respon server tidak valid (bukan JSON). Cek Console untuk detail.",
+                                        rawResponse: text // Simpan untuk debug
                                     };
-                                }).catch(() => {
-                                    throw new Error(`HTTP error! status: ${response.status}`);
                                 });
                             }
-                            return response.json(); // Parse JSON jika response OK
                         })
                         .then(data => {
                             // Handle response sukses dari server

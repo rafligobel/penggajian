@@ -1,7 +1,7 @@
-@extends('layouts.app')
+@extends('layouts.tenaga_kerja_layout')
 
 @section('content')
-    <div class="container d-flex justify-content-center">
+    <div class="container d-flex justify-content-center py-5">
         <div class="col-md-8">
             <div class="card shadow-lg">
                 <div class="card-header bg-success text-white">
@@ -97,8 +97,8 @@
                     </div>
 
                     <div class="text-center mt-4">
-                        <a href="{{ route('simulasi.index') }}" class="btn btn-secondary">
-                            <i class="fas fa-calculator me-1"></i> Hitung Ulang Simulasi
+                        <a href="{{ route('tenaga_kerja.dashboard') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i> Kembali ke Dashboard
                         </a>
                     </div>
                 </div>

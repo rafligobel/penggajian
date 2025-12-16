@@ -221,23 +221,10 @@
                     <td class="text-right">{{ $data['lembur_string'] }}</td>
                 </tr>
 
-                @php
-                    // PERBAIKAN KRITIS: MENGHITUNG GROSS SALARY DARI KOMPONEN NUMERIK
-                    // TOTAL PENDAPATAN (Gaji Kotor) = Semua Komponen Positif
-                    $totalPendapatan =
-                        (float) $data['gaji_pokok'] +
-                        (float) $data['tunj_jabatan'] +
-                        (float) $data['tunj_kehadiran'] +
-                        (float) $data['tunj_anak'] +
-                        (float) $data['tunj_komunikasi'] +
-                        (float) $data['tunj_pengabdian'] +
-                        (float) $data['tunj_kinerja'] +
-                        (float) $data['lembur'];
-                @endphp
                 <tr class="total-row">
                     <td class="text-right">TOTAL PENDAPATAN</td>
-                    {{-- Tampilkan hasil perhitungan, lalu format --}}
-                    <td class="text-right">Rp {{ number_format($totalPendapatan, 0, ',', '.') }}</td>
+                    {{-- Gunakan data matang dari Controller (DIJAMIN AKURAT) --}}
+                    <td class="text-right">{{ $data['total_pendapatan_string'] ?? 'Rp 0' }}</td>
                 </tr>
 
                 <tr class="section-header">

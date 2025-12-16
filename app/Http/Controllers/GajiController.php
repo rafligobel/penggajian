@@ -109,17 +109,14 @@ class GajiController extends Controller
             ->groupBy('karyawan_id')
             ->pluck('total', 'karyawan_id'); // Hasil: [id_karyawan => jumlah_hadir, ...]
 
-        // Data Pendukung (Cache untuk performa)
-        $tunjanganKehadirans = Cache::remember('tunjangan_kehadiran_all', 3600, fn() => TunjanganKehadiran::all());
-        $tunjanganKomunikasis = Cache::remember('tunjangan_komunikasi_all', 3600, fn() => TunjanganKomunikasi::all());
-        $indikatorKinerjas = Cache::remember('indikator_kinerja_all', 3600, fn() => IndikatorKinerja::all());
-        $aturanKinerja = Cache::remember('aturan_kinerja_single', 3600, fn() => AturanKinerja::first());
+        // Data Pendukung (Direct DB Query agar Data Selalu Real-time & Mencegah Error Foreign Key)
+        $tunjanganKehadirans = TunjanganKehadiran::all();
+        $tunjanganKomunikasis = TunjanganKomunikasi::all();
+        $indikatorKinerjas = IndikatorKinerja::all();
+        $aturanKinerja = AturanKinerja::first();
 
         // Ambil data potongan global
         $potongan = potongan::first() ?? new potongan(['tarif_lembur_per_jam' => 0, 'tarif_potongan_absen' => 0]);
-
-        // Kita tidak butuh rekap detail absensi di sini (berat), cukup total hadir dari query optimasi di atas
-        // $rekapAbsensiRaw = $this->absensiService->getAttendanceRecap($bulanCarbon); <-- DIHAPUS (Terlalu Berat)
 
         $dataGaji = [];
         foreach ($karyawans as $karyawan) {
@@ -132,14 +129,9 @@ class GajiController extends Controller
             // Panggil service dengan data yang sudah disiapkan (Cepat!)
             $detailGaji = $this->salaryService->calculateDetailsForForm($karyawan, $selectedMonth, $preloadedData);
 
-            // Hitung Alpha (Hari kerja sebulan - Hadir)
-            // Catatan: Untuk akurasi sempurna hari kerja, sebaiknya gunakan AbsensiService::getWorkingDaysCount
-            // Tapi demi performa halaman index, kita bisa hitung manual atau estimasi jika perlu.
-            // Untuk sekarang, kita gunakan logika sederhana atau ambil dari $detailGaji jika sudah ada logika di sana.
-
             // Hitung manual alpha untuk tampilan cepat (tanpa load service berat)
             // Jika ingin akurat 100% dengan kalender libur, gunakan AJAX nanti.
-            $jumlahAlpha = 0; // Placeholder, biar UI tidak error. Logika alpha sebaiknya di handle terpisah/AJAX.
+            $jumlahAlpha = 0; // Placeholder
 
             $detailGaji['data_pendukung'] = [
                 'jumlah_alpha' => $jumlahAlpha,
@@ -193,13 +185,15 @@ class GajiController extends Controller
         ]);
 
         return DB::transaction(function () use ($request, $validated) {
+            // [FIX] Reload karyawan untuk memastikan data jumlah_anak terbaru diambil
             $karyawan = Karyawan::with('jabatan')->find($validated['karyawan_id']);
 
-            // 1. Hitung Tunjangan Statis
+            // 1. Hitung Tunjangan Statis (Anak & Pengabdian)
+            // Ini akan menghitung ulang berdasarkan data 'jumlah_anak' & 'tanggal_masuk' saat ini
             $tunjanganDinamis = $this->hitungTunjanganDinamis($karyawan, $validated['gaji_pokok']);
 
             // 2. Hitung Tukin
-            $aturanKinerja = Cache::remember('aturan_kinerja_single', 3600, fn() => AturanKinerja::first());
+            $aturanKinerja = AturanKinerja::first(); // No Cache
             $maxTukin = $aturanKinerja ? $aturanKinerja->maksimal_tunjangan : 0;
 
             $scores = $request->input('scores', []);
@@ -238,20 +232,29 @@ class GajiController extends Controller
             // 5. Simpan Gaji
             $gaji = $this->salaryService->saveGaji($dataSave);
 
-            // 6. Simpan Skor
+            // 6. Simpan Skor (Dengan Validasi ID Indikator)
             $gaji->penilaianKinerjas()->delete();
             if (!empty($scores)) {
                 $batchSkor = [];
+                // Ambil semua ID indikator yang valid dari DB untuk validasi
+                $validIndicatorIds = IndikatorKinerja::pluck('id')->toArray();
+                
                 foreach ($scores as $id_indikator => $skor) {
-                    $batchSkor[] = [
-                        'gaji_id' => $gaji->id,
-                        'indikator_kinerja_id' => $id_indikator,
-                        'skor' => $skor,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
+                    // Hanya simpan jika ID Indikator benar-benar ada di DB
+                    if (in_array($id_indikator, $validIndicatorIds)) {
+                        $batchSkor[] = [
+                            'gaji_id' => $gaji->id,
+                            'indikator_kinerja_id' => $id_indikator,
+                            'skor' => $skor,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
+                    }
                 }
-                PenilaianKinerja::insert($batchSkor);
+                
+                if (!empty($batchSkor)) {
+                    PenilaianKinerja::insert($batchSkor);
+                }
             }
 
             // Return data baru untuk update UI

@@ -1,9 +1,18 @@
 <?php
 
 return [
-    // Kita 'paksa' pakai koordinat Gorontalo Anda di sini sebagai default
-    'office_latitude' => env('OFFICE_LATITUDE', 0.5415906765443423),
-    'office_longitude' => env('OFFICE_LONGITUDE', 123.06148525786709),
+    /*
+    |--------------------------------------------------------------------------
+    | Konfigurasi Absensi
+    |--------------------------------------------------------------------------
+    |
+    | Mengatur titik koordinat kantor pusat dan radius maksimum absensi.
+    |
+    */
 
-    'max_radius' => env('MAX_ATTENDANCE_RADIUS', 50),
+    'office_latitude' => env('OFFICE_LATITUDE', 0.5470607464766618),
+    'office_longitude' => env('OFFICE_LONGITUDE', 123.060781772253),
+    
+    // [DIKEMBALIKAN] Radius dikembalikan ke 50 meter sesuai aturan kantor
+    'max_radius' => env('MAX_ATTENDANCE_RADIUS', 50), 
 ];

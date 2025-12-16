@@ -72,18 +72,38 @@ class SalaryService
         $penilaianKinerja = [];
         $gajiId = null;
 
-        // Ambil aturan default Tunjangan Kehadiran (Cache 1 jam untuk performa)
-        $aturanDefaultKehadiran = Cache::remember('tunjangan_kehadiran_default', 3600, function () {
-            return TunjanganKehadiran::orderBy('id', 'asc')->first();
-        });
+        // Ambil aturan default Tunjangan Kehadiran (Direct DB Query)
+        $aturanDefaultKehadiran = TunjanganKehadiran::orderBy('id', 'asc')->first();
 
         if ($gajiTersimpan) {
             // --- KASUS 1: Gaji Bulan Ini SUDAH ADA ---
             $gajiId = $gajiTersimpan->id;
-            $gajiPokok = $gajiTersimpan->gaji_pokok;
-            $tunjAnak = $gajiTersimpan->tunj_anak;
+
+            // [LOGIKA PENGAMAN SEJARAH]
+            // Cek apakah periode gaji ini adalah "Masa Lalu" (sebelum bulan ini).
+            // Jika YA (History) -> Gunakan SNAPSHOT (Jangan ubah data lama).
+            // Jika TIDAK (Current) -> Gunakan MASTER (Auto-update agar praktis).
+            $isHistory = $tanggal->lt(Carbon::now()->startOfMonth());
+
+            if ($isHistory) {
+                // --- MODE HISTORY: Hormati Data Lama ---
+                $gajiPokok = $gajiTersimpan->gaji_pokok;
+                $tunjJabatan = $gajiTersimpan->tunj_jabatan;
+                $tunjAnak = $gajiTersimpan->tunj_anak;
+                $tunjPengabdian = $gajiTersimpan->tunj_pengabdian;
+            } else {
+                // --- MODE CURRENT: Auto-Update dari Master ---
+                $gajiPokok = $karyawan->gaji_pokok ?? ($karyawan->gaji_pokok_default ?? 0);
+                $tunjJabatan = $karyawan->jabatan->tunj_jabatan ?? 0;
+                
+                // Hitung ulang dinamis berdasarkan data master saat ini
+                $tunjanganDinamis = $this->hitungTunjanganDinamisDefault($karyawan, $gajiPokok);
+                $tunjAnak = $tunjanganDinamis['tunj_anak'];
+                $tunjPengabdian = $tunjanganDinamis['tunj_pengabdian'];
+            }
+            
+            // Komponen ini ambil dari snapshot (karena inputan manual/variabel)
             $tunjKomunikasi = $gajiTersimpan->tunj_komunikasi;
-            $tunjPengabdian = $gajiTersimpan->tunj_pengabdian;
             $tunjKinerja = $gajiTersimpan->tunj_kinerja;
             $lembur = $gajiTersimpan->lembur;
             $potongan = $gajiTersimpan->potongan;
@@ -101,14 +121,9 @@ class SalaryService
                 $tunjanganPerKehadiran = $aturanDefaultKehadiran->jumlah_tunjangan;
             }
 
-            // Logika tunjangan komunikasi ID
-            if ($gajiTersimpan->tunj_komunikasi > 0) {
-                // Optimasi: Sebaiknya ini juga dicache atau diload via relasi, tapi untuk sekarang query ringan tidak masalah
-                $aturanKomunikasi = TunjanganKomunikasi::where('besaran', $gajiTersimpan->tunj_komunikasi)->first();
-                if ($aturanKomunikasi) {
-                    $tunjanganKomunikasiId = $aturanKomunikasi->id;
-                }
-            }
+            // [FIX] Gunakan ID yang tersimpan langsung
+            $tunjanganKomunikasiId = $gajiTersimpan->tunjangan_komunikasi_id;
+            
         } else {
             // --- KASUS 2: Gaji Bulan Ini BELUM ADA ---
 
@@ -119,11 +134,18 @@ class SalaryService
                 ->first();
 
             if ($gajiTerakhir) {
-                // COPY dari riwayat sebelumnya
-                $gajiPokok = $gajiTerakhir->gaji_pokok;
+                // COPY dari riwayat sebelumnya untuk komponen variabel
+                // TAPI untuk komponen tetap (Gaji Pokok & Jabatan), SELALU ambil dari Master Data
+                // agar kenaikan gaji di master data langsung ngefek ke bulan baru.
+                $gajiPokok = $karyawan->gaji_pokok ?? ($karyawan->gaji_pokok_default ?? 0);
+                
+                // Jika ingin copy yang lain:
                 $tunjAnak = $gajiTerakhir->tunj_anak;
                 $tunjPengabdian = $gajiTerakhir->tunj_pengabdian;
                 $tunjanganKehadiranId = $gajiTerakhir->tunjangan_kehadiran_id;
+                
+                // Copy Tunjangan Komunikasi ID
+                $tunjanganKomunikasiId = $gajiTerakhir->tunjangan_komunikasi_id;
 
                 if ($gajiTerakhir->tunjanganKehadiran) {
                     $tunjanganPerKehadiran = $gajiTerakhir->tunjanganKehadiran->jumlah_tunjangan;
@@ -150,7 +172,10 @@ class SalaryService
         // 3. Kalkulasi Total
         $tunjKehadiran = $jumlahKehadiran * $tunjanganPerKehadiran;
 
-        $gajiBersihNumeric = ($gajiPokok + $tunjJabatan + $tunjKehadiran + $tunjAnak + $tunjKomunikasi + $tunjPengabdian + $tunjKinerja + $lembur) - $potongan;
+        // Hitung Total Pendapatan Kotor (Gross) agar konsisten di PDF/View
+        $totalPendapatan = $gajiPokok + $tunjJabatan + $tunjKehadiran + $tunjAnak + $tunjKomunikasi + $tunjPengabdian + $tunjKinerja + $lembur;
+
+        $gajiBersihNumeric = $totalPendapatan - $potongan;
         $gajiBersihString = 'Rp ' . number_format($gajiBersihNumeric, 0, ',', '.');
 
         return [
@@ -199,6 +224,10 @@ class SalaryService
                 'total' => $tunjKehadiran,
                 'total_string' => 'Rp ' . number_format($tunjKehadiran, 0, ',', '.'),
             ],
+            
+            // Total Pendapatan Kotor (Pre-calculated)
+            'total_pendapatan' => $totalPendapatan,
+            'total_pendapatan_string' => 'Rp ' . number_format($totalPendapatan, 0, ',', '.'),
         ];
     }
 
