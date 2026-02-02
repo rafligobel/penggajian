@@ -1,61 +1,122 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sistem Informasi Penggajian & Kepegawaian (Payroll System)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+![Laravel](https://img.shields.io/badge/Laravel-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-005C84?style=for-the-badge&logo=mysql&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-777BB4?style=for-the-badge&logo=php&logoColor=white)
 
-## About Laravel
+## 📖 Deskripsi Proyek
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Aplikasi ini adalah **Sistem Informasi Penggajian dan Kepegawaian Berbasis Web** yang dirancang untuk mengotomatisasi proses manajemen sumber daya manusia, pencatatan kehadiran (absensi), serta perhitungan gaji karyawan secara akurat dan transparan.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Sistem ini dikembangkan secara spesifik untuk menangani kompleksitas tunjangan, potongan, dan pelaporan keuangan di lingkungan yayasan pendidikan (Studi kasus: Yayasan Al-Azhar), namun dapat diadaptasi untuk instansi lainnya. Aplikasi mendukung manajemen multi-role mulai dari Super Admin hingga Tenaga Kerja.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 🚀 Fitur Utama
 
-## Learning Laravel
+Sistem ini memiliki fitur lengkap yang mencakup seluruh siklus penggajian dan kepegawaian:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 1. Manajemen Kepegawaian (HR)
+* **Database Karyawan:** Pengelolaan data lengkap karyawan termasuk biodata, jabatan, dan foto profil.
+* **Manajemen Jabatan:** Pengaturan hierarki dan struktur jabatan dalam organisasi.
+* **Riwayat Kinerja:** Penilaian kinerja berbasis indikator yang dapat disesuaikan.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### 2. Sistem Absensi Cerdas
+* **Geolocation Check:** Validasi lokasi absensi berdasarkan radius (Latitude/Longitude) kantor/sekolah untuk memastikan kehadiran fisik.
+* **Sesi Absensi:** Pengaturan jam masuk dan pulang yang fleksibel.
+* **Rekapitulasi Otomatis:** Perhitungan otomatis jumlah kehadiran, izin, sakit, dan alpa.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 3. Manajemen Penggajian (Payroll)
+* **Kalkulasi Gaji Otomatis:** Menghitung gaji pokok berdasarkan jabatan dan kehadiran.
+* **Manajemen Tunjangan Kompleks:**
+    * Tunjangan Kehadiran
+    * Tunjangan Anak
+    * Tunjangan Pengabdian (Masa Kerja)
+    * Tunjangan Komunikasi
+* **Manajemen Potongan:** Pengaturan potongan gaji (koperasi, kasbon, dll).
+* **Slip Gaji Digital:** Pembuatan slip gaji otomatis dalam format PDF.
 
-## Laravel Sponsors
+### 4. Laporan & Distribusi
+* **Export Laporan:** Laporan gaji bulanan, rekap absensi, dan laporan per karyawan (Mendukung PDF & Excel).
+* **Email Notification:** Fitur kirim slip gaji dan laporan langsung ke email karyawan terkait.
+* **Tanda Tangan Digital:** Pengaturan tanda tangan digital untuk validasi dokumen laporan.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 5. Portal Tenaga Kerja (Employee Self-Service)
+* **Dashboard Personal:** Statistik kehadiran dan ringkasan pendapatan.
+* **Simulasi Gaji:** Fitur bagi karyawan untuk melakukan estimasi penerimaan gaji.
+* **Unduh Slip Gaji:** Akses mandiri untuk mengunduh riwayat slip gaji.
 
-### Premium Partners
+## 🛠️ Teknologi yang Digunakan
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development/)**
-- **[Active Logic](https://activelogic.com)**
+* **Framework:** Laravel 12 (PHP ^8.2)
+* **Database:** MySQL
+* **Frontend:** Blade Templating, Tailwind CSS
+* **Authentication:** Laravel Breeze / Sanctum
+* **Libraries:**
+    * `barryvdh/laravel-dompdf`: Generasi laporan PDF (Slip Gaji/Laporan).
+    * `maatwebsite/excel`: Export data ke Excel.
+    * `guzzlehttp/guzzle`: HTTP Client.
 
-## Contributing
+## 🔐 Hak Akses (Role & Permissions)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Sistem menggunakan *Role-based Access Control* (RBAC) dengan tingkatan sebagai berikut:
 
-## Code of Conduct
+1.  **Superadmin / Admin:** Mengelola data master (User, Jabatan, Potongan, Indikator Kinerja).
+2.  **Bendahara:** Fokus pada operasional penggajian, validasi absensi, cetak laporan, dan pengiriman email slip gaji.
+3.  **Tenaga Kerja:** Akses terbatas untuk melakukan absensi, melihat riwayat gaji, dan mengedit profil pribadi.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## 💻 Instalasi & Penggunaan
 
-## Security Vulnerabilities
+Ikuti langkah-langkah berikut untuk menjalankan proyek di komputer lokal:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+1.  **Clone Repositori**
+    ```bash
+    git clone [https://github.com/username/project-penggajian.git](https://github.com/username/project-penggajian.git)
+    cd project-penggajian
+    ```
 
-## License
+2.  **Install Dependencies**
+    ```bash
+    composer install
+    npm install
+    ```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+3.  **Konfigurasi Environment**
+    Salin file `.env.example` menjadi `.env` dan sesuaikan konfigurasi database.
+    ```bash
+    cp .env.example .env
+    php artisan key:generate
+    ```
+
+4.  **Setup Database**
+    Pastikan database MySQL sudah dibuat, lalu jalankan migrasi dan seeder.
+    ```bash
+    php artisan migrate --seed
+    ```
+
+5.  **Jalankan Aplikasi**
+    ```bash
+    npm run dev
+    php artisan serve
+    ```
+
+6.  **Akses Aplikasi**
+    Buka browser dan kunjungi `http://localhost:8000`.
+
+## 📂 Struktur Folder Penting
+
+* `app/Http/Controllers`: Logika utama aplikasi (Gaji, Absensi, Laporan).
+* `app/Models`: Model Eloquent (Karyawan, Jabatan, Tunjangan).
+* `resources/views`: Tampilan antarmuka (Blade templates).
+* `routes/web.php`: Definisi rute dan grup middleware berdasarkan role.
+* `database/migrations`: Skema database.
+
+## 🤝 Kontribusi
+
+Kontribusi selalu diterima! Silakan buat *Pull Request* atau laporkan *Issue* jika menemukan bug atau memiliki saran fitur baru.
+
+## 📄 Lisensi
+
+Proyek ini dilisensikan di bawah [MIT License](https://opensource.org/licenses/MIT).
+
+---
+*Dibuat dengan ❤️ oleh [Nama Anda/Tim Pengembang]*
