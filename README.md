@@ -119,4 +119,4 @@ Kontribusi selalu diterima! Silakan buat *Pull Request* atau laporkan *Issue* ji
 Proyek ini dilisensikan di bawah [MIT License](https://opensource.org/licenses/MIT).
 
 ---
-*Dibuat dengan ❤️ oleh [Nama Anda/Tim Pengembang]*
+*Dibuat dengan ❤️ oleh Rafli Ananda Rizkillah Gobel*
